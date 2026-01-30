@@ -1,0 +1,7 @@
+events:
+  - name: subtleAudioFeedback
+    displayName: Button Press
+    description: Triggered when the button is pressed
+  - name: sharpAudioFeedback
+    displayName: Button Press2
+    description: Triggered when the button is pressed

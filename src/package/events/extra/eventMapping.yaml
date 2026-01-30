@@ -1,0 +1,7 @@
+haptics:
+  subtleAudioFeedback:
+    DEFAULT: subtle_collision
+    MX Master 4: subtle_collision
+  sharpAudioFeedback:
+    DEFAULT: sharp_collision
+    MX Master 4: sharp_collision
