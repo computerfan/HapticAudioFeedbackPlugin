@@ -1,0 +1,71 @@
+name: Build and Package Plugin
+
+on:
+  push:
+    branches: ["main", "master"]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Install Logi Plugin Tool
+        shell: pwsh
+        run: |
+          dotnet tool install --global LogiPluginTool
+          "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+      - name: Install Logi Options+
+        shell: pwsh
+        run: |
+          $installer = "LoupedeckInstaller.exe"
+          $logPath = Join-Path $env:RUNNER_TEMP "logioptions-install.log"
+          if (Test-Path $logPath) { Remove-Item -Path $logPath -Recurse -Force }
+          Invoke-WebRequest -Uri "https://support.loupedeck.com/hubfs/Knowledge%20Base/LD%20Software%20Downloads/6.2.4/LoupedeckInstaller_6.2.4.228.exe" -OutFile $installer
+          $args = "/extract"
+          $proc = Start-Process -FilePath ".\$installer" -ArgumentList $args -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            Write-Error "installer failed with exit code $($proc.ExitCode)"
+            exit $proc.ExitCode
+          }
+          $proc = Start-Process -FilePath ".\Logi Plugin Service 6.0.0.19789\LoupedeckServiceInstaller.msi" -ArgumentList "/quiet" -Wait -PassThru
+          if ($proc.ExitCode -ne 0) {
+            Write-Error "installer failed with exit code $($proc.ExitCode)"
+            exit $proc.ExitCode
+          }
+
+      - name: Restore
+        run: dotnet restore src/HapticAudioFeedbackPlugin.csproj
+
+      - name: Build
+        run: dotnet build src/HapticAudioFeedbackPlugin.csproj --configuration Release --no-restore
+
+      - name: Pack plugin
+        shell: pwsh
+        run: logiplugintool pack ./bin/Release/ ./HapticAudioFeedbackPlugin.lplug4
+
+      - name: Verify package
+        shell: pwsh
+        run: logiplugintool verify ./HapticAudioFeedbackPlugin.lplug4
+
+      - name: Upload build output
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: bin/Release/
+
+      - name: Upload plugin package
+        uses: actions/upload-artifact@v4
+        with:
+          name: plugin-package
+          path: HapticAudioFeedbackPlugin.lplug4

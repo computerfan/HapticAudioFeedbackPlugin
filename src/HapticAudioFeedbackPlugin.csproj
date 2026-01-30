@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
-    <RootNamespace>HapticAudioFeedback</RootNamespace>
+    <RootNamespace>Loupedeck.HapticAudioFeedback</RootNamespace>
     <AssemblyName>HapticAudioFeedback</AssemblyName>
 
     <ErrorReport>prompt</ErrorReport>
@@ -24,11 +24,6 @@
 
     <PluginShortName>HapticAudioFeedback</PluginShortName>
   </PropertyGroup>
-
-  <ItemGroup>
-    <Compile Include="Actions\CounterAdjustment.cs1" />
-    <Compile Include="Actions\CounterCommand.cs1" />
-  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1">
