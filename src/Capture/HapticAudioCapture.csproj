@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+    <OutputPath>$(MSBuildThisFileDirectory)bin\$(Configuration)\</OutputPath>
+  </PropertyGroup>
+  <ItemGroup>
+    <!-- Keep the NAudio subclass outside the plugin assembly so LogiPluginTool can inspect
+         the plugin without private copies of the host's COM interop assemblies. -->
+    <Compile Include="../Helpers/ResponsiveLoopbackCapture.cs" Link="ResponsiveLoopbackCapture.cs" />
+    <PackageReference Include="NAudio.Wasapi" Version="2.2.1" ExcludeAssets="runtime" />
+  </ItemGroup>
+</Project>

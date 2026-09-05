@@ -1,7 +1,28 @@
 events:
+  - name: bassAudioFeedback
+    displayName: Bass onset
+    description: Damped feedback for a bass onset
   - name: subtleAudioFeedback
-    displayName: Button Press
-    description: Triggered when the button is pressed
+    displayName: High-band onset
+    description: Subtle feedback for a mid/high-frequency onset
   - name: sharpAudioFeedback
-    displayName: Button Press2
-    description: Triggered when the button is pressed
+    displayName: Strong bass onset
+    description: Sharp feedback for a stronger bass onset
+  - name: presetSubtleCollision
+    displayName: subtle collision
+    description: Audio haptic texture
+  - name: presetDampCollision
+    displayName: damp collision
+    description: Audio haptic texture
+  - name: presetSharpCollision
+    displayName: sharp collision
+    description: Audio haptic texture
+  - name: presetDampStateChange
+    displayName: damp state change
+    description: Audio haptic texture
+  - name: presetSharpStateChange
+    displayName: sharp state change
+    description: Audio haptic texture
+  - name: presetWave
+    displayName: wave
+    description: Audio haptic texture

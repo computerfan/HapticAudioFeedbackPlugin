@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable>
     <RootNamespace>Loupedeck.HapticAudioFeedback</RootNamespace>
-    <AssemblyName>HapticAudioFeedback</AssemblyName>
+    <AssemblyName>HapticAudioFeedbackPlugin</AssemblyName>
 
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
@@ -23,12 +23,15 @@
     <OutputPath>$(BaseOutputPath)$(Configuration)\bin\</OutputPath>
 
     <PluginShortName>HapticAudioFeedback</PluginShortName>
+    <DeployPlugin Condition="'$(DeployPlugin)' == ''">true</DeployPlugin>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="NAudio" Version="2.2.1">
       <ExcludeAssets>runtime</ExcludeAssets>
     </PackageReference>
+    <Compile Remove="Helpers/ResponsiveLoopbackCapture.cs;Capture/**/*.cs" />
+    <ProjectReference Include="Capture/HapticAudioCapture.csproj" />
     <Reference Include="PluginApi">
       <HintPath>$(PluginApiDir)PluginApi.dll</HintPath>
       <Private>False</Private>
@@ -45,7 +48,7 @@
     <Message Text="✅ Package files copied to $(OutputPath)..\" Importance="High" />
   </Target>
 
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
+  <Target Name="PostBuild" AfterTargets="PostBuildEvent" Condition="'$(DeployPlugin)' == 'true'">
     <Exec Condition="$(OS) == 'Windows_NT'" Command="echo $(BaseOutputPath)$(Configuration)\ &gt; &quot;$(PluginDir)$(ProjectName).link&quot;" />
     <Exec Condition="$(OS) != 'Windows_NT'" Command="echo $(BaseOutputPath)$(Configuration)\ &gt; $(PluginDir)$(ProjectName).link" />
     <Message Text="🔨 Created plugin link at: $(PluginDir)$(ProjectName).link" Importance="High" />
@@ -59,8 +62,8 @@
   <Target Name="PluginClean" AfterTargets="CoreClean">
     <Message Text="🧹 Cleaning up plugin link file and output directories..." Importance="High" />
 
-    <Delete Condition="$(OS) == 'Windows_NT'" Files="$(PluginDir)$(ProjectName).link" />
-    <Exec Condition="$(OS) != 'Windows_NT'" Command="rm -f $(PluginDir)$(ProjectName).link" />
+    <Delete Condition="$(OS) == 'Windows_NT' and '$(DeployPlugin)' == 'true'" Files="$(PluginDir)$(ProjectName).link" />
+    <Exec Condition="$(OS) != 'Windows_NT' and '$(DeployPlugin)' == 'true'" Command="rm -f $(PluginDir)$(ProjectName).link" />
 
     <RemoveDir Directories="$(OutputPath)..\" />
 

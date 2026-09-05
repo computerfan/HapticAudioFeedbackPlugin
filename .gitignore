@@ -398,3 +398,5 @@ FodyWeavers.xsd
 *.sln.iml
 
 .DS_Store
+/tools/windows-haptics-results.jsonl
+/tools/latency-settings-before.json

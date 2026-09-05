@@ -12,13 +12,13 @@ name: HapticAudioFeedback
 displayName: Haptic Audio Feedback
 
 # Short description of the plugin.
-description: "Audio-reactive haptics: low-band triggers sharpAudioFeedback, high-band triggers subtleAudioFeedback."
+description: "Audio onset haptics with damped/strong bass and subtle high-band feedback."
 
 # Name of the plugin library file.
-pluginFileName: HapticAudioFeedback.dll
+pluginFileName: HapticAudioFeedbackPlugin.dll
 
 # Plugin version.
-version: 0.1.0
+version: 0.3.1
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: computerfan

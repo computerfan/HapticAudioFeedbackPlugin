@@ -1,0 +1,163 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Haptic Audio · Music controls</title>
+<style>
+:root{color-scheme:dark;--bg:#101315;--panel:#1a1f22;--border:#343c41;--text:#edf3f5;--muted:#acb9c0;--mint:#83e6bc;--blue:#8cbfff}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:30px 24px 60px}header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}h1{font-size:28px;font-weight:620;letter-spacing:-.7px;margin:0}h2{font-size:18px;margin:0 0 4px}p{margin:4px 0 18px;color:var(--muted)}.eyebrow{color:var(--mint);font-size:12px;letter-spacing:1.5px;text-transform:uppercase}.card{padding:22px;border:1px solid var(--border);border-radius:16px;background:var(--panel);margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.field{margin:12px 0 18px}.field label{display:flex;justify-content:space-between;gap:10px;font-weight:550}.field small{display:block;color:var(--muted);margin-top:4px;font-size:12px}input[type=range]{width:100%;accent-color:var(--mint);margin:12px 0 0}input[type=checkbox]{accent-color:var(--mint);width:17px;height:17px;vertical-align:middle}select,input[type=number]{color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px;width:100%;margin-top:7px}button{border:1px solid var(--border);background:#273138;color:var(--text);padding:9px 14px;border-radius:8px;font:inherit;cursor:pointer}button:hover{border-color:var(--mint)}button:disabled{opacity:.5;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--mint);outline-offset:3px}.profiles{display:flex;gap:8px;flex-wrap:wrap}.badge{border-radius:30px;padding:6px 12px;font-size:12px;background:#293a33;color:var(--mint);white-space:nowrap}.stats{display:flex;gap:30px;flex-wrap:wrap;margin:14px 0}.stat strong{display:block;font-size:24px}.stat span{color:var(--muted);font-size:12px}.legend{display:flex;gap:16px;color:var(--muted);font-size:12px;flex-wrap:wrap}.bass{color:var(--mint)}.detail{color:var(--blue)}canvas{display:block;width:100%;height:175px;margin:10px 0}.save{font-size:13px;color:var(--mint);min-height:22px;margin:8px 0}.error{color:#ffacac}.toggle{display:flex;gap:8px;align-items:center;font-weight:550}summary{cursor:pointer;font-weight:600}.hint{font-size:12px;color:var(--muted);margin-top:12px}.preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.preview button{font-size:13px}output{font-variant-numeric:tabular-nums;color:var(--mint);font-weight:500}.footnote{font-size:12px;color:var(--muted)}@media(max-width:640px){main{padding:20px 14px}.grid{grid-template-columns:1fr;gap:0}header{align-items:flex-start}h1{font-size:24px}.card{padding:17px}.stats{gap:20px}}
+</style>
+</head>
+<body><main>
+<header><div><div class="eyebrow">MX Master 4 · Audio feedback</div><h1>Feel the rhythm</h1></div><span class="badge" id="state">Connecting</span></header>
+<div class="card">
+<h2>Listening now</h2><p id="audioStatus">Waiting for the plugin…</p>
+<div class="stats"><div class="stat"><strong id="sent">0</strong><span>Events sent</span></div><div class="stat"><strong id="dropped">0</strong><span>Candidates skipped</span></div><div class="stat"><strong id="last" style="font-size:16px;padding-top:7px">—</strong><span>Last texture</span></div></div>
+<canvas id="chart" aria-label="Recent bass and detail audio levels with detection thresholds"></canvas>
+<div class="legend"><span class="bass">● Bass energy</span><span class="detail">● Detail energy</span><span>Dashed: onset threshold · dBFS</span></div>
+</div>
+<details class="card"><summary>Response timing</summary>
+<p class="hint" id="captureTiming">Waiting for capture information…</p>
+<div class="stats"><div class="stat"><strong id="batchTiming">—</strong><span>Audio batch · latest / max</span></div><div class="stat"><strong id="processingTiming">—</strong><span>Detection · latest / max</span></div><div class="stat"><strong id="backendTiming">—</strong><span>Logitech call · last / max</span></div></div>
+<p class="hint" id="waitTiming"></p>
+<p class="hint">All values are milliseconds, since reload. Audio batch is the amount of audio delivered together. These measurements exclude Windows audio already buffered before delivery and Logitech playback after dispatch; they do not measure total sound-to-vibration delay.</p>
+</details>
+<div class="card">
+<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2>Music controls</h2><label class="toggle"><input type="checkbox" id="Enabled"> Audio haptics</label></div>
+<p>Changes apply and save automatically. No rebuild needed.</p>
+<div class="profiles"><button data-profile="music">Music</button><button data-profile="bass">Bass focus</button><button data-profile="gentle">Gentle</button></div>
+<div id="saveStatus" class="save" role="status" aria-live="polite">Loading controls…</div>
+<div class="grid" id="basic"></div>
+</div>
+<div class="card">
+<h2>Choose your textures</h2><p>Presets change the character of a pulse. Sensitivity controls detection. Wave and transition presets may feel longer; give them more pulse spacing.</p>
+<div class="grid" id="textures"></div>
+<div class="preview" id="preview"></div><div id="previewStatus" class="hint" role="status" aria-live="polite">Preview sends one preset. Pause audio haptics to compare textures on their own.</div>
+</div>
+<div class="card">
+<label class="toggle"><input type="checkbox" id="SustainEnabled"> Add sustained bass texture</label>
+<p class="hint">Experimental: quiet, spaced pulses during held bass notes. Louder bass increases pulse density. Beat attacks take priority. Off is recommended for clear rhythm.</p>
+<div class="grid" id="sustain"></div>
+</div>
+<details class="card"><summary>Advanced detection</summary><p class="hint">Tune the frequency bands, attack response and onset contrast. Applying changes gives the detector 400 ms to settle.</p><div class="grid" id="advanced"></div></details>
+<p class="footnote">Events sent means the plugin dispatched a Logitech event; it does not confirm a physical vibration. Saved controls survive plugin rebuilds. Logitech's own haptics setting controls overall device intensity.</p>
+</main>
+<script>
+'use strict';
+const token='__CONTROL_TOKEN__';
+const byId=id=>document.getElementById(id);
+let settings,profiles,dirty=false,saving=false,saveTimer,history=[],lastSample=null;
+const names={subtle_collision:'Soft tap',damp_collision:'Rounded thump',sharp_collision:'Sharp impact',damp_state_change:'Soft transition',sharp_state_change:'Crisp tick',wave:'Wave'};
+const basic=[
+ ['Sensitivity','Sensitivity',0,100,1,'','Higher detects quieter sounds. 50 keeps the base thresholds.'],
+ ['MinimumSpacingMilliseconds','Pulse spacing',40,250,5,' ms','More space feels cleaner; less space follows faster rhythms.'],
+ ['BassGainDb','Bass sensitivity',-12,12,1,' dB','Boost or reduce which bass attacks are picked up.'],
+ ['HighGainDb','Detail sensitivity',-12,12,1,' dB','Reduce if vocals and bright instruments create too many taps.']
+];
+const advanced=[
+ ['LowCenterHz','Bass band center',60,250,5,' Hz','100 Hz is a useful starting point for kicks and bass.'],
+ ['HighCenterHz','Detail band center',800,6000,100,' Hz','Focus on instrument attacks and upper-frequency detail.'],
+ ['OnsetRiseDb','Attack contrast',1,12,.5,' dB','Lower picks up smaller rises above sustained music.'],
+ ['TransientSeparationMilliseconds','Beat re-arm interval',40,500,5,' ms','Prevents a single attack being detected repeatedly in the same band.'],
+ ['LowThresholdDb','Bass floor',-70,-6,1,' dBFS','Minimum level before sensitivity adjustments.'],
+ ['HighThresholdDb','Detail floor',-70,-6,1,' dBFS','Minimum level before sensitivity adjustments.'],
+ ['OnsetMarginDb','Background contrast',1,20,.5,' dB','How far an onset must rise above the slower background.'],
+ ['RearmMarginDb','Re-arm contrast',0,10,.5,' dB','Must be lower than background contrast.'],
+ ['AttackMilliseconds','Envelope attack',1,100,1,' ms','Smaller responds faster.'],
+ ['ReleaseMilliseconds','Envelope release',5,500,5,' ms','Larger smooths the decay.'],
+ ['BackgroundMilliseconds','Background tracking',100,2000,50,' ms','Must be longer than envelope attack and release.'],
+ ['StrongBassAboveThresholdDb','Strong bass threshold',0,40,1,' dB','Level above the effective bass floor that selects the stronger preset.'],
+ ['MaximumEventAgeMilliseconds','Discard events older than',5,250,5,' ms','Avoids late playback when audio arrives in large buffers.']
+];
+const sustain=[
+ ['SustainThresholdDb','Texture floor',-60,-6,1,' dBFS','Minimum bass level for the optional texture. Sensitivity also applies.'],
+ ['SustainSlowIntervalMilliseconds','Quiet bass spacing',100,1500,10,' ms','Must be at least the loud-bass spacing.'],
+ ['SustainFastIntervalMilliseconds','Loud bass spacing',100,1000,10,' ms','The shared pulse spacing still applies.']
+];
+function range(container,[key,label,min,max,step,unit,hint]){
+ const field=document.createElement('div');field.className='field';
+ const l=document.createElement('label');l.htmlFor=key;l.append(document.createTextNode(label));
+ const o=document.createElement('output');o.id=key+'Value';o.htmlFor=key;l.append(o);
+ const input=document.createElement('input');Object.assign(input,{type:'range',id:key,min,max,step});
+ const help=document.createElement('small');help.textContent=hint;
+ input.addEventListener('input',()=>{o.textContent=input.value+unit;});
+ input.addEventListener('change',()=>{settings[key]=Number(input.value);queueSave();});
+ field.append(l,input,help);container.append(field);input.dataset.unit=unit;
+}
+function select(container,key,label,options){
+ const field=document.createElement('div');field.className='field';const l=document.createElement('label');l.htmlFor=key;l.textContent=label;
+ const input=document.createElement('select');input.id=key;
+ for(const value of options){const option=document.createElement('option');option.value=value;option.textContent=names[value];input.append(option);}
+ input.addEventListener('change',()=>{settings[key]=input.value;queueSave();});field.append(l,input);container.append(field);
+}
+function checkbox(container,key,label){
+ const l=document.createElement('label');l.className='toggle';const input=document.createElement('input');input.type='checkbox';input.id=key;
+ input.addEventListener('change',()=>{settings[key]=input.checked;queueSave();});l.append(input,document.createTextNode(label));container.append(l);
+}
+function sync(){
+ for(const [key,value] of Object.entries(settings)){
+  const el=byId(key);if(!el)continue;if(el.type==='checkbox')el.checked=value;else el.value=value;
+  const out=byId(key+'Value');if(out)out.textContent=value+(el.dataset.unit||'');
+ }
+}
+async function request(path,value){
+ const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Haptic-Token':token},body:JSON.stringify(value)});
+ const body=await response.json();if(!response.ok)throw new Error(body.Error||'Request failed');return body;
+}
+function message(text,error=false){byId('saveStatus').textContent=text;byId('saveStatus').classList.toggle('error',error);}
+function queueSave(){dirty=true;message('Applying…');clearTimeout(saveTimer);saveTimer=setTimeout(save,200);}
+async function save(){
+ if(saving||!dirty)return;saving=true;dirty=false;const snapshot=structuredClone(settings);
+ try{await request('/settings',snapshot);if(!dirty)message('Saved · live settings updated');}
+ catch(error){message('Not applied: '+error.message,true);}
+ finally{saving=false;if(dirty)save();}
+}
+async function init(){
+ try{
+  const response=await fetch('/settings');if(!response.ok)throw new Error('Could not load settings');
+  const data=await response.json();settings=data.Settings;profiles=data.Profiles;
+  basic.forEach(d=>range(byId('basic'),d));advanced.forEach(d=>range(byId('advanced'),d));sustain.forEach(d=>range(byId('sustain'),d));
+  checkbox(byId('basic'),'BassEnabled','Detect bass attacks');checkbox(byId('basic'),'HighEnabled','Detect detail attacks');
+  select(byId('textures'),'BassWaveform','Bass attack',data.Presets);
+  select(byId('textures'),'StrongBassWaveform','Stronger bass attack',data.Presets);
+  select(byId('textures'),'HighWaveform','Detail attack',data.Presets);
+  select(byId('sustain'),'SustainWaveform','Texture pulse',['subtle_collision','damp_collision']);
+  for(const key of ['Enabled','SustainEnabled'])byId(key).addEventListener('change',()=>{settings[key]=byId(key).checked;queueSave();});
+  document.querySelectorAll('[data-profile]').forEach(b=>b.addEventListener('click',()=>{settings={...profiles[b.dataset.profile],Enabled:settings.Enabled};sync();queueSave();}));
+  for(const preset of data.Presets){const b=document.createElement('button');b.textContent='▶ '+names[preset];b.addEventListener('click',async()=>{
+   b.disabled=true;try{const r=await request('/preview',preset);byId('previewStatus').textContent=r.Sent?names[preset]+' event sent. Did you feel it?':'Skipped: another event used the shared playback slot. Try again.';}
+   catch(error){byId('previewStatus').textContent=error.message;}finally{b.disabled=false;}
+  });byId('preview').append(b);}
+  sync();message('Live controls ready');
+ }catch(error){message(error.message+' — refresh to retry.',true);}
+}
+function chart(){
+ const canvas=byId('chart'),dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=175;
+ if(canvas.width!==Math.round(w*dpr)){canvas.width=Math.round(w*dpr);canvas.height=h*dpr;}
+ const c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
+ const left=32,top=8,bottom=h-16;const y=db=>top+(0-Math.max(-80,Math.min(0,db)))/80*(bottom-top);
+ c.font='11px system-ui';for(const db of [0,-20,-40,-60,-80]){c.strokeStyle='#343c41';c.beginPath();c.moveTo(left,y(db));c.lineTo(w,y(db));c.stroke();c.fillStyle='#acb9c0';c.fillText(db,0,y(db)+4);}
+ for(const [key,color,dash] of [['LowEnvDb','#83e6bc',false],['HighEnvDb','#8cbfff',false],['LowThresholdDb','#83e6bc',true],['HighThresholdDb','#8cbfff',true]]){
+  c.strokeStyle=color;c.globalAlpha=dash ? 0.5 : 1;c.lineWidth=dash?1:1.8;c.setLineDash(dash?[4,5]:[]);c.beginPath();
+  history.forEach((m,i)=>{const x=left+i/119*(w-left);if(i===0)c.moveTo(x,y(m[key]));else c.lineTo(x,y(m[key]));});c.stroke();
+ }c.setLineDash([]);c.globalAlpha=1;
+}
+async function poll(){
+ try{
+  const response=await fetch('/metrics');if(!response.ok)throw new Error('Monitor unavailable');const m=await response.json();
+  const age=m.AudioReceived?Date.now()-Date.parse(m.Timestamp):Infinity;
+  byId('state').textContent=!m.Enabled?'Paused':m.Settling?'Settling':!m.AudioReceived?'Waiting for audio':age>1000?'Quiet':'Listening';
+  byId('audioStatus').textContent=!m.Enabled?'Audio-triggered haptics are paused. Preset previews remain available.':m.Settling?'Settings applied. Waiting briefly for the detector to settle.':!m.AudioReceived?'Play music through your default audio output.':age>1000?'No recent audio packets. Last sample '+new Date(m.Timestamp).toLocaleTimeString()+'.':'Audio is arriving. Feel for pulses around the attacks.';
+  byId('sent').textContent=m.SentCount;byId('dropped').textContent=m.DroppedCount;byId('last').textContent=m.LastEvent||'—';
+  const ms=n=>Number.isFinite(n)?n.toFixed(1):'—';
+  byId('captureTiming').textContent='Capture: '+m.CaptureMode+' · requested buffer '+ms(m.RequestedCaptureBufferMs)+' ms';
+  byId('batchTiming').textContent=ms(m.CaptureBatchMs)+' / '+ms(m.MaxCaptureBatchMs);
+  byId('processingTiming').textContent=ms(m.ProcessingMs)+' / '+ms(m.MaxProcessingMs);
+  byId('backendTiming').textContent=ms(m.BackendCallMs)+' / '+ms(m.MaxBackendCallMs);
+  byId('waitTiming').textContent='Callback lock wait: '+ms(m.LockWaitMs)+' / '+ms(m.MaxLockWaitMs)+' max. Last event age within its delivered batch: '+ms(m.LastEventAgeWithinCallbackMs)+'.';
+  if(m.AudioReceived&&m.Timestamp!==lastSample){history.push(m);if(history.length>120)history.shift();lastSample=m.Timestamp;chart();}
+ }catch(error){byId('state').textContent='Disconnected';byId('audioStatus').textContent='Plugin unavailable. Reload the plugin, then refresh this page.';}
+ setTimeout(poll,100);
+}
+window.addEventListener('resize',chart);chart();init();poll();
+</script></body></html>

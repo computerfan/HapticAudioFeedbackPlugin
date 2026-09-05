@@ -1,7 +1,34 @@
 haptics:
+  bassAudioFeedback:
+    DEFAULT: damp_collision
+    MX Master 4: damp_collision
   subtleAudioFeedback:
     DEFAULT: subtle_collision
     MX Master 4: subtle_collision
   sharpAudioFeedback:
     DEFAULT: sharp_collision
     MX Master 4: sharp_collision
+
+  presetSubtleCollision:
+    DEFAULT: subtle_collision
+    MX Master 4: subtle_collision
+
+  presetDampCollision:
+    DEFAULT: damp_collision
+    MX Master 4: damp_collision
+
+  presetSharpCollision:
+    DEFAULT: sharp_collision
+    MX Master 4: sharp_collision
+
+  presetDampStateChange:
+    DEFAULT: damp_state_change
+    MX Master 4: damp_state_change
+
+  presetSharpStateChange:
+    DEFAULT: sharp_state_change
+    MX Master 4: sharp_state_change
+
+  presetWave:
+    DEFAULT: wave
+    MX Master 4: wave

@@ -1,225 +1,250 @@
-namespace Loupedeck.HapticAudioFeedback
+namespace Loupedeck.HapticAudioFeedback;
+
+using System.Diagnostics;
+using System.Runtime.InteropServices;
+using NAudio.Wave;
+using NAudio.CoreAudioApi;
+
+internal sealed class HapticAudioMonitor : IDisposable
 {
-    using System;
-    using NAudio.Wave;
-    using NAudio.Dsp;
+    private readonly Plugin _plugin;
+    private AudioSettings _settings;
+    private readonly string _userSettingsPath, _htmlPath;
+    private HapticMonitorSample _latest = new();
+    private string _lastEvent;
+    private DateTime? _lastSentUtc;
+    private double _suppressUntilMs;
+    private readonly object _gate = new();
+    private readonly Stopwatch _clock = Stopwatch.StartNew();
+    private readonly List<HapticOnset> _candidates = new();
+    private WasapiCapture _capture;
+    private AudioOnsetDetector _detector;
+    private HapticScheduler _scheduler;
+    private HapticMonitorDebugServer _debugServer;
+    private double _lastAudioMs;
+    private string _captureMode = "starting";
+    private double _backendCallMs, _maxBackendCallMs, _maxBufferMs, _maxProcessingMs, _maxLockWaitMs;
+    private double _lastWarningMs = double.NegativeInfinity;
 
-    /// <summary>
-    /// Listens to system loopback audio, splits into low/high bands, and triggers haptic events with adaptive thresholds.
-    /// Optional debug server exposes metrics at http://localhost:18888/ when enabled.
-    /// </summary>
-    internal sealed class HapticAudioMonitor : IDisposable
+    public HapticAudioMonitor(Plugin plugin, AudioSettings settings, string userSettingsPath, string htmlPath)
     {
-        private readonly Plugin _plugin;
-        private WasapiLoopbackCapture _capture;
-        private readonly TimeSpan _cooldown;
-        private DateTime _lastLowTriggerUtc;
-        private DateTime _lastHighTriggerUtc;
+        _plugin = plugin ?? throw new ArgumentNullException(nameof(plugin));
+        settings.Validate();
+        _settings = settings.Copy();
+        _userSettingsPath = userSettingsPath;
+        _htmlPath = htmlPath;
+    }
 
-        private readonly Boolean _enableDebugServer;
-        private HapticMonitorDebugServer _debugServer;
-
-        private Single _lowThresholdSmoothDb;
-        private Single _highThresholdSmoothDb;
-
-        // Per-band envelopes and adaptive noise floors
-        private Single _lowEnv;
-        private Single _highEnv;
-        private Single _lowNoise;
-        private Single _highNoise;
-
-        // Band filters for drums/bass (low) and voice/violin (high)
-        private BiQuadFilter _lowBandFilter;
-        private BiQuadFilter _highBandFilter;
-
-        // Thresholds per band
-        private readonly Single _lowBandThresholdDb;
-        private readonly Single _highBandThresholdDb;
-
-        // Envelope / noise tracking tunables
-        private const Single Attack = 0.8f;
-        private const Single Release = 0.02f;
-        private const Single NoiseFollow = 0.002f;
-        private const Single MarginDb = 3.5f; // adaptive margin above noise floor
-        private const Single NoiseDecayClamp = 0.995f; // max downward step per sample
-        private const Single ThresholdSmooth = 0.5f;   // 0..1, higher = faster follow
-
-        public HapticAudioMonitor(Plugin plugin, Single lowBandThresholdDb = -38f, Single highBandThresholdDb = -42f, Int32 cooldownMilliseconds = 80, Boolean enableDebugServer = false)
+    public void Start()
+    {
+        if (_capture != null) return;
+        try
         {
-            plugin.CheckNullArgument(nameof(plugin));
-            this._plugin = plugin;
-            this._lowBandThresholdDb = lowBandThresholdDb;
-            this._highBandThresholdDb = highBandThresholdDb;
-            this._cooldown = TimeSpan.FromMilliseconds(cooldownMilliseconds);
-            this._lastLowTriggerUtc = DateTime.MinValue;
-            this._lastHighTriggerUtc = DateTime.MinValue;
-            this._lowThresholdSmoothDb = lowBandThresholdDb;
-            this._highThresholdSmoothDb = highBandThresholdDb;
-            this._enableDebugServer = enableDebugServer;
-        }
-
-        public void Start()
-        {
-            if (this._capture != null)
-            {
-                return;
-            }
-            try
-            {
-                this._capture = new WasapiLoopbackCapture();
-                this.ConfigureFilters(this._capture.WaveFormat.SampleRate);
-                this._capture.DataAvailable += this.OnDataAvailable;
-                this._capture.StartRecording();
-                if (this._enableDebugServer)
-                {
-                    this._debugServer = new HapticMonitorDebugServer();
-                    this._debugServer.Start();
-                }
-                PluginLog.Info("Haptic audio monitor started.");
-            }
+            _scheduler = new HapticScheduler(_settings);
+            try { StartCapture(true); }
             catch (Exception ex)
             {
-                PluginLog.Error(ex, "Failed to start haptic audio monitor. Disabling audio-triggered haptics.");
-                this.Stop();
+                PluginLog.Warning(ex, "Event-driven loopback failed; trying 20 ms polling capture.");
+                Stop();
+                StartCapture(false);
             }
+            if (_settings.EnableDebugServer)
+            {
+                try
+                {
+                    _debugServer = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettings, ApplySettings, Preview);
+                    _debugServer.Start();
+                }
+                catch (Exception ex) { PluginLog.Warning(ex, "Controls unavailable; audio monitoring continues."); }
+            }
+            PluginLog.Info($"Audio onset monitor started: {_capture.WaveFormat}; capture {_captureMode}, requested buffer {ResponsiveLoopbackCapture.RequestedBufferMilliseconds} ms; global spacing {_settings.MinimumSpacingMilliseconds} ms.");
         }
-
-        public void Stop()
+        catch (Exception ex)
         {
-            if (this._capture == null)
-            {
-                return;
-            }
-
-            try
-            {
-                this._capture.DataAvailable -= this.OnDataAvailable;
-                this._capture.StopRecording();
-                this._capture.Dispose();
-                this._lowBandFilter = null;
-                this._highBandFilter = null;
-                this._debugServer?.Stop();
-                this._debugServer = null;
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Warning(ex, "Error while stopping haptic audio monitor.");
-            }
-            this._capture = null;
-            PluginLog.Info("Haptic audio monitor stopped.");
-        }
-
-        public void Dispose() => this.Stop();
-        
-        private void OnDataAvailable(Object sender, WaveInEventArgs e)
-        {
-            try
-            {
-                if (e.BytesRecorded == 0)
-                {
-                    return;
-                }
-
-                var sampleCount = e.BytesRecorded / sizeof(Single);
-                if (sampleCount == 0)
-                {
-                    return;
-                }
-
-                var samples = new Single[sampleCount];
-                Buffer.BlockCopy(e.Buffer, 0, samples, 0, e.BytesRecorded);
-
-                Double sumLow = 0;
-                Double sumHigh = 0;
-
-                for (var i = 0; i < samples.Length; i++)
-                {
-                    var sample = samples[i];
-                    var low = this._lowBandFilter?.Transform(sample) ?? 0f;
-                    var high = this._highBandFilter?.Transform(sample) ?? 0f;
-                    var lowAbs = Math.Abs(low);
-                    var highAbs = Math.Abs(high);
-
-                    this._lowEnv = lowAbs > this._lowEnv
-                        ? this._lowEnv + Attack * (lowAbs - this._lowEnv)
-                        : this._lowEnv + Release * (lowAbs - this._lowEnv);
-                    this._highEnv = highAbs > this._highEnv
-                        ? this._highEnv + Attack * (highAbs - this._highEnv)
-                        : this._highEnv + Release * (highAbs - this._highEnv);
-
-                    var lowNoiseNext = this._lowNoise + NoiseFollow * (this._lowEnv - this._lowNoise);
-                    var highNoiseNext = this._highNoise + NoiseFollow * (this._highEnv - this._highNoise);
-
-                    // Limit downward speed so noise floor doesn't dive too quickly
-                    this._lowNoise = Math.Max(lowNoiseNext, this._lowNoise * NoiseDecayClamp);
-                    this._highNoise = Math.Max(highNoiseNext, this._highNoise * NoiseDecayClamp);
-
-                    sumLow += low * low;
-                    sumHigh += high * high;
-                }
-
-                var lowRms = Math.Sqrt(sumLow / samples.Length);
-                var highRms = Math.Sqrt(sumHigh / samples.Length);
-
-                var lowDb = 20 * Math.Log10(Math.Max(lowRms, 1e-9));
-                var highDb = 20 * Math.Log10(Math.Max(highRms, 1e-9));
-
-                var lowEnvDb = 20 * Math.Log10(Math.Max(this._lowEnv, 1e-9f));
-                var highEnvDb = 20 * Math.Log10(Math.Max(this._highEnv, 1e-9f));
-                var lowNoiseDb = 20 * Math.Log10(Math.Max(this._lowNoise, 1e-9f));
-                var highNoiseDb = 20 * Math.Log10(Math.Max(this._highNoise, 1e-9f));
-
-                // Adaptive thresholds: at least configured threshold, plus margin over noise floor
-                var lowThresholdRaw = Math.Max(this._lowBandThresholdDb, lowNoiseDb + MarginDb);
-                var highThresholdRaw = Math.Max(this._highBandThresholdDb, highNoiseDb + MarginDb);
-
-                // Smooth threshold changes to avoid oscillation
-                this._lowThresholdSmoothDb = (Single)(this._lowThresholdSmoothDb + ThresholdSmooth * (lowThresholdRaw - this._lowThresholdSmoothDb));
-                this._highThresholdSmoothDb = (Single)(this._highThresholdSmoothDb + ThresholdSmooth * (highThresholdRaw - this._highThresholdSmoothDb));
-
-                var now = DateTime.UtcNow;
-                var lowTriggered = false;
-                var highTriggered = false;
-
-                if (lowEnvDb >= this._lowThresholdSmoothDb && now - this._lastLowTriggerUtc >= this._cooldown)
-                {
-                    this._lastLowTriggerUtc = now;
-                    this._plugin.PluginEvents.RaiseEvent("sharpAudioFeedback");
-                    lowTriggered = true;
-                }
-
-                else if (highEnvDb >= this._highThresholdSmoothDb && now - this._lastHighTriggerUtc >= this._cooldown)
-                {
-                    this._lastHighTriggerUtc = now;
-                    this._plugin.PluginEvents.RaiseEvent("subtleAudioFeedback");
-                    highTriggered = true;
-                }
-
-                this._debugServer?.UpdateMetrics(new HapticMonitorSample
-                {
-                    Timestamp = now,
-                    LowEnvDb = lowEnvDb,
-                    HighEnvDb = highEnvDb,
-                    LowNoiseDb = lowNoiseDb,
-                    HighNoiseDb = highNoiseDb,
-                    LowThresholdDb = this._lowThresholdSmoothDb,
-                    HighThresholdDb = this._highThresholdSmoothDb,
-                    LowTriggered = lowTriggered,
-                    HighTriggered = highTriggered
-                });
-            }
-            catch (Exception ex)
-            {
-                PluginLog.Warning(ex, "Haptic audio monitor encountered an error while processing audio.");
-            }
-        }
-
-        private void ConfigureFilters(Int32 sampleRate)
-        {
-            // Low band: kick/bass fundamentals (e.g., 60-180 Hz)
-            this._lowBandFilter = BiQuadFilter.BandPassFilterConstantSkirtGain(sampleRate, 100f, 1.2f);
-            // High band: voice/violin presence (e.g., 1¨C4 kHz center ~2 kHz)
-            this._highBandFilter = BiQuadFilter.BandPassFilterConstantSkirtGain(sampleRate, 2000f, 1.6f);
+            PluginLog.Error(ex, "Failed to start haptic audio monitor.");
+            Stop();
         }
     }
+
+    private void StartCapture(bool useEvents)
+    {
+        _capture = ResponsiveLoopbackCapture.Create(useEvents);
+        var format = _capture.WaveFormat;
+        var floatFormat = format.Encoding == WaveFormatEncoding.IeeeFloat ||
+            (format is WaveFormatExtensible extended &&
+             extended.SubFormat == new Guid("00000003-0000-0010-8000-00aa00389b71"));
+        if (!floatFormat || format.BitsPerSample != 32 || format.BlockAlign != format.Channels * sizeof(float))
+            throw new NotSupportedException($"Expected 32-bit float loopback audio; received {format}.");
+        ResetDetector();
+        _capture.DataAvailable += OnDataAvailable;
+        _capture.RecordingStopped += OnRecordingStopped;
+        _capture.StartRecording();
+        _captureMode = useEvents ? "event-driven" : "polling fallback";
+    }
+    private void ResetDetector()
+    {
+        _detector = new AudioOnsetDetector(_capture.WaveFormat.SampleRate, _capture.WaveFormat.Channels, _settings);
+        _lastAudioMs = _clock.Elapsed.TotalMilliseconds;
+    }
+
+    private void OnDataAvailable(object sender, WaveInEventArgs e)
+    {
+        var callbackEntryMs = _clock.Elapsed.TotalMilliseconds;
+        lock (_gate)
+        {
+            if (_capture == null || !ReferenceEquals(sender, _capture) || e.BytesRecorded == 0) return;
+            try
+            {
+                if (e.BytesRecorded % _capture.WaveFormat.BlockAlign != 0)
+                    throw new InvalidOperationException("Loopback buffer contains an incomplete audio frame.");
+                var now = _clock.Elapsed.TotalMilliseconds;
+                var lockWaitMs = now - callbackEntryMs;
+                var callbackGapMs = callbackEntryMs - _lastAudioMs;
+                var bufferMs = e.BytesRecorded * 1000.0 / _capture.WaveFormat.AverageBytesPerSecond;
+                _maxBufferMs = Math.Max(_maxBufferMs, bufferMs);
+                _maxLockWaitMs = Math.Max(_maxLockWaitMs, lockWaitMs);
+                // WASAPI may send no packets during silence. Clear old envelopes after that gap.
+                if (now - _lastAudioMs > 250) ResetDetector();
+                _lastAudioMs = callbackEntryMs;
+                _candidates.Clear();
+                var processingStartMs = _clock.Elapsed.TotalMilliseconds;
+                _detector.Process(MemoryMarshal.Cast<byte, float>(e.Buffer.AsSpan(0, e.BytesRecorded)), _candidates.Add);
+                var dispatchNow = _clock.Elapsed.TotalMilliseconds;
+                var processingMs = dispatchNow - processingStartMs;
+                _maxProcessingMs = Math.Max(_maxProcessingMs, processingMs);
+                if (dispatchNow < _suppressUntilMs) _candidates.Clear();
+                var sent = _scheduler.Dispatch(_candidates, _detector.AudioMilliseconds + dispatchNow - callbackEntryMs, dispatchNow,
+                    Send);
+                _latest = new HapticMonitorSample
+                {
+                    Timestamp = DateTime.UtcNow,
+                    AudioReceived = true,
+                    CaptureBatchMs = bufferMs,
+                    CallbackGapMs = callbackGapMs,
+                    ProcessingMs = processingMs,
+                    LockWaitMs = lockWaitMs,
+                    LowEnvDb = _detector.Low.EnvelopeDb,
+                    HighEnvDb = _detector.High.EnvelopeDb,
+                    LowNoiseDb = _detector.Low.BackgroundDb,
+                    HighNoiseDb = _detector.High.BackgroundDb,
+                    LowThresholdDb = _detector.Low.ThresholdDb,
+                    HighThresholdDb = _detector.High.ThresholdDb,
+                    LowTriggered = sent?.Band == "bass",
+                    HighTriggered = sent?.Band == "high",
+                    SentCount = _scheduler.SentCount,
+                    DroppedCount = _scheduler.DroppedCount,
+                    LastEvent = _lastEvent
+                };
+            }
+            catch (Exception ex)
+            {
+                var now = _clock.Elapsed.TotalMilliseconds;
+                if (now - _lastWarningMs >= 5000)
+                {
+                    PluginLog.Warning(ex, "Error processing loopback audio (warnings limited to once per 5 seconds).");
+                    _lastWarningMs = now;
+                }
+            }
+        }
+    }
+
+    private AudioSettings GetSettings() { lock (_gate) return _settings.Copy(); }
+
+    private HapticMonitorSample GetMetrics()
+    {
+        lock (_gate)
+        {
+            var sample = _latest.Copy();
+            sample.Enabled = _settings.Enabled;
+            sample.Settling = _clock.Elapsed.TotalMilliseconds < _suppressUntilMs;
+            sample.CaptureMode = _captureMode;
+            sample.RequestedCaptureBufferMs = ResponsiveLoopbackCapture.RequestedBufferMilliseconds;
+            sample.BackendCallMs = _backendCallMs;
+            sample.MaxBackendCallMs = _maxBackendCallMs;
+            sample.MaxCaptureBatchMs = _maxBufferMs;
+            sample.MaxProcessingMs = _maxProcessingMs;
+            sample.MaxLockWaitMs = _maxLockWaitMs;
+            sample.LastEventAgeWithinCallbackMs = _scheduler?.LastEventAgeMilliseconds;
+            sample.SentCount = _scheduler?.SentCount ?? 0;
+            sample.DroppedCount = _scheduler?.DroppedCount ?? 0;
+            sample.LastEvent = _lastEvent;
+            sample.LastSentUtc = _lastSentUtc;
+            return sample;
+        }
+    }
+
+    private void ApplySettings(AudioSettings settings)
+    {
+        settings.Validate();
+        lock (_gate)
+        {
+            if (_capture == null) throw new InvalidOperationException("Audio capture is not running.");
+            // Prepare and persist before replacing live state. A failed save leaves the old state intact.
+            var copy = settings.Copy();
+            var detector = new AudioOnsetDetector(_capture.WaveFormat.SampleRate, _capture.WaveFormat.Channels, copy);
+            AudioSettingsStore.Save(_userSettingsPath, copy);
+            _settings = copy;
+            _detector = detector;
+            _scheduler.UpdateSettings(copy);
+            _candidates.Clear();
+            _suppressUntilMs = _clock.Elapsed.TotalMilliseconds + 400;
+            PluginLog.Info("Audio controls applied and saved.");
+        }
+    }
+
+    private bool Preview(string eventName)
+    {
+        lock (_gate)
+        {
+            if (_capture == null) throw new InvalidOperationException("Audio capture is not running.");
+            return _scheduler.Dispatch(new[] { new HapticOnset(eventName, 0, 0) }, 0,
+                _clock.Elapsed.TotalMilliseconds, Send).HasValue;
+        }
+    }
+
+    private void Send(string eventName)
+    {
+        var started = _clock.Elapsed.TotalMilliseconds;
+        try { _plugin.PluginEvents.RaiseEvent(eventName); }
+        finally
+        {
+            _backendCallMs = _clock.Elapsed.TotalMilliseconds - started;
+            _maxBackendCallMs = Math.Max(_maxBackendCallMs, _backendCallMs);
+        }
+        _lastEvent = eventName;
+        _lastSentUtc = DateTime.UtcNow;
+    }
+    private void OnRecordingStopped(object sender, StoppedEventArgs e)
+    {
+        if (e.Exception != null)
+            PluginLog.Error(e.Exception, "Audio capture stopped. Reload the plugin after checking the output device.");
+    }
+
+    public void Stop()
+    {
+        WasapiCapture capture;
+        HapticMonitorDebugServer debug;
+        lock (_gate)
+        {
+            capture = _capture;
+            _capture = null;
+            debug = _debugServer;
+            _debugServer = null;
+            if (capture != null)
+            {
+                capture.DataAvailable -= OnDataAvailable;
+                capture.RecordingStopped -= OnRecordingStopped;
+            }
+        }
+        // Never hold the callback lock while waiting for the capture thread to stop.
+        try { capture?.StopRecording(); }
+        catch (Exception ex) { PluginLog.Warning(ex, "Error stopping audio capture."); }
+        finally
+        {
+            try { capture?.Dispose(); }
+            finally { debug?.Dispose(); }
+        }
+    }
+
+    public void Dispose() => Stop();
 }

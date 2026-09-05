@@ -29,17 +29,21 @@ namespace Loupedeck.HapticAudioFeedback
         // This method is called when the plugin is loaded.
         public override void Load()
         {
-            this.PluginEvents.AddEvent(
-                "subtleAudioFeedback",           // Event name (must match YAML files)
-                "Play Haptic",           // Display name
-                "Plays a haptic"         // Description
-            );
-            this.PluginEvents.AddEvent(
-                "sharpAudioFeedback",           // Event name (must match YAML files)
-                "Play Haptic",           // Display name
-                "Plays a haptic"         // Description
-            );
-            this._hapticMonitor = new HapticAudioMonitor(this,  -25f, highBandThresholdDb: -44f, cooldownMilliseconds: 30, enableDebugServer: true);
+            this.PluginEvents.AddEvent("subtleAudioFeedback", "High-band onset", "Subtle feedback for a mid/high-frequency onset");
+            this.PluginEvents.AddEvent("sharpAudioFeedback", "Strong bass onset", "Sharp feedback for a stronger bass onset");
+            this.PluginEvents.AddEvent("bassAudioFeedback", "Bass onset", "Damped feedback for a bass onset");
+            foreach (var preset in HapticPatterns.Presets)
+                this.PluginEvents.AddEvent(preset.Value, preset.Key.Replace('_', ' '), "Audio haptic texture");
+            // The host may load assembly bytes, leaving Assembly.Location empty.
+            var settings = AudioSettings.Load(this.AssemblyFilePath,
+                ex => PluginLog.Warning(ex, "Could not load audio settings; using defaults."));
+            var userSettingsPath = System.IO.Path.Combine(this.GetPluginDataDirectory(), "audio-settings.user.json");
+            settings = AudioSettingsStore.LoadOverride(userSettingsPath, settings,
+                ex => PluginLog.Warning(ex, "Could not load saved audio controls; using package settings."));
+            var packageDirectory = string.IsNullOrWhiteSpace(this.AssemblyFilePath) ? "" :
+                System.IO.Path.GetDirectoryName(System.IO.Path.GetDirectoryName(this.AssemblyFilePath)) ?? "";
+            var htmlPath = System.IO.Path.Combine(packageDirectory, "ui", "index.html");
+            this._hapticMonitor = new HapticAudioMonitor(this, settings, userSettingsPath, htmlPath);
             this._hapticMonitor.Start();
         }
 

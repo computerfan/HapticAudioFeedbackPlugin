@@ -1,177 +1,166 @@
-namespace Loupedeck.HapticAudioFeedback
-{
-    using System;
-    using System.Net;
-    using System.Text;
-    using System.Text.Json;
-    using System.Threading;
+namespace Loupedeck.HapticAudioFeedback;
 
-    internal sealed class HapticMonitorSample
+using System.Net;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+
+internal sealed class HapticMonitorSample
+{
+    public DateTime Timestamp { get; set; }
+    public bool AudioReceived { get; set; }
+    public bool Enabled { get; set; }
+    public bool Settling { get; set; }
+    public string CaptureMode { get; set; }
+    public int RequestedCaptureBufferMs { get; set; }
+    public double CaptureBatchMs { get; set; }
+    public double MaxCaptureBatchMs { get; set; }
+    public double CallbackGapMs { get; set; }
+    public double ProcessingMs { get; set; }
+    public double MaxProcessingMs { get; set; }
+    public double LockWaitMs { get; set; }
+    public double MaxLockWaitMs { get; set; }
+    public double BackendCallMs { get; set; }
+    public double MaxBackendCallMs { get; set; }
+    public double? LastEventAgeWithinCallbackMs { get; set; }
+    public double LowEnvDb { get; set; } = -180;
+    public double HighEnvDb { get; set; } = -180;
+    public double LowNoiseDb { get; set; } = -180;
+    public double HighNoiseDb { get; set; } = -180;
+    public double LowThresholdDb { get; set; } = -180;
+    public double HighThresholdDb { get; set; } = -180;
+    public bool LowTriggered { get; set; }
+    public bool HighTriggered { get; set; }
+    public long SentCount { get; set; }
+    public long DroppedCount { get; set; }
+    public string LastEvent { get; set; }
+    public DateTime? LastSentUtc { get; set; }
+    public HapticMonitorSample Copy() => (HapticMonitorSample)MemberwiseClone();
+}
+
+internal sealed class HapticMonitorDebugServer : IDisposable
+{
+    private readonly HttpListener _listener = new();
+    private readonly Thread _thread;
+    private readonly Func<HapticMonitorSample> _metrics;
+    private readonly Func<AudioSettings> _settings;
+    private readonly Action<AudioSettings> _apply;
+    private readonly Func<string, bool> _preview;
+    private readonly string _html;
+    private readonly string _token = Guid.NewGuid().ToString("N");
+    private volatile bool _running;
+
+    public HapticMonitorDebugServer(string htmlPath, Func<HapticMonitorSample> metrics,
+        Func<AudioSettings> settings, Action<AudioSettings> apply, Func<string, bool> preview)
     {
-        public DateTime Timestamp { get; set; }
-        public Double LowEnvDb { get; set; }
-        public Double HighEnvDb { get; set; }
-        public Double LowNoiseDb { get; set; }
-        public Double HighNoiseDb { get; set; }
-        public Double LowThresholdDb { get; set; }
-        public Double HighThresholdDb { get; set; }
-        public Boolean LowTriggered { get; set; }
-        public Boolean HighTriggered { get; set; }
+        _html = File.ReadAllText(htmlPath).Replace("__CONTROL_TOKEN__", _token);
+        _metrics = metrics;
+        _settings = settings;
+        _apply = apply;
+        _preview = preview;
+        _listener.Prefixes.Add("http://localhost:18888/");
+        _listener.Prefixes.Add("http://127.0.0.1:18888/");
+        _thread = new Thread(Loop) { IsBackground = true, Name = "HapticMonitorControlServer" };
     }
 
-    internal sealed class HapticMonitorDebugServer : IDisposable
+    public void Start()
     {
-        private readonly HttpListener _listener;
-        private readonly Thread _thread;
-        private volatile Boolean _running;
-        private HapticMonitorSample _latest;
-        private const Int32 Port = 18888;
+        _listener.Start();
+        _running = true;
+        _thread.Start();
+        PluginLog.Info("Haptic controls listening at http://localhost:18888/");
+    }
 
-        public HapticMonitorDebugServer()
-        {
-            this._listener = new HttpListener();
-            this._listener.Prefixes.Add($"http://localhost:{Port}/");
-            this._listener.Prefixes.Add($"http://127.0.0.1:{Port}/");
-            this._thread = new Thread(this.Loop) { IsBackground = true, Name = "HapticMonitorDebugServer" };
-        }
+    public void Dispose()
+    {
+        _running = false;
+        _listener.Close();
+        if (_thread.IsAlive && Thread.CurrentThread != _thread) _thread.Join(1000);
+    }
 
-        public void Start()
+    private void Loop()
+    {
+        while (_running)
         {
-            try
-            {
-                this._listener.Start();
-                this._running = true;
-                this._thread.Start();
-                PluginLog.Info($"Haptic debug server listening at http://localhost:{Port}/");
-            }
+            HttpListenerContext context = null;
+            try { context = _listener.GetContext(); Handle(context); }
             catch (Exception ex)
             {
-                PluginLog.Warning(ex, "Failed to start debug server.");
-            }
-        }
-
-        public void Stop()
-        {
-            this._running = false;
-            try
-            {
-                this._listener.Stop();
-            }
-            catch
-            {
-            }
-        }
-
-        public void UpdateMetrics(HapticMonitorSample sample)
-        {
-            this._latest = sample;
-        }
-
-        public void Dispose() => this.Stop();
-
-        private void Loop()
-        {
-            while (this._running)
-            {
-                try
+                if (context != null)
                 {
-                    var ctx = this._listener.GetContext();
-                    this.Handle(ctx);
+                    try { Json(context, new { Error = ex.Message }, 400); }
+                    catch { }
                 }
-                catch
-                {
-                    if (!this._running)
-                    {
-                        break;
-                    }
-                }
+                if (!_running) break;
             }
+            finally { try { context?.Response.Close(); } catch { } }
         }
+    }
 
-        private void Handle(HttpListenerContext ctx)
+    private void Handle(HttpListenerContext context)
+    {
+        var request = context.Request;
+        var path = request.Url?.AbsolutePath ?? "/";
+        context.Response.Headers["Cache-Control"] = "no-store";
+        context.Response.Headers["X-Content-Type-Options"] = "nosniff";
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'";
+        if (request.HttpMethod == "GET")
         {
-            var path = ctx.Request.Url?.AbsolutePath ?? "/";
-            if (path.Equals("/metrics", StringComparison.OrdinalIgnoreCase))
+            switch (path)
             {
-                var payload = JsonSerializer.Serialize(this._latest ?? new HapticMonitorSample { Timestamp = DateTime.UtcNow });
-                var bytes = Encoding.UTF8.GetBytes(payload);
-                ctx.Response.ContentType = "application/json";
-                ctx.Response.ContentEncoding = Encoding.UTF8;
-                ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
-                ctx.Response.Close();
-                return;
+                case "/metrics": Json(context, _metrics()); return;
+                case "/settings":
+                    Json(context, new { Settings = _settings(), Presets = HapticPatterns.Presets.Keys,
+                        Profiles = new Dictionary<string, AudioSettings> {
+                            ["music"] = AudioSettings.Profile("music"), ["bass"] = AudioSettings.Profile("bass"),
+                            ["gentle"] = AudioSettings.Profile("gentle") } }); return;
+                case "/": Write(context, _html, "text/html; charset=utf-8"); return;
+                default: Json(context, new { Error = "Not found" }, 404); return;
             }
-
-            var html = @"<!DOCTYPE html>
-<html>
-<head>
-<meta charset='utf-8'/>
-<title>Haptic Debug</title>
-<script src='https://cdn.jsdelivr.net/npm/chart.js'></script>
-<style>body {{ font-family: sans-serif; margin: 12px; }} canvas {{ max-width: 960px; }}</style>
-</head>
-<body>
-<h3>Haptic Monitor (Low/High bands)</h3>
-<canvas id='chart' height='260'></canvas>
-<script>
-const ctx = document.getElementById('chart').getContext('2d');
-const labels = [];
-const lowEnv = [], lowNoise = [], lowThr = [], highEnv = [], highNoise = [], highThr = [], lowTrig = [], highTrig = [];
-const maxPoints = 300; // keep a rolling window like an audio track
-let cursor = 0;
-const chart = new Chart(ctx, {
-  type: 'line',
-  data: {
-    labels,
-    datasets: [
-      { label: 'Low Env dB', data: lowEnv, borderColor: 'red', tension: 0.05, pointRadius: 0 },
-      { label: 'Low Noise dB', data: lowNoise, borderColor: 'orange', tension: 0.05, borderDash: [6,3], pointRadius: 0 },
-      { label: 'Low Thr dB', data: lowThr, borderColor: 'red', borderDash: [4,4], tension: 0.05, pointRadius: 0 },
-      { label: 'High Env dB', data: highEnv, borderColor: 'blue', tension: 0.05, pointRadius: 0 },
-      { label: 'High Noise dB', data: highNoise, borderColor: 'teal', tension: 0.05, borderDash: [6,3], pointRadius: 0 },
-      { label: 'High Thr dB', data: highThr, borderColor: 'blue', borderDash: [4,4], tension: 0.05, pointRadius: 0 },
-      { label: 'Low Trigger', data: lowTrig, borderColor: 'red', pointBackgroundColor: 'red', pointRadius: 4, showLine: false },
-      { label: 'High Trigger', data: highTrig, borderColor: 'blue', pointBackgroundColor: 'blue', pointRadius: 4, showLine: false }
-    ]
-  },
-  options: {
-    animation: false,
-    scales: {
-      x: { display: false },
-      y: { suggestedMin: -80, suggestedMax: 10 }
-    }
-  }
-});
-async function tick() {
-  try {
-    const res = await fetch('/metrics');
-    const m = await res.json();
-    labels.push(cursor++);
-    lowEnv.push(m.LowEnvDb ?? -80);
-    lowNoise.push(m.LowNoiseDb ?? -80);
-    lowThr.push(m.LowThresholdDb ?? -80);
-    highEnv.push(m.HighEnvDb ?? -80);
-    highNoise.push(m.HighNoiseDb ?? -80);
-    highThr.push(m.HighThresholdDb ?? -80);
-    lowTrig.push(m.LowTriggered ? m.LowEnvDb ?? -80 : null);
-    highTrig.push(m.HighTriggered ? m.HighEnvDb ?? -80 : null);
-    if (labels.length > maxPoints) {
-      labels.shift(); lowEnv.shift(); lowNoise.shift(); lowThr.shift(); highEnv.shift(); highNoise.shift(); highThr.shift(); lowTrig.shift(); highTrig.shift();
-    }
-    chart.update('none');
-  } catch(e) {}
-  setTimeout(tick, 30);
-}
-tick();
-</script>
-</body>
-</html>";
-
-            var buffer = Encoding.UTF8.GetBytes(html);
-            ctx.Response.ContentType = "text/html";
-            ctx.Response.ContentEncoding = Encoding.UTF8;
-            ctx.Response.OutputStream.Write(buffer, 0, buffer.Length);
-            ctx.Response.Close();
         }
+        if (request.HttpMethod != "POST") { Json(context, new { Error = "Method not allowed" }, 405); return; }
+        // Browser control requests must come from this local page, not an unrelated website.
+        var origin = request.Headers["Origin"];
+        if (request.Headers["X-Haptic-Token"] != _token ||
+            (origin != null && origin != request.Url?.GetLeftPart(UriPartial.Authority)))
+        { Json(context, new { Error = "Refresh the local control page and try again." }, 403); return; }
+        if (!(request.ContentType?.StartsWith("application/json", StringComparison.OrdinalIgnoreCase) ?? false))
+        { Json(context, new { Error = "JSON required" }, 415); return; }
+        if (request.ContentLength64 < 0 || request.ContentLength64 > 32768)
+        { Json(context, new { Error = "Invalid request length" }, 413); return; }
+        var buffer = new byte[(int)request.ContentLength64];
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+        request.InputStream.ReadExactlyAsync(buffer.AsMemory(), timeout.Token).AsTask().GetAwaiter().GetResult();
+        if (path == "/settings")
+        {
+            var settings = JsonSerializer.Deserialize<AudioSettings>(buffer, new JsonSerializerOptions
+                { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow })
+                ?? throw new ArgumentException("Settings must be an object.");
+            settings.Validate();
+            _apply(settings);
+            Json(context, new { Settings = _settings(), Saved = true });
+        }
+        else if (path == "/preview")
+        {
+            var waveform = JsonSerializer.Deserialize<string>(buffer);
+            if (waveform == null || !HapticPatterns.Presets.ContainsKey(waveform))
+                throw new ArgumentException("Unknown waveform.");
+            Json(context, new { Sent = _preview(HapticPatterns.Presets[waveform]) });
+        }
+        else Json(context, new { Error = "Not found" }, 404);
+    }
+
+    private static void Json(HttpListenerContext context, object value, int status = 200)
+    {
+        context.Response.StatusCode = status;
+        Write(context, JsonSerializer.Serialize(value), "application/json; charset=utf-8");
+    }
+
+    private static void Write(HttpListenerContext context, string text, string contentType)
+    {
+        var bytes = Encoding.UTF8.GetBytes(text);
+        context.Response.ContentType = contentType;
+        context.Response.ContentLength64 = bytes.Length;
+        context.Response.OutputStream.Write(bytes, 0, bytes.Length);
     }
 }
