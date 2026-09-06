@@ -34,9 +34,24 @@ Test("profile and preview dropdowns keep assigned selections", () =>
     state.GetControlState("Profile").Value = "gentle";
     var items = (ActionEditorListboxItemsRequestedEventArgs)Invoke(profile.ActionEditor, "InvokeListboxItemsRequestedEvent", state, "Profile");
     Check(items.Items.Count == AudioProfiles.All.Count && items.SelectedItemName == null, "Profile selection changed.");
-    var preview = new PreviewAudioHaptic(); state = State(preview);
+    var preview = new PreviewAudioHaptic(); Attach(preview, new HapticAudioFeedbackPlugin()); state = State(preview);
     items = (ActionEditorListboxItemsRequestedEventArgs)Invoke(preview.ActionEditor, "InvokeListboxItemsRequestedEvent", state, "Waveform");
     Check(items.Items.Count == 6 && items.SelectedItemName == "subtle_collision", "Preview choices missing.");
+});
+Test("runtime action labels use the embedded Chinese catalog and English fallback", () =>
+{
+    var owner = new HapticAudioFeedbackPlugin();
+    Check(PluginText.Translate(owner, "Profile") == "Profile", "English label changed.");
+    Check(owner.Localization.SetCurrentLanguage("zh-CN"), "Could not select Chinese.");
+    Check(PluginText.Translate(owner, "Profile") == "配置" && PluginText.Translate(owner, "Texture") == "触感" &&
+        PluginText.Translate(owner, "Gentle") == "轻柔", "Embedded Chinese catalog was not used.");
+    Check(PluginText.Translate(owner, "Unknown user text") == "Unknown user text", "Unknown label lost its fallback.");
+    var profile = new SelectAudioProfile(); Attach(profile, owner);
+    var items = (ActionEditorListboxItemsRequestedEventArgs)Invoke(profile.ActionEditor, "InvokeListboxItemsRequestedEvent", State(profile), "Profile");
+    Check(items.Items.Count == AudioProfiles.All.Count, "Chinese profile choices missing.");
+    var preview = new PreviewAudioHaptic(); Attach(preview, owner);
+    items = (ActionEditorListboxItemsRequestedEventArgs)Invoke(preview.ActionEditor, "InvokeListboxItemsRequestedEvent", State(preview), "Waveform");
+    Check(items.Items.Count == 6, "Chinese preview choices missing.");
 });
 Test("assigned profile and preview actions route through the controller", () =>
 {
