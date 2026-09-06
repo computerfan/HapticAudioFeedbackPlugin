@@ -8,6 +8,7 @@
   <ItemGroup>
     <Reference Include="PluginApi"><HintPath>$(PluginApiDir)PluginApi.dll</HintPath></Reference>
     <Compile Include="../../src/Actions/AudioHapticActions.cs" Link="AudioHapticActions.cs" />
+    <Compile Include="../../src/Audio/CustomProfileStore.cs" Link="CustomProfileStore.cs" />
     <Compile Include="../../src/Audio/AudioProfiles.cs" Link="AudioProfiles.cs" />
     <Compile Include="../../src/Audio/AudioSettings.cs" Link="AudioSettings.cs" />
     <Compile Include="../../src/Audio/HapticPatterns.cs" Link="HapticPatterns.cs" />

@@ -327,4 +327,79 @@ Test("SDK save failure is surfaced and leaves the caller's settings intact", () 
     try { store.Save(settings); } catch (IOException) { failed = true; }
     Check(failed && settings.Sensitivity == 71 && settings.EnableDebugServer, "Save failure was hidden or mutated input.");
 });
+Test("custom profiles duplicate independently and survive SDK reload", () =>
+{
+    string? saved = null;
+    var store = new CustomProfileStore(() => saved!, json => saved = json, ex => throw ex);
+    var duplicate = store.Save(new() { Operation = "duplicate", Id = "music", Name = "My music", ExpectedRevision = 0 });
+    var settings = store.Resolve(duplicate.SelectedId); settings.Sensitivity = 77;
+    Check(store.Resolve(duplicate.SelectedId).Sensitivity == 50, "Returned settings mutated saved profile.");
+    var updated = store.Save(new() { Operation = "save", Id = duplicate.SelectedId, Name = "Evening music", Settings = settings, ExpectedRevision = 1 });
+    Check(updated.SelectedId == duplicate.SelectedId, "Updating changed the ID used by assigned actions.");
+    var reloaded = new CustomProfileStore(() => saved!, _ => { }, ex => throw ex);
+    Check(reloaded.Resolve(updated.SelectedId).Sensitivity == 77 && reloaded.Snapshot().ProfileInfo.Last().Label == "Evening music", "SDK round-trip lost custom tuning or name.");
+    Check(AudioProfiles.Create("music").Sensitivity == 50, "Duplicate modified built-in tuning.");
+    var second = reloaded.Save(new() { Operation = "duplicate", Id = updated.SelectedId, Name = "Another copy", ExpectedRevision = 2 });
+    Check(second.SelectedId != updated.SelectedId && reloaded.Resolve(second.SelectedId).Sensitivity == 77, "Custom profile could not be duplicated.");
+});
+Test("custom profile save validates names, settings, and revisions without overwriting", () =>
+{
+    var writes = 0;
+    var store = new CustomProfileStore(() => null!, _ => writes++, ex => throw ex);
+    var created = store.Save(new() { Operation = "duplicate", Id = "gentle", Name = "夜间", ExpectedRevision = 0 });
+    foreach (var request in new ProfileRequest[] {
+        new() { Operation = "duplicate", Id = "music", Name = "夜间", ExpectedRevision = 1 },
+        new() { Operation = "duplicate", Id = "music", Name = "MUSIC", ExpectedRevision = 1 },
+        new() { Operation = "duplicate", Id = "music", Name = " ", ExpectedRevision = 1 },
+        new() { Operation = "duplicate", Id = "music", Name = new string('x', 65), ExpectedRevision = 1 },
+        new() { Operation = "duplicate", Id = "music", Name = "bad\nname", ExpectedRevision = 1 },
+        new() { Operation = "duplicate", Id = "missing", Name = "New", ExpectedRevision = 1 },
+        new() { Operation = "save", Id = "music", Name = "New", Settings = new(), ExpectedRevision = 1 },
+        new() { Operation = "save", Name = "New", Settings = new() { Sensitivity = 101 }, ExpectedRevision = 1 },
+        new() { Operation = "save", Name = "New", Settings = new(), ExpectedRevision = 0 } })
+    {
+        var rejected = false;
+        try { store.Save(request); } catch (Exception ex) when (ex is ArgumentException or InvalidOperationException) { rejected = true; }
+        Check(rejected && writes == 1 && store.Snapshot().ProfilesRevision == 1, "Invalid or stale save reached persistence.");
+    }
+});
+Test("custom profile write failure preserves previous catalog", () =>
+{
+    var fail = false;
+    var store = new CustomProfileStore(() => null!, _ => { if (fail) throw new IOException("SDK write failed"); }, _ => { });
+    var created = store.Save(new() { Operation = "duplicate", Id = "music", Name = "Copy", ExpectedRevision = 0 });
+    fail = true;
+    try { store.Save(new() { Operation = "save", Id = created.SelectedId, Name = "Changed", Settings = new() { Sensitivity = 90 }, ExpectedRevision = 1 }); }
+    catch (IOException) { }
+    Check(store.Resolve(created.SelectedId).Sensitivity == 50 && store.Snapshot().ProfileInfo.Last().Label == "Copy" && store.Snapshot().ProfilesRevision == 1, "Failed SDK write published a change.");
+});
+Test("unreadable or newer custom profile storage is preserved and disables writes", () =>
+{
+    foreach (var json in new[] { "{broken", "{\"Version\":2}", "{\"Version\":1,\"Profiles\":[null]}" })
+    {
+        var writes = 0;
+        var store = new CustomProfileStore(() => json, _ => writes++, _ => { });
+        Check(store.Snapshot().ProfilesError != null && store.Snapshot().Profiles.Count == AudioProfiles.All.Count, "Corrupt document was accepted.");
+        var rejected = false;
+        try { store.Save(new() { Operation = "duplicate", Id = "music", Name = "Copy", ExpectedRevision = 0 }); } catch (InvalidOperationException) { rejected = true; }
+        Check(rejected && writes == 0, "Unreadable saved data was overwritten.");
+    }
+    var unavailable = new CustomProfileStore(() => throw new IOException("SDK read failed"), _ => throw new Exception("Unexpected write"), _ => { });
+    Check(unavailable.Snapshot().ProfilesError != null, "Read failure was hidden.");
+});
+Test("custom profiles have bounded storage and omit playback state", () =>
+{
+    var store = new CustomProfileStore(() => null!, _ => { }, ex => throw ex);
+    var source = new AudioSettings { Enabled = false, EnableDebugServer = true };
+    for (var i = 0; i < CustomProfileStore.MaximumProfiles; i++)
+        store.Save(new() { Operation = "save", Name = "Custom " + i, Settings = source, ExpectedRevision = i });
+    var first = store.Snapshot().ProfileInfo.First(p => p.IsCustom);
+    var stored = store.Resolve(first.Id);
+    Check(stored.Enabled && !stored.EnableDebugServer && !source.Enabled && source.EnableDebugServer, "Profile normalized playback state incorrectly or mutated input.");
+    var rejected = false;
+    try { store.Save(new() { Operation = "duplicate", Id = "music", Name = "Overflow", ExpectedRevision = CustomProfileStore.MaximumProfiles }); } catch (ArgumentException) { rejected = true; }
+    Check(rejected, "Profile storage limit ignored.");
+    store.Save(new() { Operation = "save", Id = first.Id, Name = first.Label, Settings = stored, ExpectedRevision = CustomProfileStore.MaximumProfiles });
+    Check(store.Snapshot().ProfileInfo.Count(p => p.IsCustom) == CustomProfileStore.MaximumProfiles, "Updating at capacity changed profile count.");
+});
 Console.WriteLine($"{passed} audio regression checks passed. No capture or haptic device was used.");

@@ -1,6 +1,8 @@
-# Haptic Audio Feedback — MX Master 4
+# Feel the Rhythm — MX Master 4
 
-Version 0.4.1 uses a browser settings panel on a random high port and stores preferences through the Logitech SDK. Audio capture currently supports Windows (WASAPI). macOS audio capture is deferred; Options+ being cross-platform does not make this capture backend portable.
+The display name is **Feel the Rhythm**. The internal plugin ID, assembly names, action IDs, saved settings keys, and existing launcher filename remain unchanged, so existing settings and assignments continue to use the same identity.
+
+Version 0.4.2 uses a browser settings panel on a random high port and stores preferences through the Logitech SDK. Audio capture currently supports Windows (WASAPI). macOS audio capture is deferred; Options+ being cross-platform does not make this capture backend portable.
 
 ## Open settings
 
@@ -38,6 +40,17 @@ Choose a **Starting profile** in the browser, read its description, then press *
 | Ambient / sustained | Experimental soft texture during held bass | 180 ms attacks; 280–650 ms texture |
 
 These are manually selected tuning presets, not automatic scene recognition. Movies cannot distinguish dialogue from music, and Games cannot identify footsteps, shots or other gameplay events. Only Ambient enables sustained texture. The new tunings have synthetic validation; their tactile quality needs listening tests on the mouse. Adjust sensitivity for the source volume and mix.
+
+## Custom profiles
+
+- Choose a built-in or custom profile, enter a name, then **Duplicate selected** to save a separate copy of that profile's saved tuning.
+- Adjust the live controls and use **Save current as new** to store those values under a new name.
+- Select one of **Your profiles**, edit its name and/or the live controls, then **Update selected custom** to replace that saved profile. Built-ins cannot be overwritten.
+- **Apply profile** loads a profile's tuning and preserves the current paused/enabled state. Duplicating or saving a profile alone does not apply it. Later live adjustments do not automatically overwrite the saved profile.
+
+Custom profiles also appear in the Options+ profile action when its selection list is opened again. Renaming/updating keeps a stable ID, so assigned actions continue to work. Names must be unique (including built-ins, ignoring case), nonblank and at most 64 characters. Up to 32 custom profiles can be stored. Use a different name when saving another copy.
+
+The SDK stores the versioned custom catalog separately under `CustomAudioProfilesV1`, with online backup disabled. Playback enabled state is not restored from a profile. Concurrent tabs cannot overwrite a newer catalog: use **Reload saved settings** after a conflict. Failed writes preserve existing profiles; unreadable or newer stored documents are preserved and profile writes are disabled for that run.
 
 ## Preferences and local endpoint
 

@@ -24,7 +24,7 @@ public sealed class SelectAudioProfile : ActionEditorCommand
         this.ActionEditor.AddControlEx(new ActionEditorListbox("Profile", "Profile"));
         this.ActionEditor.ListboxItemsRequested += (_, e) =>
         {
-            foreach (var profile in AudioProfiles.All) e.AddItem(profile.Id, profile.Label, profile.Description);
+            foreach (var profile in ((HapticAudioFeedbackPlugin)this.Plugin).AvailableProfiles) e.AddItem(profile.Id, profile.Label, profile.Description);
             if (string.IsNullOrEmpty(e.ActionEditorState.GetControlValue("Profile"))) e.SetSelectedItemName("music");
         };
     }

@@ -9,12 +9,13 @@ void Check(bool ok, string why) { if (!ok) throw new Exception(why); count++; Co
 var settings = new AudioSettings { Enabled = false };
 var revision = 0;
 var previews = 0;
+var customProfiles = new CustomProfileStore(() => null, _ => { }, ex => throw ex);
 HapticMonitorDebugServer Create(Func<int> port = null) => new(Path.Combine(AppContext.BaseDirectory, "index.html"),
     () => new HapticMonitorSample(), () => (settings.Copy(), revision), (next, expected) =>
     {
         if (expected != revision) throw new InvalidOperationException("Settings changed elsewhere. Reload current settings.");
         settings = next.Copy(); revision++;
-    }, _ => { previews++; return true; }, port);
+    }, _ => { previews++; return true; }, port, customProfiles);
 using var first = Create(); first.Start();
 var occupied = new Uri(first.BaseUrl).Port;
 Check(occupied is >= 49152 and <= 65535, "port is in the high dynamic range");
@@ -73,6 +74,22 @@ using (var catalog = JsonDocument.Parse(await catalogResponse.Content.ReadAsStri
         "browser receives the complete profile catalog and descriptions");
     foreach (var entry in info.EnumerateArray()) profiles.GetProperty(entry.GetProperty("Id").GetString()).Deserialize<AudioSettings>().Validate();
 }
+var duplicateRequest = new ProfileRequest { Operation = "duplicate", Id = "music", Name = "My browser profile", ExpectedRevision = 0 };
+Check((await Send("profiles", body: duplicateRequest)).StatusCode == HttpStatusCode.Forbidden, "custom profile writes require authentication");
+var duplicatedResponse = await Send("profiles", token, body: duplicateRequest);
+using var duplicated = JsonDocument.Parse(await duplicatedResponse.Content.ReadAsStringAsync());
+var customId = duplicated.RootElement.GetProperty("SelectedId").GetString();
+Check(duplicatedResponse.IsSuccessStatusCode && duplicated.RootElement.GetProperty("Catalog").GetProperty("ProfilesRevision").GetInt32() == 1,
+    "browser can duplicate a built-in into a named custom profile");
+Check(revision == 0 && !settings.Enabled, "duplicating a profile does not apply it or resume playback");
+var customSettings = settings.Copy(); customSettings.Sensitivity = 68;
+var customSave = new ProfileRequest { Operation = "save", Id = customId, Name = "My updated profile", Settings = customSettings, ExpectedRevision = 1 };
+Check((await Send("profiles", token, body: customSave)).IsSuccessStatusCode && customProfiles.Resolve(customId).Sensitivity == 68,
+    "browser can update saved custom tuning while retaining its ID");
+Check(!(await Send("profiles", token, body: customSave)).IsSuccessStatusCode && customProfiles.Snapshot().ProfilesRevision == 2,
+    "stale custom profile updates are rejected");
+Check(!(await Send("profiles", token, "https://example.invalid", new ProfileRequest { Operation = "duplicate", Id = "music", Name = "Foreign", ExpectedRevision = 2 })).IsSuccessStatusCode,
+    "foreign origins cannot save profiles");
 var next = settings.Copy(); next.Sensitivity = 61;
 Check((int)(await Send("settings", token, body: next)).StatusCode == 428 && revision == 0, "writes without a revision cannot overwrite settings");
 Check((await Send("settings", token, server.BaseUrl.TrimEnd('/'), next, 0)).IsSuccessStatusCode && settings.Sensitivity == 61 && revision == 1, "valid settings save reaches the controller with its revision");

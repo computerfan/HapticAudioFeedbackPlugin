@@ -2,14 +2,14 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Haptic Audio · Music controls</title>
+<title>Feel the Rhythm · Settings</title>
 <style>
 :root{color-scheme:dark;--bg:#101315;--panel:#1a1f22;--border:#343c41;--text:#edf3f5;--muted:#acb9c0;--mint:#83e6bc;--blue:#8cbfff}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:30px 24px 60px}header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}h1{font-size:28px;font-weight:620;letter-spacing:-.7px;margin:0}h2{font-size:18px;margin:0 0 4px}p{margin:4px 0 18px;color:var(--muted)}.eyebrow{color:var(--mint);font-size:12px;letter-spacing:1.5px;text-transform:uppercase}.card{padding:22px;border:1px solid var(--border);border-radius:16px;background:var(--panel);margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.field{margin:12px 0 18px}.field label{display:flex;justify-content:space-between;gap:10px;font-weight:550}.field small{display:block;color:var(--muted);margin-top:4px;font-size:12px}input[type=range]{width:100%;accent-color:var(--mint);margin:12px 0 0}input[type=checkbox]{accent-color:var(--mint);width:17px;height:17px;vertical-align:middle}select,input[type=number]{color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px;width:100%;margin-top:7px}button{border:1px solid var(--border);background:#273138;color:var(--text);padding:9px 14px;border-radius:8px;font:inherit;cursor:pointer}button:hover{border-color:var(--mint)}button:disabled{opacity:.5;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--mint);outline-offset:3px}.profiles{display:flex;gap:8px;flex-wrap:wrap}.badge{border-radius:30px;padding:6px 12px;font-size:12px;background:#293a33;color:var(--mint);white-space:nowrap}.stats{display:flex;gap:30px;flex-wrap:wrap;margin:14px 0}.stat strong{display:block;font-size:24px}.stat span{color:var(--muted);font-size:12px}.legend{display:flex;gap:16px;color:var(--muted);font-size:12px;flex-wrap:wrap}.bass{color:var(--mint)}.detail{color:var(--blue)}canvas{display:block;width:100%;height:175px;margin:10px 0}.save{font-size:13px;color:var(--mint);min-height:22px;margin:8px 0}.error{color:#ffacac}.toggle{display:flex;gap:8px;align-items:center;font-weight:550}summary{cursor:pointer;font-weight:600}.hint{font-size:12px;color:var(--muted);margin-top:12px}.preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.preview button{font-size:13px}output{font-variant-numeric:tabular-nums;color:var(--mint);font-weight:500}.footnote{font-size:12px;color:var(--muted)}@media(max-width:640px){main{padding:20px 14px}.grid{grid-template-columns:1fr;gap:0}header{align-items:flex-start}h1{font-size:24px}.card{padding:17px}.stats{gap:20px}}
 </style>
 </head>
 <body><main>
-<header><div><div class="eyebrow">MX Master 4 · Audio feedback</div><h1>Feel the rhythm</h1></div><span class="badge" id="state">Connecting</span></header>
+<header><div><div class="eyebrow">MX Master 4 · Audio feedback</div><h1>Feel the Rhythm</h1></div><span class="badge" id="state">Connecting</span></header>
 <div class="card">
 <h2>Listening now</h2><p id="audioStatus">Waiting for the plugin…</p>
 <div class="stats"><div class="stat"><strong id="sent">0</strong><span>Events sent</span></div><div class="stat"><strong id="dropped">0</strong><span>Candidates skipped</span></div><div class="stat"><strong id="last" style="font-size:16px;padding-top:7px">—</strong><span>Last texture</span></div></div>
@@ -27,6 +27,9 @@
 <p>Changes apply and save automatically. No rebuild needed.</p>
 <div class="field"><label for="sceneProfile">Starting profile</label><select id="sceneProfile" aria-describedby="profileDescription"><option value="">Choose a listening situation…</option></select><small id="profileDescription">Profiles are starting points. Applying one replaces the tuning below and preserves whether haptics are paused.</small></div>
 <div class="profiles"><button id="applyProfile" disabled>Apply profile</button><button id="reloadSettings">Reload saved settings</button></div>
+<div class="field"><label for="customProfileName">Custom profile name</label><input type="text" id="customProfileName" maxlength="64" placeholder="e.g. My evening music" style="width:100%;padding:8px;margin-top:7px"><small>Duplicate copies the selected profile. Save current stores the controls below. Neither changes live playback.</small></div>
+<div class="profiles"><button id="duplicateProfile" disabled>Duplicate selected</button><button id="saveNewProfile" disabled>Save current as new</button><button id="updateProfile" disabled>Update selected custom</button></div>
+<div id="profileStatus" class="save" role="status" aria-live="polite"></div>
 <div id="saveStatus" class="save" role="status" aria-live="polite">Loading controls…</div>
 <div class="grid" id="basic"></div>
 </div>
@@ -51,6 +54,7 @@ const token=sessionStorage.getItem('hapticToken')||'';
 const authHeaders={'X-Haptic-Token':token};
 let revision;
 const byId=id=>document.getElementById(id);
+let profileInfo=[],profilesRevision,profilesError,profileBusy=false;
 let settings,profiles,dirty=false,saving=false,saveTimer,history=[],lastSample=null;
 const names={subtle_collision:'Soft tap',damp_collision:'Rounded thump',sharp_collision:'Sharp impact',damp_state_change:'Soft transition',sharp_state_change:'Crisp tick',wave:'Wave'};
 const basic=[
@@ -118,13 +122,58 @@ async function save(){
  finally{saving=false;if(dirty)save();}
 }
 byId('reloadSettings').addEventListener('click',async()=>{
- if(saving){message('Wait for the current save to finish.');return;}
+ if(saving||profileBusy){message('Wait for the current save to finish.');return;}
  clearTimeout(saveTimer);dirty=false;
  try{const response=await fetch('/settings',{headers:authHeaders});const data=await response.json();
   if(!response.ok)throw new Error(data.Error||'Could not load settings');
-  settings=data.Settings;revision=data.Revision;sync();message('Saved settings loaded');
+  settings=data.Settings;revision=data.Revision;setCatalog(data);sync();message('Saved settings loaded');
  }catch(error){message(error.message,true);}
 });
+function selectedProfile(){return profileInfo.find(p=>p.Id===byId('sceneProfile').value);}
+function copyName(label){
+ let name=label.slice(0,54)+' copy',i=2;
+ while(profileInfo.some(p=>p.Label.toLowerCase()===name.toLowerCase()))name=label.slice(0,54)+' copy '+i++;
+ return name;
+}
+function profileSelection(){
+ const profile=selectedProfile(),named=!!byId('customProfileName').value.trim();
+ byId('applyProfile').disabled=profileBusy||!profile;
+ byId('duplicateProfile').disabled=profileBusy||!!profilesError||!profile||!named;
+ byId('saveNewProfile').disabled=profileBusy||!!profilesError||!settings||!named;
+ byId('updateProfile').disabled=profileBusy||!!profilesError||!profile?.IsCustom||!named;
+ byId('sceneProfile').disabled=profileBusy;byId('customProfileName').disabled=profileBusy;
+ byId('profileDescription').textContent=profile?profile.Description:'Choose a starting profile. Current settings stay unchanged until you apply it.';
+}
+function setCatalog(data,selection=byId('sceneProfile').value){
+ profiles=data.Profiles;profileInfo=data.ProfileInfo;profilesRevision=data.ProfilesRevision;profilesError=data.ProfilesError;
+ const select=byId('sceneProfile');select.replaceChildren();
+ const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose a listening situation…';select.append(placeholder);
+ for(const custom of [false,true]){
+  const group=document.createElement('optgroup');group.label=custom?'Your profiles':'Built-in profiles';
+  for(const profile of profileInfo.filter(p=>p.IsCustom===custom)){
+   const option=document.createElement('option');option.value=profile.Id;option.textContent=profile.Label;group.append(option);
+  }
+  if(group.children.length)select.append(group);
+ }
+ select.value=profileInfo.some(p=>p.Id===selection)?selection:'';
+ byId('profileStatus').textContent=profilesError||'';byId('profileStatus').classList.toggle('error',!!profilesError);profileSelection();
+}
+async function saveProfile(mode){
+ if(profileBusy)return;
+ const profile=selectedProfile();let name=byId('customProfileName').value.trim();
+ if(mode==='duplicate'&&profile&&name===profile.Label)name=copyName(name);
+ const payload={Operation:mode==='duplicate'?'duplicate':'save',Name:name,ExpectedRevision:profilesRevision};
+ if(mode==='duplicate'||mode==='update')payload.Id=profile?.Id;
+ if(mode!=='duplicate')payload.Settings=structuredClone(settings);
+ profileBusy=true;profileSelection();byId('profileStatus').textContent='Saving profile…';
+ try{
+  const result=await request('/profiles',payload);setCatalog(result.Catalog,result.SelectedId);
+  byId('customProfileName').value=selectedProfile().Label;
+  byId('profileStatus').textContent='Profile saved. Use Apply profile to load its tuning.';
+  byId('profileStatus').classList.remove('error');
+ }catch(error){byId('profileStatus').textContent=error.message;byId('profileStatus').classList.add('error');}
+ finally{profileBusy=false;profileSelection();}
+}
 async function init(){
  try{
   const response=await fetch('/settings',{headers:authHeaders});if(!response.ok)throw new Error('Could not load settings');
@@ -136,15 +185,20 @@ async function init(){
   select(byId('textures'),'HighWaveform','Detail attack',data.Presets);
   select(byId('sustain'),'SustainWaveform','Texture pulse',['subtle_collision','damp_collision']);
   for(const key of ['Enabled','SustainEnabled'])byId(key).addEventListener('change',()=>{settings[key]=byId(key).checked;queueSave();});
-  for(const profile of data.ProfileInfo){const option=document.createElement('option');option.value=profile.Id;option.textContent=profile.Label;byId('sceneProfile').append(option);}
+  setCatalog(data);
   byId('sceneProfile').addEventListener('change',()=>{
-   const profile=data.ProfileInfo.find(p=>p.Id===byId('sceneProfile').value);byId('applyProfile').disabled=!profile;
-   byId('profileDescription').textContent=profile?profile.Description:'Choose a starting profile. Current settings stay unchanged until you apply it.';
+   const profile=selectedProfile();
+   byId('customProfileName').value=profile?(profile.IsCustom?profile.Label:copyName(profile.Label)):'';
+   profileSelection();
   });
+  byId('customProfileName').addEventListener('input',profileSelection);
   byId('applyProfile').addEventListener('click',()=>{
    const profile=profiles[byId('sceneProfile').value];if(!profile)return;
    settings={...profile,Enabled:settings.Enabled};sync();queueSave();
   });
+  byId('duplicateProfile').addEventListener('click',()=>saveProfile('duplicate'));
+  byId('saveNewProfile').addEventListener('click',()=>saveProfile('new'));
+  byId('updateProfile').addEventListener('click',()=>saveProfile('update'));
   for(const preset of data.Presets){const b=document.createElement('button');b.textContent='▶ '+names[preset];b.addEventListener('click',async()=>{
    b.disabled=true;try{const r=await request('/preview',preset);byId('previewStatus').textContent=r.Sent?names[preset]+' event sent. Did you feel it?':'Skipped: another event used the shared playback slot. Try again.';}
    catch(error){byId('previewStatus').textContent=error.message;}finally{b.disabled=false;}

@@ -10,6 +10,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     private readonly Plugin _plugin;
     private AudioSettings _settings;
     private readonly string _htmlPath;
+    private readonly CustomProfileStore _profiles;
     private readonly Action<AudioSettings> _saveSettings;
     private readonly object _settingsGate = new(), _diagnosticsGate = new();
     private HapticMonitorSample _latest = new();
@@ -29,13 +30,14 @@ internal sealed class HapticAudioMonitor : IDisposable
     private double _backendCallMs, _maxBackendCallMs, _maxBufferMs, _maxProcessingMs, _maxLockWaitMs;
     private double _lastWarningMs = double.NegativeInfinity;
 
-    public HapticAudioMonitor(Plugin plugin, AudioSettings settings, Action<AudioSettings> saveSettings, string htmlPath)
+    public HapticAudioMonitor(Plugin plugin, AudioSettings settings, Action<AudioSettings> saveSettings, string htmlPath, CustomProfileStore profiles)
     {
         _plugin = plugin ?? throw new ArgumentNullException(nameof(plugin));
         settings.Validate();
         _settings = settings.Copy();
         _saveSettings = saveSettings;
         _htmlPath = htmlPath;
+        _profiles = profiles;
     }
 
     public void Start()
@@ -221,7 +223,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         lock (_diagnosticsGate)
         {
             if (_debugServer != null) return _debugServer.LaunchUrl;
-            var server = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettingsSnapshot, ApplySettingsIfCurrent, Preview);
+            var server = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettingsSnapshot, ApplySettingsIfCurrent, Preview, profiles: _profiles);
             try { server.Start(); lock (_gate) _debugServer = server; }
             catch { server.Dispose(); throw; }
             return server.LaunchUrl;

@@ -30,7 +30,7 @@ Test("settings launcher opens only on action activation", () =>
 });
 Test("profile and preview dropdowns keep assigned selections", () =>
 {
-    var profile = new SelectAudioProfile(); var state = State(profile);
+    var profile = new SelectAudioProfile(); Attach(profile, new HapticAudioFeedbackPlugin()); var state = State(profile);
     state.GetControlState("Profile").Value = "gentle";
     var items = (ActionEditorListboxItemsRequestedEventArgs)Invoke(profile.ActionEditor, "InvokeListboxItemsRequestedEvent", state, "Profile");
     Check(items.Items.Count == AudioProfiles.All.Count && items.SelectedItemName == null, "Profile selection changed.");
@@ -56,6 +56,17 @@ Test("every scene profile can be assigned without resuming paused haptics", () =
         Check(!owner.CurrentSettings.Enabled, "Profile resumed haptics: " + profile.Id);
         owner.CurrentSettings.Validate();
     }
+});
+Test("custom profiles appear in action choices and execute with stable IDs", () =>
+{
+    var owner = new HapticAudioFeedbackPlugin();
+    var custom = owner.Profiles.Save(new() { Operation = "save", Name = "Custom action", Settings = new() { Sensitivity = 72 }, ExpectedRevision = 0 });
+    var action = new SelectAudioProfile(); Attach(action, owner); var state = State(action);
+    state.GetControlState("Profile").Value = custom.SelectedId;
+    var items = (ActionEditorListboxItemsRequestedEventArgs)Invoke(action.ActionEditor, "InvokeListboxItemsRequestedEvent", state, "Profile");
+    Check(items.Items.Count == AudioProfiles.All.Count + 1 && items.SelectedItemName == null, "Custom action selection was lost.");
+    Check((bool)Invoke(action, "RunCommand", new ActionEditorActionParameters(new Dictionary<string, string> { ["Profile"] = custom.SelectedId })), "Custom profile action failed.");
+    Check(owner.CurrentSettings.Sensitivity == 72 && !owner.CurrentSettings.Enabled, "Custom action did not preserve paused state.");
 });
 Test("assigned toggle action pauses and resumes through the controller", () =>
 {

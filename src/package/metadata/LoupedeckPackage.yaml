@@ -9,7 +9,7 @@ type: plugin4
 name: HapticAudioFeedback
 
 # Plugin name that is shown to the user.
-displayName: Haptic Audio Feedback
+displayName: Feel the Rhythm
 
 # Short description of the plugin.
 description: "Audio onset haptics with damped/strong bass and subtle high-band feedback."
@@ -18,7 +18,7 @@ description: "Audio onset haptics with damped/strong bass and subtle high-band f
 pluginFileName: HapticAudioFeedbackPlugin.dll
 
 # Plugin version.
-version: 0.4.1
+version: 0.4.2
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: computerfan

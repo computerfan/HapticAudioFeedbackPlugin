@@ -47,6 +47,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private readonly Action<AudioSettings, int?> _apply;
     private readonly Func<string, bool> _preview;
     private readonly string _html;
+    private readonly CustomProfileStore _profiles;
     private readonly string _token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
     private readonly Func<int> _nextPort;
     public string BaseUrl { get; private set; }
@@ -54,9 +55,10 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private volatile bool _running;
 
     public HapticMonitorDebugServer(string htmlPath, Func<HapticMonitorSample> metrics,
-        Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null)
+        Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null)
     {
         _html = File.ReadAllText(htmlPath);
+        _profiles = profiles ?? new CustomProfileStore(() => null, _ => throw new InvalidOperationException("Profile storage unavailable."), _ => { });
         _metrics = metrics;
         _settings = settings;
         _apply = apply;
@@ -144,9 +146,9 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                 case "/metrics": Json(context, _metrics()); return;
                 case "/settings":
                     var snapshot = _settings();
+                    var catalog = _profiles.Snapshot();
                     Json(context, new { snapshot.Settings, snapshot.Revision, Presets = HapticPatterns.Presets.Keys,
-                        Profiles = AudioProfiles.All.ToDictionary(profile => profile.Id, profile => profile.Create()),
-                        ProfileInfo = AudioProfiles.All.Select(profile => new { profile.Id, profile.Label, profile.Description }) }); return;
+                        catalog.Profiles, catalog.ProfileInfo, catalog.ProfilesRevision, catalog.ProfilesError }); return;
                 case "/": Write(context, _html, "text/html; charset=utf-8"); return;
                 default: Json(context, new { Error = "Not found" }, 404); return;
             }
@@ -170,6 +172,12 @@ internal sealed class HapticMonitorDebugServer : IDisposable
             _apply(settings, revision);
             var snapshot = _settings();
             Json(context, new { snapshot.Settings, snapshot.Revision, Saved = true });
+        }
+        else if (path == "/profiles")
+        {
+            var profile = JsonSerializer.Deserialize<ProfileRequest>(buffer, new JsonSerializerOptions
+                { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow }) ?? throw new ArgumentException("Profile request required.");
+            Json(context, _profiles.Save(profile));
         }
         else if (path == "/preview")
         {

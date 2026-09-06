@@ -17,6 +17,7 @@ namespace Loupedeck.HapticAudioFeedback
         private HapticAudioMonitor _hapticMonitor;
         private SdkAudioSettingsStore _settingsStore;
         private string _settingsLauncherPath;
+        private CustomProfileStore _profiles;
 
         // Initializes a new instance of the plugin class.
         public HapticAudioFeedbackPlugin()
@@ -44,6 +45,10 @@ namespace Loupedeck.HapticAudioFeedback
                 () => this.TryGetPluginSetting(SdkAudioSettingsStore.SettingName, out var json) ? json : null,
                 json => this.SetPluginSetting(SdkAudioSettingsStore.SettingName, json, false),
                 ex => PluginLog.Warning(ex, "Could not read or migrate SDK audio settings."));
+            this._profiles = new CustomProfileStore(
+                () => this.TryGetPluginSetting(CustomProfileStore.SettingName, out var json) ? json : null,
+                json => this.SetPluginSetting(CustomProfileStore.SettingName, json, false),
+                ex => PluginLog.Warning(ex, "Could not load custom profiles; saved data was preserved."));
             var defaults = settings;
             settings = this._settingsStore.Load(defaults, () => AudioSettingsStore.LoadOverride(userSettingsPath, defaults,
                 ex => PluginLog.Warning(ex, "Could not import legacy audio controls; using package settings.")));
@@ -51,7 +56,7 @@ namespace Loupedeck.HapticAudioFeedback
             var packageDirectory = string.IsNullOrWhiteSpace(this.AssemblyFilePath) ? "" :
                 System.IO.Path.GetDirectoryName(System.IO.Path.GetDirectoryName(this.AssemblyFilePath)) ?? "";
             var htmlPath = System.IO.Path.Combine(packageDirectory, "ui", "index.html");
-            this._hapticMonitor = new HapticAudioMonitor(this, settings, this._settingsStore.Save, htmlPath);
+            this._hapticMonitor = new HapticAudioMonitor(this, settings, this._settingsStore.Save, htmlPath, this._profiles);
             this._hapticMonitor.Start();
             this._settingsLauncherPath = System.IO.Path.Combine(this.GetPluginDataDirectory(), "Open Haptic Settings.html");
             try { this.StartBrowserSettings(); }
@@ -62,10 +67,10 @@ namespace Loupedeck.HapticAudioFeedback
         {
             var url = this._hapticMonitor.GetOrStartSettingsUrl();
             // A stable file gives users an entry point independent of an assigned ring action.
-            var html = "<!doctype html><meta charset=\"utf-8\"><title>Haptic Audio Settings</title>" +
+            var html = "<!doctype html><meta charset=\"utf-8\"><title>Feel the Rhythm · Settings</title>" +
                 "<meta name=\"referrer\" content=\"no-referrer\"><meta http-equiv=\"refresh\" content=\"0;url=" +
                 System.Net.WebUtility.HtmlEncode(url) + "\"><p><a href=\"" + System.Net.WebUtility.HtmlEncode(url) +
-                "\">Open Haptic Audio Settings</a></p><p>If the plugin was reloaded, reopen this launcher file.</p>";
+                "\">Open Feel the Rhythm settings</a></p><p>If the plugin was reloaded, reopen this launcher file.</p>";
             System.IO.File.WriteAllText(this._settingsLauncherPath, html);
             PluginLog.Info("Browser settings launcher: " + this._settingsLauncherPath);
             return url;
@@ -83,11 +88,12 @@ namespace Loupedeck.HapticAudioFeedback
                 this.OnPluginStatusChanged(Loupedeck.PluginStatus.Warning, "Could not open browser settings: " + ex.Message);
             }
         }
+        internal ProfileInfo[] AvailableProfiles => this._profiles?.Snapshot().ProfileInfo ?? AudioProfiles.All.Select(p => new ProfileInfo(p.Id, p.Label, p.Description, false)).ToArray();
         internal void ToggleAudioHaptics() => this._hapticMonitor.UpdateSettings(settings => settings.Enabled = !settings.Enabled);
         internal void SelectAudioProfile(string name) => this._hapticMonitor.UpdateSettings(settings =>
         {
             var enabled = settings.Enabled;
-            var profile = AudioSettings.Profile(name);
+            var profile = this._profiles.Resolve(name);
             foreach (var property in typeof(AudioSettings).GetProperties().Where(p => p.CanWrite))
                 property.SetValue(settings, property.GetValue(profile));
             settings.Enabled = enabled;
@@ -101,7 +107,7 @@ namespace Loupedeck.HapticAudioFeedback
             try
             {
                 if (this._settingsLauncherPath != null)
-                    System.IO.File.WriteAllText(this._settingsLauncherPath, "<!doctype html><title>Haptic Audio Settings</title><p>The plugin is stopped. Start it in Logi Options+, then reopen this file.</p>");
+                    System.IO.File.WriteAllText(this._settingsLauncherPath, "<!doctype html><title>Feel the Rhythm · Settings</title><p>The plugin is stopped. Start it in Logi Options+, then reopen this file.</p>");
             }
             catch (Exception ex) { PluginLog.Warning(ex, "Could not update the settings launcher."); }
             this._hapticMonitor?.Dispose();
