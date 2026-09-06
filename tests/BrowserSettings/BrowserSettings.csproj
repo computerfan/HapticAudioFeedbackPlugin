@@ -7,6 +7,7 @@
     <Compile Include="../../src/Audio/AudioSettings.cs" Link="AudioSettings.cs" />
     <Compile Include="../../src/Audio/HapticPatterns.cs" Link="HapticPatterns.cs" />
     <None Include="../../src/package/ui/vendor/pico-2.1.1.min.css" Link="vendor/pico-2.1.1.min.css" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/package/ui/logo.png" Link="logo.png" CopyToOutputDirectory="PreserveNewest" />
     <None Include="../../src/package/ui/index.html" Link="index.html" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

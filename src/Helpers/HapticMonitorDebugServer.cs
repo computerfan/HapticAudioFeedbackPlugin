@@ -60,6 +60,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private readonly Action _restartCapture;
     private readonly Func<object> _devices;
     private readonly string _html, _picoCss;
+    private readonly byte[] _logoPng;
     private readonly CustomProfileStore _profiles;
     private readonly string _token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
     private readonly Func<int> _nextPort;
@@ -72,6 +73,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null, Action restartCapture = null, Func<object> devices = null)
     {
         _html = File.ReadAllText(htmlPath);
+        _logoPng = File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(htmlPath), "logo.png"));
         _picoCss = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "vendor", "pico-2.1.1.min.css"));
         _profiles = profiles ?? new CustomProfileStore(() => null, _ => throw new InvalidOperationException("Profile storage unavailable."), _ => { });
         _metrics = metrics;
@@ -157,7 +159,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         if (request.Url?.GetLeftPart(UriPartial.Authority) + "/" != BaseUrl ||
             request.RemoteEndPoint == null || !IPAddress.IsLoopback(request.RemoteEndPoint.Address))
         { Json(context, new { Error = "Loopback requests only" }, 403); return; }
-        if (request.HttpMethod != "GET" || (path != "/" && path != "/vendor/pico-2.1.1.min.css"))
+        if (request.HttpMethod != "GET" || (path != "/" && path != "/vendor/pico-2.1.1.min.css" && path != "/logo.png"))
         {
             var origin = request.Headers["Origin"];
             if (request.Headers["X-Haptic-Token"] != _token ||
@@ -176,6 +178,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                     Json(context, new { snapshot.Settings, snapshot.Revision, Presets = HapticPatterns.Presets.Keys,
                         catalog.Profiles, catalog.ProfileInfo, catalog.ProfilesRevision, catalog.ProfilesError }); return;
                 case "/": Write(context, _html, "text/html; charset=utf-8"); return;
+                case "/logo.png": Write(context, _logoPng, "image/png"); return;
                 case "/vendor/pico-2.1.1.min.css": Write(context, _picoCss, "text/css; charset=utf-8"); return;
                 default: Json(context, new { Error = "Not found" }, 404); return;
             }
@@ -229,8 +232,10 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     }
 
     private static void Write(HttpListenerContext context, string text, string contentType)
+        => Write(context, Encoding.UTF8.GetBytes(text), contentType);
+
+    private static void Write(HttpListenerContext context, byte[] bytes, string contentType)
     {
-        var bytes = Encoding.UTF8.GetBytes(text);
         context.Response.ContentType = contentType;
         context.Response.ContentLength64 = bytes.Length;
         context.Response.OutputStream.Write(bytes, 0, bytes.Length);

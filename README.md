@@ -1,3 +1,5 @@
+<img src="src/package/metadata/Icon256x256.png" width="80" height="80" alt="Feel the Rhythm logo">
+
 # Feel the Rhythm
 
 Turn music and other audio into haptic feedback on compatible Logitech devices. Follow bass hits and instrument attacks with adjustable taps, impacts, and sustained textures.

@@ -91,6 +91,11 @@ Check((await Send("metrics", token)).IsSuccessStatusCode, "listener serves reque
 var cssResponse = await client.GetAsync("vendor/pico-2.1.1.min.css");
 Check(cssResponse.IsSuccessStatusCode && cssResponse.Content.Headers.ContentType.MediaType == "text/css" && (await cssResponse.Content.ReadAsStringAsync()).Contains("Pico CSS"), "bundled Pico CSS is served without exposing authenticated settings");
 Check((await Send("vendor/not-allowed.css")).StatusCode == HttpStatusCode.Forbidden, "asset route does not enable arbitrary unauthenticated files");
+var logoResponse = await client.GetAsync("logo.png");
+Check(logoResponse.IsSuccessStatusCode && logoResponse.Content.Headers.ContentType.MediaType == "image/png" &&
+    (await logoResponse.Content.ReadAsByteArrayAsync()).SequenceEqual(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "logo.png"))),
+    "public branding route returns the packaged PNG unchanged");
+Check((await Send("metadata/Icon256x256.png")).StatusCode == HttpStatusCode.Forbidden, "branding route does not expose arbitrary package files");
 var catalogResponse = await Send("settings", token);
 using (var catalog = JsonDocument.Parse(await catalogResponse.Content.ReadAsStringAsync()))
 {
