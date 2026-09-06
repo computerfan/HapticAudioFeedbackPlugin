@@ -80,7 +80,19 @@ Sustained texture follows held bass energy with spaced soft pulses. It is neithe
 
 NAudio remains at 2.2.1 to match the host runtime. The capture adapter is a separate assembly for SDK package inspection. Windows reuses host NAudio assemblies; do not package private copies of `NAudio.Core.dll` or `NAudio.Wasapi.dll`. The separate Mac managed directory includes portable `NAudio.Core.dll` for DSP.
 
+### Haptic device targeting
+
+Checked on 2026-09-06 against the installed Plugin API **6.2.6.1611** and the [SDK haptics documentation](https://logitech.github.io/actions-sdk-docs/csharp/haptics/haptics-getting-started/). The public `PluginEventSender` exposes `RaiseEvent(string eventName)` with no target-device parameter. No public API for selecting an individual Logitech haptic output was found. Device IDs exposed for incoming control events do not provide a haptic targeting mechanism.
+
+The [waveform mapping](https://logitech.github.io/actions-sdk-docs/csharp/haptics/haptics-getting-started/#waveform-mapping) keys select presets by model name, with a `DEFAULT` fallback. They cannot distinguish two physical devices of the same model.
+
+The plugin sends each event once and shares its audio source, tuning, profiles, and data folder across devices. Logi Options+ determines delivery. The reviewed documentation does not establish whether all connected haptic devices respond or only an active device, and this behavior has not been tested with two devices. `SentCount` counts successful event API calls, not receiving devices or confirmed vibrations. The browser's **Audio source** selector controls capture only.
+
+Do not expose a haptic output selector until a supported targeting API is available. Recheck this limitation when upgrading the SDK; determining current multi-device playback behavior requires a two-device test or confirmation from Logitech.
+
 ## Settings and local browser
+
+See [Plugin data folder](../README.md#plugin-data-folder) for copyable Windows and macOS paths and instructions for opening them. The plugin obtains the actual directory from the SDK's [`GetPluginDataDirectory()`](https://logitech.github.io/actions-sdk-docs/csharp/plugin-features/storing-plugin-data/). It places `Open Haptic Settings.html` and the `logs` subfolder there. The Windows location has been verified locally; the expected Mac path combines the [documented service directory](https://logitech.github.io/actions-sdk-docs/csharp/plugin-development/introduction/) with the plugin-data layout and still needs Mac verification.
 
 The SDK stores preferences under `AudioSettingsV1` and custom profiles under `CustomAudioProfilesV1`, with online backup disabled. Legacy preferences are imported once when SDK settings are absent. Save failures preserve live state; invalid or newer stored documents are retained. Paths use the SDK's `AssemblyFilePath`, because the host may load assemblies without an `Assembly.Location`.
 
@@ -92,7 +104,7 @@ The launcher passes the token in a URL fragment; the page removes it from the di
 
 ## Diagnostics
 
-The browser's **Response timing** panel shows capture batches, processing time, callback lock waits, backend call duration, and estimated sample age. `/metrics` and `/settings` require authentication.
+The browser's **Diagnostics** panel shows capture batches, processing time, callback lock waits, backend call duration, and estimated sample age. `/metrics` and `/settings` require authentication.
 
 - `SentCount` counts successful event API calls, not confirmed physical vibrations.
 - `DroppedCount` counts candidates skipped by age, priority, spacing, or backend failure.
@@ -111,7 +123,7 @@ This compares original NAudio, responsive NAudio, and the packaged CPAL bridge o
 
 Runtime diagnostic logs live in the plugin data directory's `logs` folder: `feel-the-rhythm.log` and two rotated archives. Each file is capped at 512 KiB (1.5 MiB total). Rotation touches only those three filenames. The writer uses a 64-entry queue, retains at most 2,048 characters per message, and accepts at most 30 entries per 60-second window. Duplicate messages are suppressed within that window; the next accepted entry summarizes suppressed messages. Audio callbacks never wait for disk I/O. There are no per-frame log writes.
 
-Storage failures do not interrupt capture or settings. The writer backs off for 60 seconds, and the browser's Response timing panel shows logging failures and suppressed counts. Mac helper stderr is continuously drained with only its first 4,096 characters retained. Logitech's own host logs have separate retention outside this plugin's control; the plugin sends one log-location entry to the SDK per load.
+Storage failures do not interrupt capture or settings. The writer backs off for 60 seconds, and the browser's Diagnostics panel shows logging failures and suppressed counts. Mac helper stderr is continuously drained with only its first 4,096 characters retained. Logitech's own host logs have separate retention outside this plugin's control; the plugin sends one log-location entry to the SDK per load.
 
 Sent, dropped, and suppressed counters saturate at their 64-bit limits instead of wrapping. The metrics API sends counters as decimal strings so JavaScript does not lose precision above `2^53 - 1`. The browser uses `BigInt`, compact labels, and exact totals in tooltips; a `+` marks a saturated counter. The chart retains only 120 samples. Settings and profile revisions reject further writes at their limit while preserving existing data.
 
@@ -145,6 +157,20 @@ go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 ```
 
 ## Licenses and references
+
+### Browser frontend
+
+The settings page uses **Pico CSS 2.1.1**, vendored as an unmodified 83,319-byte precompiled stylesheet. Pico is MIT licensed and has no runtime dependencies. Its npm build tools are not shipped. The remaining HTML, CSS, and JavaScript are project code under MIT; charts use Canvas 2D directly. System fonts and browser APIs are provided by the user's environment.
+
+Every package includes the root `LICENSE`, `licenses/FRONTEND-NOTICES.txt`, Pico's full `licenses/Pico-CSS-MIT.txt`, and `licenses/FRONTEND-dependencies.json` with the pinned source, version, and SHA-256. Package verification checks that dependencies use MIT or Apache-2.0, their notice files exist, and their bytes match the inventory. The stylesheet is served through one fixed local GET route; no CDN, arbitrary file server, or external font requests are used. The CSP permits Pico's embedded SVG icons as image data URLs.
+
+Selecting a profile immediately updates the visible values and queues a serialized save. One-step Undo restores the preceding tuning while retaining the current source and playback state. The selector identifies matching or modified tuning; built-in and saved profiles are never overwritten by live slider changes. Source changes retain explicit confirmation to avoid starting microphone capture on selection alone. Failed saves stop automatic retries and expose Retry saving / Reload saved settings. Related timing constraints remain valid, and disabled bands and sustained texture disable their dependent controls.
+
+`dotnet run --project tests/BrowserSettings -c Release -- --preview` opens an isolated loopback test server for visual review with in-memory profiles and simulated controllers; it never captures audio or dispatches hardware events. Stop the process after review. UI tests exercise profile selection, Undo, pending saves, failures, coupled constraints, and custom profile operations.
+
+When adding a frontend library or redistributed asset, review its dependency tree for MIT or Apache-2.0 choices and include the required full license texts and notices. Update the inventory and pinned checksums; automated presence/integrity checks do not replace reviewing a new dependency's license.
+
+### Other components and references
 
 The project uses the [MIT License](../LICENSE). `tools/audit_cpal_licenses.py` audits the locked Windows/macOS binary dependency closures for MIT or Apache-2.0 alternatives and collects notices. Compiler tools, procedural macros, and build-only dependencies are classified separately. The audit does not cover the proprietary Logitech SDK or OS frameworks.
 

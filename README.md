@@ -18,13 +18,31 @@ Requires Logi Options+ and a Logitech device with supported haptic mappings.
 | Windows x64 | Tested locally |
 | macOS 14.6+ · Apple Silicon and Intel | Experimental; hardware and recording permissions still need validation |
 
+**Multiple haptic devices:** settings are shared, and the plugin cannot select an individual haptic output device. Logi Options+ controls event delivery; whether multiple connected devices vibrate together is unverified. The **Audio source** selector chooses the audio to analyze. See [SDK limitations](docs/development.md#haptic-device-targeting).
+
 ## Get started
 
 1. Install a plugin package built for your platform. To build one, see the [developer guide](docs/development.md).
 2. In Logi Options+, assign **Open haptic settings** to an Actions Ring slot and activate it.
-3. Choose an **Audio source** and press **Use device**. Select a **Starting profile**, press **Apply profile**, and play some audio.
+3. Choose an **Audio source** and press **Use this source**. Select a **Listening profile** and play some audio. Profile changes apply immediately; **Undo profile change** restores your previous tuning.
 
-You can also open **Open Haptic Settings.html** from the plugin's data folder. Reopen this launcher after a plugin restart instead of bookmarking the temporary browser address.
+You can also open **Open Haptic Settings.html** from the [plugin data folder](#plugin-data-folder). Reopen this launcher after a plugin restart instead of bookmarking the temporary browser address.
+
+### Plugin data folder
+
+**Windows:** paste this into File Explorer's address bar or **Win+R**:
+
+```text
+%LOCALAPPDATA%\Logi\LogiPluginService\PluginData\HapticAudioFeedback
+```
+
+**macOS:** in Finder, press **Cmd+Shift+G** and enter the expected location (not yet verified on a Mac):
+
+```text
+~/Library/Application Support/Logi/LogiPluginService/PluginData/HapticAudioFeedback
+```
+
+Open `Open Haptic Settings.html` for settings. Diagnostic logs are in the `logs` subfolder, starting with `feel-the-rhythm.log`. The folder and launcher are created when the plugin loads successfully.
 
 ## Make it yours
 
@@ -32,13 +50,13 @@ Start with **Music**, **Bass focus**, or **Gentle**. Additional profiles cover e
 
 Tuning controls save automatically. Sensitivity changes which sounds trigger feedback; overall haptic intensity is controlled in Logi Options+.
 
-Use **Duplicate selected** to copy a profile, **Save current as new** to keep your current tuning, or **Update selected custom** to replace a saved custom profile. Applying a profile preserves your audio source and paused state.
+Open **Save & manage your profiles** to duplicate a profile, **Save as new** to keep your current tuning, or **Update selected** to replace a saved custom profile. Profile selection preserves your audio source and paused state; the page shows when you have modified a profile.
 
 The **Toggle haptics**, **Select haptic profile**, and **Preview haptic texture** actions are also available in Options+.
 
 ## Troubleshooting
 
-- **No audio:** check the selected source and recording permissions, then use **Refresh devices** or **Retry audio capture**.
+- **No audio:** check the selected source and recording permissions, then use **Refresh** or **Retry audio capture**.
 - **Too many or delayed pulses:** increase pulse spacing, try softer textures, and disable sustained texture.
 - **Settings conflict:** use **Reload saved settings** to load the latest changes.
 

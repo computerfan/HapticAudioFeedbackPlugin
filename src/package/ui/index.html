@@ -1,61 +1,56 @@
 <!doctype html>
-<html lang="en">
+<!-- SPDX-License-Identifier: MIT
+     Copyright (c) 2026 computerfan
+     See LICENSE and licenses/FRONTEND-NOTICES.txt in the plugin package.
+     Pico CSS is distributed under its own MIT license. -->
+<html lang="en" data-theme="dark">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Feel the Rhythm · Settings</title>
+<link rel="stylesheet" href="/vendor/pico-2.1.1.min.css">
 <style>
-:root{color-scheme:dark;--bg:#101315;--panel:#1a1f22;--border:#343c41;--text:#edf3f5;--muted:#acb9c0;--mint:#83e6bc;--blue:#8cbfff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:30px 24px 60px}header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}h1{font-size:28px;font-weight:620;letter-spacing:-.7px;margin:0}h2{font-size:18px;margin:0 0 4px}p{margin:4px 0 18px;color:var(--muted)}.eyebrow{color:var(--mint);font-size:12px;letter-spacing:1.5px;text-transform:uppercase}.card{padding:22px;border:1px solid var(--border);border-radius:16px;background:var(--panel);margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.field{margin:12px 0 18px}.field label{display:flex;justify-content:space-between;gap:10px;font-weight:550}.field small{display:block;color:var(--muted);margin-top:4px;font-size:12px}input[type=range]{width:100%;accent-color:var(--mint);margin:12px 0 0}input[type=checkbox]{accent-color:var(--mint);width:17px;height:17px;vertical-align:middle}select,input[type=number]{color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px;width:100%;margin-top:7px}button{border:1px solid var(--border);background:#273138;color:var(--text);padding:9px 14px;border-radius:8px;font:inherit;cursor:pointer}button:hover{border-color:var(--mint)}button:disabled{opacity:.5;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--mint);outline-offset:3px}.profiles{display:flex;gap:8px;flex-wrap:wrap}.badge{border-radius:30px;padding:6px 12px;font-size:12px;background:#293a33;color:var(--mint);white-space:nowrap}.stats{display:flex;gap:30px;flex-wrap:wrap;margin:14px 0}.stat{min-width:0;max-width:100%}.stat strong{display:block;font-size:24px;overflow-wrap:anywhere}.stat span{color:var(--muted);font-size:12px}.legend{display:flex;gap:16px;color:var(--muted);font-size:12px;flex-wrap:wrap}.bass{color:var(--mint)}.detail{color:var(--blue)}canvas{display:block;width:100%;height:175px;margin:10px 0}.save{font-size:13px;color:var(--mint);min-height:22px;margin:8px 0}.error{color:#ffacac}.toggle{display:flex;gap:8px;align-items:center;font-weight:550}summary{cursor:pointer;font-weight:600}.hint{font-size:12px;color:var(--muted);margin-top:12px}.preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.preview button{font-size:13px}output{font-variant-numeric:tabular-nums;color:var(--mint);font-weight:500}.footnote{font-size:12px;color:var(--muted)}@media(max-width:640px){main{padding:20px 14px}.grid{grid-template-columns:1fr;gap:0}header{align-items:flex-start}h1{font-size:24px}.card{padding:17px}.stats{gap:20px}}
+:root{color-scheme:dark;--pico-font-family:system-ui,sans-serif;--pico-font-size:15px;--pico-primary:#9ae5c0;--pico-primary-background:#9ae5c0;--pico-primary-border:#9ae5c0;--pico-primary-inverse:#10261c;--pico-primary-hover-background:#b8f6d6;--pico-primary-hover-border:#b8f6d6;--pico-primary-focus:rgba(154,229,192,.22);--pico-form-element-active-border-color:#9ae5c0;--pico-form-element-focus-color:rgba(154,229,192,.18);--pico-switch-checked-background-color:#9ae5c0;--pico-range-active-border-color:#9ae5c0;--pico-range-thumb-color:#9ae5c0;--pico-border-radius:10px;--bg:#101615;--panel:#1a2320;--border:#33423b;--text:#f1f5ed;--muted:#a8b7ae;--mint:#9ae5c0}
+*{box-sizing:border-box}body{background:radial-gradient(ellipse at 15% 0%,#243b2e 0,transparent 50%),var(--bg);color:var(--text);min-height:100vh}main.container{max-width:1180px;padding:38px 28px 50px}header{display:flex;justify-content:space-between;gap:24px;align-items:center;margin-bottom:24px}.brand{display:flex;gap:16px;align-items:center}.mark{width:52px;height:52px;display:flex;align-items:center;justify-content:center;gap:4px;border:1px solid #597762;border-radius:16px;background:#213c2d}.mark i{display:block;width:4px;border-radius:4px;background:var(--mint);height:13px}.mark i:nth-child(2),.mark i:nth-child(4){height:25px}.mark i:nth-child(3){height:36px}h1{font-size:27px;letter-spacing:-1px;margin:0;color:var(--text)}h2{font-size:19px;letter-spacing:-.35px;margin:0 0 8px;color:var(--text)}p{color:var(--muted);margin:0 0 16px}.eyebrow{font-size:10px;text-transform:uppercase;letter-spacing:2px;color:var(--mint);margin-bottom:5px}.subtitle{font-size:13px;margin:4px 0 0}.toggle{display:flex;gap:9px;align-items:center;margin:0;font-weight:600;white-space:nowrap}.toggle input{margin:0}.savebar{display:flex;justify-content:space-between;align-items:center;gap:14px;padding:13px 17px;border:1px solid var(--border);border-radius:12px;background:#18241e;margin-bottom:24px;position:sticky;top:8px;z-index:2;box-shadow:0 10px 24px #0002}.save{font-size:13px;color:var(--mint);margin:0}.savebar .actions{flex-shrink:0}.workspace{display:grid;grid-template-columns:minmax(0,1.55fr) minmax(0,1fr);gap:24px}.stack{min-width:0}.card{padding:24px;border:1px solid var(--border);border-radius:18px;background:linear-gradient(145deg,#1c2722,#171f1c);margin:0 0 20px;box-shadow:0 8px 25px #0001}.profile-card{border-color:#4d6c58;background:linear-gradient(120deg,#293e30,#1a2720)}.section-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}.section-head h2{margin:0}.pill,.badge{font-size:11px;border:1px solid #49604e;background:#26372b;color:#c2d9c9;border-radius:30px;padding:4px 10px;white-space:nowrap}.badge{font-size:12px}.field{margin:16px 0}.field>label{display:flex;justify-content:space-between;gap:10px;font-size:13px;font-weight:600;align-items:center;margin:0 0 7px}.field small,.hint,.footnote{display:block;color:var(--muted);font-size:12px;line-height:1.55;margin:8px 0 0}.field output{font-size:13px;font-variant-numeric:tabular-nums;background:#2a3b2f;padding:2px 8px;border-radius:6px;color:var(--mint);white-space:nowrap}.field input[type=range]{margin:8px 0}.field select,.field input[type=text]{margin:0;font-size:14px}.field select:disabled{opacity:.6}.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 24px}.grid .toggle{white-space:normal;font-size:13px;margin:8px 0}.actions,.profiles,.preview{display:flex;gap:8px;flex-wrap:wrap;align-items:center}button{margin:0;padding:8px 13px;font-size:12px;font-weight:600;line-height:1.5}button.secondary{--pico-background-color:#293930;--pico-border-color:#45594b;--pico-color:#d5e1d9}button:disabled{cursor:default;opacity:.45}button[hidden]{display:none}.preview button{font-size:11px;padding:7px 10px}fieldset{border:0;margin:0;padding:0;min-width:0}summary{font-size:14px;font-weight:600;color:var(--text)}details.card>summary{margin-bottom:0}details.card[open]>summary{margin-bottom:18px}.stats{display:flex;gap:22px;flex-wrap:wrap;margin:18px 0 8px}.stat{min-width:0;max-width:100%}.stat strong{display:block;font-size:24px;line-height:1.3;overflow-wrap:anywhere;font-weight:550;letter-spacing:-.7px}.stat span{font-size:11px;color:var(--muted)}canvas{display:block;width:100%;height:175px;margin:10px 0}.legend{display:flex;gap:12px;flex-wrap:wrap;font-size:10px;color:var(--muted)}.bass{color:var(--mint)}.detail{color:#adbef6}.error{color:#ffb5a5}.profile-status{margin-top:14px}.divider{border-top:1px solid var(--border);padding-top:16px;margin-top:18px}.footnote{margin-top:8px}#profileMatch{display:block;font-size:12px;color:var(--mint);margin:10px 0 0}#last{font-size:12px;letter-spacing:0;padding-top:5px}#audioStatus{min-height:36px}#sustainHint{margin-bottom:16px}.source-warning{padding:10px 12px;background:#28332b;border-radius:8px}.loading-retry{margin-left:8px}.fineprint{max-width:720px;margin:4px 0 0;font-size:11px}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--mint);outline-offset:4px}@media(max-width:900px){.workspace{grid-template-columns:1fr}main.container{max-width:720px}.grid{gap:0 20px}}@media(max-width:520px){main.container{padding:22px 16px}header{align-items:flex-start;flex-wrap:wrap;gap:18px}h1{font-size:24px}.mark{width:44px;height:44px}.card{padding:19px}.grid{grid-template-columns:1fr}.savebar{align-items:flex-start;flex-direction:column;gap:8px;position:static}.section-head{align-items:flex-start}.subtitle{font-size:12px}.stats{gap:20px}}@media(prefers-reduced-motion:reduce){*,*::before,*::after{transition:none!important;animation:none!important}}
+
+/* Explicit slider styling keeps the track visible across Chromium and Firefox. */
+input[type=range]{--range-progress:0%;appearance:none;-webkit-appearance:none;height:28px;padding:0;background:transparent;opacity:1;cursor:pointer}
+input[type=range]::-webkit-slider-runnable-track{height:8px;border:0;border-radius:8px;background:linear-gradient(to right,#b5f5d0 0%,#b5f5d0 var(--range-progress),#718b7c var(--range-progress),#718b7c 100%)}
+input[type=range]::-webkit-slider-thumb{appearance:none;-webkit-appearance:none;width:22px;height:22px;margin-top:-7px;border:3px solid #173323;border-radius:50%;background:#e6fff0;box-shadow:0 0 0 1px #c4efd4}
+input[type=range]::-moz-range-track{height:8px;border:0;border-radius:8px;background:#718b7c}
+input[type=range]::-moz-range-progress{height:8px;border:0;border-radius:8px;background:#b5f5d0}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border:3px solid #173323;border-radius:50%;background:#e6fff0;box-shadow:0 0 0 1px #c4efd4}
+input[type=range]:disabled{cursor:not-allowed;opacity:.55}
+input[type=range]:focus-visible{outline:2px solid #d3ffe3;outline-offset:5px;border-radius:5px}
 </style>
 </head>
-<body><main>
-<header><div><div class="eyebrow">Logitech · Audio feedback</div><h1>Feel the Rhythm</h1></div><span class="badge" id="state">Connecting</span></header>
-<div class="card">
-<h2>Listening now</h2>
-<div class="field"><label for="captureDevice">Audio source</label>
-<select id="captureDevice" disabled><option value="">System default playback device</option></select>
-<small>Playback captures music from speakers or headphones. Input captures a microphone, line-in, or virtual audio device only when you select it and press Use device. Audio stays local.</small></div>
-<div class="preview"><button id="useDevice" disabled>Use device</button><button id="refreshDevices" disabled>Refresh devices</button></div>
-<p class="hint" id="deviceStatus" role="status">Loading available devices…</p><button id="restartCapture">Retry audio capture</button><p id="audioStatus">Waiting for the plugin…</p>
-<div class="stats"><div class="stat"><strong id="sent">0</strong><span>Events sent</span></div><div class="stat"><strong id="dropped">0</strong><span>Candidates skipped</span></div><div class="stat"><strong id="last" style="font-size:16px;padding-top:7px">—</strong><span>Last texture</span></div></div>
-<canvas id="chart" aria-label="Recent bass and detail audio levels with detection thresholds"></canvas>
-<div class="legend"><span class="bass">● Bass energy</span><span class="detail">● Detail energy</span><span>Dashed: onset threshold · dBFS</span></div>
-</div>
-<details class="card"><summary>Response timing</summary>
-<p class="hint" id="captureTiming">Waiting for capture information…</p>
-<div class="stats"><div class="stat"><strong id="batchTiming">—</strong><span>Audio batch · latest / max</span></div><div class="stat"><strong id="processingTiming">—</strong><span>Detection · latest / max</span></div><div class="stat"><strong id="backendTiming">—</strong><span>Logitech call · last / max</span></div></div>
-<p class="hint" id="waitTiming"></p><p class="hint" id="logStatus"></p>
-<p class="hint">All values are milliseconds, since reload. Audio batch is the amount of audio delivered together. These measurements exclude Windows audio already buffered before delivery and Logitech playback after dispatch; they do not measure total sound-to-vibration delay.</p>
-</details>
-<div class="card">
-<div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2>Music controls</h2><label class="toggle"><input type="checkbox" id="Enabled"> Audio haptics</label></div>
-<p>Changes apply and save automatically. No rebuild needed.</p>
-<div class="field"><label for="sceneProfile">Starting profile</label><select id="sceneProfile" aria-describedby="profileDescription"><option value="">Choose a listening situation…</option></select><small id="profileDescription">Profiles are starting points. Applying one replaces the tuning below and preserves whether haptics are paused.</small></div>
-<div class="profiles"><button id="applyProfile" disabled>Apply profile</button><button id="reloadSettings">Reload saved settings</button></div>
-<div class="field"><label for="customProfileName">Custom profile name</label><input type="text" id="customProfileName" maxlength="64" placeholder="e.g. My evening music" style="width:100%;padding:8px;margin-top:7px"><small>Duplicate copies the selected profile. Save current stores the controls below. Neither changes live playback.</small></div>
-<div class="profiles"><button id="duplicateProfile" disabled>Duplicate selected</button><button id="saveNewProfile" disabled>Save current as new</button><button id="updateProfile" disabled>Update selected custom</button></div>
-<div id="profileStatus" class="save" role="status" aria-live="polite"></div>
-<div id="saveStatus" class="save" role="status" aria-live="polite">Loading controls…</div>
-<div class="grid" id="basic"></div>
-</div>
-<div class="card">
-<h2>Choose your textures</h2><p>Presets change the character of a pulse. Sensitivity controls detection. Wave and transition presets may feel longer; give them more pulse spacing.</p>
-<div class="grid" id="textures"></div>
-<div class="preview" id="preview"></div><div id="previewStatus" class="hint" role="status" aria-live="polite">Preview sends one preset. Pause audio haptics to compare textures on their own.</div>
-</div>
-<div class="card">
-<label class="toggle"><input type="checkbox" id="SustainEnabled"> Add sustained bass texture</label>
-<p class="hint">Experimental: quiet, spaced pulses during held bass notes. Louder bass increases pulse density. Beat attacks take priority. Off is recommended for clear rhythm.</p>
-<div class="grid" id="sustain"></div>
-</div>
-<details class="card"><summary>Advanced detection</summary><p class="hint">Tune the frequency bands, attack response and onset contrast. Applying changes gives the detector 400 ms to settle.</p><div class="grid" id="advanced"></div></details>
-<p class="footnote">Events sent means the plugin dispatched a Logitech event; it does not confirm a physical vibration. Saved controls survive plugin rebuilds. Logitech's own haptics setting controls overall device intensity.</p>
+<body><main class="container">
+<header><div class="brand"><div class="mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div><div><div class="eyebrow">Audio into touch</div><h1>Feel the Rhythm</h1><p class="subtitle">A little closer to the music.</p></div></div><label class="toggle"><input type="checkbox" role="switch" id="Enabled" disabled> Audio haptics</label></header>
+<div class="savebar"><div id="saveStatus" class="save" role="status" aria-live="polite">Connecting to your plugin…</div><div class="actions"><button class="secondary" id="retrySave" hidden>Retry saving</button><button class="secondary" id="reloadSettings">Reload saved settings</button></div></div>
+<div class="workspace"><div class="stack">
+<fieldset id="tuningControls" disabled>
+<section class="card profile-card"><div class="section-head"><h2>Find your feel</h2><span class="pill">Live tuning</span></div><p class="hint">Pick a profile. Hear the difference, feel the change.</p>
+<div class="field"><label for="sceneProfile">Listening profile</label><select id="sceneProfile" aria-describedby="profileDescription profileMatch"><option value="">Loading profiles…</option></select><small id="profileDescription">Selecting a profile updates the controls and saves immediately. Your audio source and paused state stay the same.</small></div>
+<div class="actions"><button class="secondary" id="undoProfile" disabled>Undo profile change</button></div><span id="profileMatch"></span>
+</section>
+<section class="card"><div class="section-head"><h2>Make it yours</h2><span class="pill">Auto-save</span></div><p class="hint">Start with sensitivity and spacing. More space gives each pulse room to land.</p><div class="grid" id="basic"></div></section>
+<section class="card"><h2>Texture &amp; character</h2><p class="hint">Choose how each pulse feels. Overall intensity is set in Logi Options+.</p><div class="grid" id="textures"></div><div class="divider"><div class="preview" id="preview"></div><p id="previewStatus" class="hint" role="status" aria-live="polite">Test buttons send a single texture, even while paused. They do not change your settings.</p></div></section>
+<section class="card"><label class="toggle"><input type="checkbox" role="switch" id="SustainEnabled"> Sustained bass texture</label><p class="hint" id="sustainHint">Slow pulses during held bass notes. Leave off for a cleaner beat.</p><div class="grid" id="sustain"></div></section>
+<details class="card"><summary>Save &amp; manage your profiles</summary><p class="hint">Keep a sound you like. Editing the live controls never overwrites a saved profile.</p><div class="field"><label for="customProfileName">Profile name</label><input type="text" id="customProfileName" maxlength="64" placeholder="My evening music" autocomplete="off"><small>Save your current tuning, duplicate the selected original, or update an existing custom profile.</small></div><div class="profiles"><button id="saveNewProfile" disabled>Save as new</button><button class="secondary" id="duplicateProfile" disabled>Duplicate selected</button><button class="secondary" id="updateProfile" disabled>Update selected</button></div><div id="profileStatus" class="save profile-status" role="status" aria-live="polite"></div></details>
+<details class="card"><summary>Advanced detection</summary><p class="hint">Fine-tune the frequency bands and how attacks are detected. Related limits adjust together to keep the settings valid.</p><div class="grid" id="advanced"></div></details>
+</fieldset>
+</div><aside class="stack">
+<section class="card"><div class="section-head"><h2>Listening now</h2><span class="badge" id="state">Connecting</span></div><p id="audioStatus" class="hint">Waiting for the plugin…</p><canvas id="chart" aria-label="Recent bass and detail audio levels with detection thresholds"></canvas><div class="legend"><span class="bass">● Bass</span><span class="detail">● Detail</span><span>Dashed: trigger threshold · dBFS</span></div><div class="stats"><div class="stat"><strong id="sent">0</strong><span>Events sent</span></div><div class="stat"><strong id="dropped">0</strong><span>Candidates skipped</span></div></div><div class="stat"><strong id="last">—</strong><span>Last texture</span></div></section>
+<section class="card"><h2>Audio source</h2><div class="field"><label for="captureDevice">Listen to</label><select id="captureDevice" disabled><option value="">System default playback device</option></select><small>Playback follows your speakers or headphones. Input listens to a microphone, line-in, or virtual device.</small></div><div class="actions"><button id="useDevice" disabled>Use this source</button><button class="secondary" id="refreshDevices" disabled>Refresh</button></div><p class="hint source-warning" id="deviceStatus" role="status">Source changes require Use this source, so selecting a microphone does not start capturing it.</p><div class="divider"><button class="secondary" id="restartCapture">Retry audio capture</button><p class="hint">Haptic output is managed by Logi Options+. This selector only changes the audio being analyzed.</p></div></section>
+<details class="card"><summary>Diagnostics</summary><p class="hint" id="captureTiming">Waiting for capture information…</p><div class="stats"><div class="stat"><strong id="batchTiming">—</strong><span>Audio batch · latest / max</span></div><div class="stat"><strong id="processingTiming">—</strong><span>Detection · latest / max</span></div><div class="stat"><strong id="backendTiming">—</strong><span>Logitech call · last / max</span></div></div><p class="hint" id="waitTiming"></p><p class="hint" id="logStatus"></p><p class="hint">Timings are milliseconds since reload. They exclude physical vibration latency. Events sent counts API calls, not confirmed vibrations.</p></details>
+</aside></div><p class="footnote fineprint">Audio stays on your computer. The plugin does not record or upload it. Changing profiles preserves your audio source and whether haptics are paused.</p>
 </main>
 <script>
+
 'use strict';
 const fragmentToken=new URLSearchParams(location.hash.slice(1)).get('token');
-if(fragmentToken){sessionStorage.setItem('hapticToken',fragmentToken);window.history.replaceState(null,'',location.pathname);}
-const token=sessionStorage.getItem('hapticToken')||'';
+let storedToken='';try{storedToken=sessionStorage.getItem('hapticToken')||'';if(fragmentToken)sessionStorage.setItem('hapticToken',fragmentToken);}catch{}
+if(fragmentToken)window.history.replaceState(null,'',location.pathname);
+const token=fragmentToken||storedToken;
 const authHeaders={'X-Haptic-Token':token};
 let revision;
 const byId=id=>document.getElementById(id);
@@ -88,161 +83,191 @@ const sustain=[
  ['SustainSlowIntervalMilliseconds','Quiet bass spacing',100,1500,10,' ms','Must be at least the loud-bass spacing.'],
  ['SustainFastIntervalMilliseconds','Loud bass spacing',100,1000,10,' ms','The shared pulse spacing still applies.']
 ];
-let audioDevices=[];
+let audioDevices=[],undoSettings=null,saveFailed=false,loading=false;
+const nonTuning=new Set(['Enabled','CaptureDeviceId','EnableDebugServer']);
+function tuningOf(value){return Object.fromEntries(Object.entries(value).filter(([key])=>!nonTuning.has(key)));}
+function sameTuning(a,b){return !!a&&!!b&&Object.keys(tuningOf(b)).every(key=>a[key]===b[key]);}
+function refreshMatch(){
+ if(!settings||!profiles)return;
+ const select=byId('sceneProfile'),selected=selectedProfile();
+ if(selected){byId('profileMatch').textContent=sameTuning(settings,profiles[selected.Id])?'Matches '+selected.Label:'Modified from '+selected.Label;return;}
+ const matched=profileInfo.find(p=>sameTuning(settings,profiles[p.Id]));
+ if(matched){select.value=matched.Id;profileSelection();byId('profileMatch').textContent='Matches '+matched.Label;}
+ else byId('profileMatch').textContent='Custom tuning';
+}
+function sourceState(){
+ const pending=byId('captureDevice').value!==(settings?.CaptureDeviceId||'');
+ byId('useDevice').disabled=!settings||saving||dirty||saveFailed||loading||!pending;
+}
 function renderDevices(){
- const select=byId('captureDevice');select.replaceChildren();
+ const select=byId('captureDevice'),pending=select.value;
+ const keepPending=settings&&select.dataset.saved!==undefined&&pending!==select.dataset.saved;
+ select.replaceChildren();
  function option(parent,id,name){const item=document.createElement('option');item.value=id;item.textContent=name;parent.append(item);}
- option(select,'','System default playback device');
- option(select,'input:default','System default input device (microphone / line-in)');
+ option(select,'','System default playback');option(select,'input:default','System default input (microphone / line-in)');
  for(const kind of ['output','input']){
-  const group=document.createElement('optgroup');group.label=kind==='output'?'Playback devices — capture what you hear':'Input devices — microphone / line-in';
+  const group=document.createElement('optgroup');group.label=kind==='output'?'Playback — what you hear':'Input — microphone / line-in';
   for(const device of audioDevices.filter(d=>d.Kind===kind))option(group,device.Id,device.Name);
   if(group.children.length)select.append(group);
  }
  const saved=settings.CaptureDeviceId||'';
- if(saved&&saved!=='input:default'&&!audioDevices.some(d=>d.Id===saved))option(select,saved,'Saved device — unavailable (reconnect or choose another)');
- select.value=saved;select.disabled=false;byId('useDevice').disabled=false;
+ for(const id of new Set([saved,keepPending?pending:'']))if(id&&id!=='input:default'&&!audioDevices.some(d=>d.Id===id))option(select,id,'Unavailable — reconnect or choose another source');
+ select.value=keepPending?pending:saved;select.dataset.saved=saved;select.disabled=false;sourceState();
 }
 async function refreshDevices(){
  const button=byId('refreshDevices');button.disabled=true;
- try{
-  const response=await fetch('/devices',{headers:authHeaders});const data=await response.json();
-  if(!response.ok)throw new Error(data.Error||'Could not list devices');
-  audioDevices=data.Devices;renderDevices();
-  byId('deviceStatus').textContent='Device changes apply with Use device. Haptic profiles keep this selection.';
- }catch(error){renderDevices();byId('deviceStatus').textContent=error.message+' You can still choose a system default or retry Refresh devices.';}
- finally{button.disabled=false;}
+ try{const response=await fetch('/devices',{headers:authHeaders});const data=await response.json();if(!response.ok)throw new Error(data.Error||'Could not list devices');audioDevices=data.Devices;renderDevices();
+ byId('deviceStatus').textContent='Choose a source, then use it. Microphone capture starts only after you confirm the source.';
+ }catch(error){if(settings)renderDevices();byId('deviceStatus').textContent=error.message+' You can still choose a default source or refresh again.';}finally{button.disabled=!settings;}
 }
+byId('captureDevice').addEventListener('change',()=>{sourceState();byId('deviceStatus').textContent=byId('captureDevice').value.startsWith('input:')?'Use this source will start capturing the selected input.':'Choose Use this source to switch playback capture.';});
 byId('refreshDevices').onclick=refreshDevices;
 byId('useDevice').onclick=()=>{
- if(!settings||saving||dirty){byId('deviceStatus').textContent='Wait for settings to finish saving, then use the device.';return;}
- settings.CaptureDeviceId=byId('captureDevice').value;
- byId('deviceStatus').textContent='Applying audio source…';queueSave();
+ if(!settings||saving||dirty||saveFailed||loading)return;
+ settings.CaptureDeviceId=byId('captureDevice').value;byId('captureDevice').dataset.saved=settings.CaptureDeviceId;
+ byId('deviceStatus').textContent='Switching audio source…';queueSave();
 };
+function constrainTuning(){
+ settings.RearmMarginDb=Math.min(settings.RearmMarginDb,settings.OnsetMarginDb-.5);
+ settings.BackgroundMilliseconds=Math.max(settings.BackgroundMilliseconds,Math.floor(Math.max(settings.AttackMilliseconds,settings.ReleaseMilliseconds)/50)*50+50);
+ settings.SustainSlowIntervalMilliseconds=Math.max(settings.SustainSlowIntervalMilliseconds,settings.SustainFastIntervalMilliseconds);
+}
+function editSetting(key,value){settings[key]=value;constrainTuning();sync();queueSave();}
+function paintRange(input){
+ const span=Number(input.max)-Number(input.min);
+ const percent=span>0?Math.max(0,Math.min(100,(Number(input.value)-Number(input.min))/span*100)):0;
+ input.style.setProperty('--range-progress',percent+'%');
+}
 function range(container,[key,label,min,max,step,unit,hint]){
  const field=document.createElement('div');field.className='field';
  const l=document.createElement('label');l.htmlFor=key;l.append(document.createTextNode(label));
  const o=document.createElement('output');o.id=key+'Value';o.htmlFor=key;l.append(o);
  const input=document.createElement('input');Object.assign(input,{type:'range',id:key,min,max,step});
- const help=document.createElement('small');help.textContent=hint;
- input.addEventListener('input',()=>{o.textContent=input.value+unit;});
- input.addEventListener('change',()=>{settings[key]=Number(input.value);queueSave();});
+ const help=document.createElement('small');help.id=key+'Help';help.textContent=hint;input.setAttribute('aria-describedby',help.id);
+ input.addEventListener('input',()=>{o.textContent=input.value+unit;input.setAttribute('aria-valuetext',input.value+unit);paintRange(input);});
+ input.addEventListener('change',()=>editSetting(key,Number(input.value)));
  field.append(l,input,help);container.append(field);input.dataset.unit=unit;
 }
 function select(container,key,label,options){
  const field=document.createElement('div');field.className='field';const l=document.createElement('label');l.htmlFor=key;l.textContent=label;
  const input=document.createElement('select');input.id=key;
- for(const value of options){const option=document.createElement('option');option.value=value;option.textContent=names[value];input.append(option);}
- input.addEventListener('change',()=>{settings[key]=input.value;queueSave();});field.append(l,input);container.append(field);
+ for(const value of options){const option=document.createElement('option');option.value=value;option.textContent=names[value]||value;input.append(option);}
+ input.addEventListener('change',()=>editSetting(key,input.value));field.append(l,input);container.append(field);
 }
 function checkbox(container,key,label){
  const l=document.createElement('label');l.className='toggle';const input=document.createElement('input');input.type='checkbox';input.id=key;
- input.addEventListener('change',()=>{settings[key]=input.checked;queueSave();});l.append(input,document.createTextNode(label));container.append(l);
+ input.addEventListener('change',()=>editSetting(key,input.checked));l.append(input,document.createTextNode(label));container.append(l);
 }
 function sync(){
- if(settings)renderDevices();
- for(const [key,value] of Object.entries(settings)){
+ byId('Enabled').checked=settings.Enabled;
+ if(!controlsBuilt){refreshMatch();profileSelection();sourceState();return;}
+ for(const [key,value]of Object.entries(settings)){
   const el=byId(key);if(!el)continue;if(el.type==='checkbox')el.checked=value;else el.value=value;
-  const out=byId(key+'Value');if(out)out.textContent=value+(el.dataset.unit||'');
+  const out=byId(key+'Value');if(out){out.textContent=value+(el.dataset.unit||'');el.setAttribute('aria-valuetext',out.textContent);}
  }
+ byId('RearmMarginDb').max=settings.OnsetMarginDb-.5;
+ byId('BackgroundMilliseconds').min=Math.floor(Math.max(settings.AttackMilliseconds,settings.ReleaseMilliseconds)/50)*50+50;
+ byId('SustainSlowIntervalMilliseconds').min=settings.SustainFastIntervalMilliseconds;
+ for(const [key]of [...basic,...advanced,...sustain])paintRange(byId(key));
+ for(const [enabled,keys]of [[settings.BassEnabled,['BassGainDb','LowCenterHz','LowThresholdDb','BassWaveform','StrongBassWaveform','StrongBassAboveThresholdDb','SustainEnabled']],
+ [settings.HighEnabled,['HighGainDb','HighCenterHz','HighThresholdDb','HighWaveform']],
+ [settings.BassEnabled&&settings.SustainEnabled,['SustainThresholdDb','SustainSlowIntervalMilliseconds','SustainFastIntervalMilliseconds','SustainWaveform']]]){
+  for(const key of keys)byId(key).disabled=!enabled;
+ }
+ byId('sustainHint').textContent=!settings.BassEnabled?'Enable bass detection to use sustained texture.':'Slow pulses during held bass notes. Leave off for a cleaner beat.';
+ refreshMatch();profileSelection();sourceState();
 }
 async function request(path,value){
  const response=await fetch(path,{method:'POST',headers:{...authHeaders,'Content-Type':'application/json','If-Match':'"'+revision+'"'},body:JSON.stringify(value)});
  const body=await response.json();if(!response.ok)throw new Error(body.Error||'Request failed');return body;
 }
 function message(text,error=false){byId('saveStatus').textContent=text;byId('saveStatus').classList.toggle('error',error);}
-function queueSave(){dirty=true;message('Applying…');clearTimeout(saveTimer);saveTimer=setTimeout(save,200);}
+function queueSave(){
+ dirty=true;refreshMatch();profileSelection();sourceState();clearTimeout(saveTimer);
+ if(saveFailed){message('Changes are not saved. Retry saving, or reload saved settings.',true);return;}
+ message('Saving changes…');saveTimer=setTimeout(save,200);
+}
 async function save(){
- if(saving||!dirty)return;saving=true;dirty=false;const snapshot=structuredClone(settings);
- try{const result=await request('/settings',snapshot);revision=result.Revision;if(!dirty){settings=result.Settings;sync();message('Saved · live settings updated');byId('deviceStatus').textContent='Saved audio source: '+byId('captureDevice').selectedOptions[0].textContent+'.';}}
- catch(error){byId('deviceStatus').textContent='Settings were not applied. Reload saved settings to see the active source.';message('Not applied: '+error.message+' Use Reload saved settings to discard this draft.',true);}
- finally{saving=false;if(dirty)save();}
+ if(saving||!dirty||saveFailed||loading)return;
+ saving=true;dirty=false;profileSelection();sourceState();const snapshot=structuredClone(settings);
+ try{const result=await request('/settings',snapshot);revision=result.Revision;
+  if(!dirty){settings=result.Settings;sync();message('Saved · live settings updated');byId('deviceStatus').textContent='Active source: '+(audioDevices.find(d=>d.Id===settings.CaptureDeviceId)?.Name||(settings.CaptureDeviceId===''?'System default playback':settings.CaptureDeviceId==='input:default'?'System default input':'Selected device'))+'.';}
+ }catch(error){saveFailed=true;dirty=true;byId('retrySave').hidden=false;message('Not saved: '+error.message+' Reload saved settings if they changed elsewhere.',true);}
+ finally{saving=false;profileSelection();sourceState();if(dirty&&!saveFailed)save();}
 }
-byId('reloadSettings').addEventListener('click',async()=>{
- if(saving||profileBusy){message('Wait for the current save to finish.');return;}
- clearTimeout(saveTimer);dirty=false;
- try{const response=await fetch('/settings',{headers:authHeaders});const data=await response.json();
-  if(!response.ok)throw new Error(data.Error||'Could not load settings');
-  settings=data.Settings;revision=data.Revision;setCatalog(data);sync();message('Saved settings loaded');
- }catch(error){message(error.message,true);}
-});
+byId('retrySave').onclick=()=>{if(saving||loading)return;saveFailed=false;byId('retrySave').hidden=true;save();};
+async function loadSettings(){
+ if(saving||profileBusy||loading){message('Wait for the current save to finish.');return;}
+ loading=true;byId('tuningControls').disabled=true;byId('Enabled').disabled=true;byId('reloadSettings').disabled=true;sourceState();clearTimeout(saveTimer);
+ try{const response=await fetch('/settings',{headers:authHeaders});const data=await response.json();if(!response.ok)throw new Error(data.Error||'Could not load settings');
+  settings=data.Settings;revision=data.Revision;dirty=false;saveFailed=false;undoSettings=null;byId('retrySave').hidden=true;setCatalog(data,'');sync();
+  byId('captureDevice').dataset.saved=byId('captureDevice').value;renderDevices();message('Saved settings loaded');
+ }catch(error){message(error.message+' — use Reload saved settings to retry.',true);}
+ finally{loading=false;byId('tuningControls').disabled=!settings;byId('Enabled').disabled=!settings;byId('reloadSettings').disabled=false;sourceState();}
+}
 function selectedProfile(){return profileInfo.find(p=>p.Id===byId('sceneProfile').value);}
-function copyName(label){
- let name=label.slice(0,54)+' copy',i=2;
- while(profileInfo.some(p=>p.Label.toLowerCase()===name.toLowerCase()))name=label.slice(0,54)+' copy '+i++;
- return name;
-}
+function copyName(label){let name=label.slice(0,54)+' copy',i=2;while(profileInfo.some(p=>p.Label.toLowerCase()===name.toLowerCase()))name=label.slice(0,54)+' copy '+i++;return name;}
 function profileSelection(){
- const profile=selectedProfile(),named=!!byId('customProfileName').value.trim();
- byId('applyProfile').disabled=profileBusy||!profile;
- byId('duplicateProfile').disabled=profileBusy||!!profilesError||!profile||!named;
- byId('saveNewProfile').disabled=profileBusy||!!profilesError||!settings||!named;
- byId('updateProfile').disabled=profileBusy||!!profilesError||!profile?.IsCustom||!named;
- byId('sceneProfile').disabled=profileBusy;byId('customProfileName').disabled=profileBusy;
- byId('profileDescription').textContent=profile?profile.Description:'Choose a starting profile. Current settings stay unchanged until you apply it.';
+ const profile=selectedProfile(),named=!!byId('customProfileName').value.trim(),busy=profileBusy||saving||dirty||saveFailed||loading;
+ byId('duplicateProfile').disabled=busy||!!profilesError||!profile||!named;
+ byId('saveNewProfile').disabled=busy||!!profilesError||!settings||!named;
+ byId('updateProfile').disabled=busy||!!profilesError||!profile?.IsCustom||!named;
+ byId('sceneProfile').disabled=profileBusy||saveFailed;byId('customProfileName').disabled=profileBusy;
+ byId('undoProfile').disabled=!undoSettings||profileBusy||loading||saveFailed;
+ byId('profileDescription').textContent=profile?profile.Description:'Choose a profile to apply its tuning immediately. You can undo the change.';
 }
 function setCatalog(data,selection=byId('sceneProfile').value){
  profiles=data.Profiles;profileInfo=data.ProfileInfo;profilesRevision=data.ProfilesRevision;profilesError=data.ProfilesError;
  const select=byId('sceneProfile');select.replaceChildren();
- const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Choose a listening situation…';select.append(placeholder);
- for(const custom of [false,true]){
-  const group=document.createElement('optgroup');group.label=custom?'Your profiles':'Built-in profiles';
-  for(const profile of profileInfo.filter(p=>p.IsCustom===custom)){
-   const option=document.createElement('option');option.value=profile.Id;option.textContent=profile.Label;group.append(option);
-  }
-  if(group.children.length)select.append(group);
- }
+ const placeholder=document.createElement('option');placeholder.value='';placeholder.textContent='Custom tuning / choose a profile';select.append(placeholder);
+ for(const custom of [false,true]){const group=document.createElement('optgroup');group.label=custom?'Your profiles':'Built-in profiles';for(const profile of profileInfo.filter(p=>p.IsCustom===custom)){const option=document.createElement('option');option.value=profile.Id;option.textContent=profile.Label;group.append(option);}if(group.children.length)select.append(group);}
  select.value=profileInfo.some(p=>p.Id===selection)?selection:'';
  byId('profileStatus').textContent=profilesError||'';byId('profileStatus').classList.toggle('error',!!profilesError);profileSelection();
 }
+function chooseProfile(){
+ const profile=selectedProfile();if(!settings||!profile||profileBusy||saveFailed)return;
+ undoSettings=tuningOf(settings);
+ settings={...profiles[profile.Id],Enabled:settings.Enabled,CaptureDeviceId:settings.CaptureDeviceId,EnableDebugServer:false};
+ byId('customProfileName').value=profile.IsCustom?profile.Label:copyName(profile.Label);
+ sync();queueSave();
+}
+byId('undoProfile').onclick=()=>{
+ if(!undoSettings||saveFailed||loading)return;
+ settings={...settings,...undoSettings};undoSettings=null;byId('sceneProfile').value='';sync();queueSave();
+};
 async function saveProfile(mode){
- if(profileBusy)return;
+ if(profileBusy||saving||dirty||saveFailed||loading)return;
  const profile=selectedProfile();let name=byId('customProfileName').value.trim();
  if(mode==='duplicate'&&profile&&name===profile.Label)name=copyName(name);
  const payload={Operation:mode==='duplicate'?'duplicate':'save',Name:name,ExpectedRevision:profilesRevision};
  if(mode==='duplicate'||mode==='update')payload.Id=profile?.Id;
  if(mode!=='duplicate')payload.Settings=structuredClone(settings);
  profileBusy=true;profileSelection();byId('profileStatus').textContent='Saving profile…';
- try{
-  const result=await request('/profiles',payload);setCatalog(result.Catalog,result.SelectedId);
-  byId('customProfileName').value=selectedProfile().Label;
-  byId('profileStatus').textContent='Profile saved. Use Apply profile to load its tuning.';
-  byId('profileStatus').classList.remove('error');
+ try{const result=await request('/profiles',payload);setCatalog(result.Catalog,mode==='duplicate'?profile.Id:result.SelectedId);byId('customProfileName').value=result.Catalog.ProfileInfo.find(p=>p.Id===result.SelectedId).Label;
+  byId('profileStatus').textContent=mode==='duplicate'?'Original profile duplicated. Select the copy to use it.':'Profile saved.';refreshMatch();byId('profileStatus').classList.remove('error');
  }catch(error){byId('profileStatus').textContent=error.message;byId('profileStatus').classList.add('error');}
  finally{profileBusy=false;profileSelection();}
 }
+let controlsBuilt=false;
 async function init(){
- try{
-  const response=await fetch('/settings',{headers:authHeaders});if(!response.ok)throw new Error('Could not load settings');
-  const data=await response.json();settings=data.Settings;profiles=data.Profiles;revision=data.Revision;
+ await loadSettings();if(!settings)return;
+ if(!controlsBuilt){
   basic.forEach(d=>range(byId('basic'),d));advanced.forEach(d=>range(byId('advanced'),d));sustain.forEach(d=>range(byId('sustain'),d));
-  checkbox(byId('basic'),'BassEnabled','Detect bass attacks');checkbox(byId('basic'),'HighEnabled','Detect detail attacks');
-  select(byId('textures'),'BassWaveform','Bass attack',data.Presets);
-  select(byId('textures'),'StrongBassWaveform','Stronger bass attack',data.Presets);
-  select(byId('textures'),'HighWaveform','Detail attack',data.Presets);
-  select(byId('sustain'),'SustainWaveform','Texture pulse',['subtle_collision','damp_collision']);
-  for(const key of ['Enabled','SustainEnabled'])byId(key).addEventListener('change',()=>{settings[key]=byId(key).checked;queueSave();});
-  setCatalog(data);
-  byId('sceneProfile').addEventListener('change',()=>{
-   const profile=selectedProfile();
-   byId('customProfileName').value=profile?(profile.IsCustom?profile.Label:copyName(profile.Label)):'';
-   profileSelection();
-  });
-  byId('customProfileName').addEventListener('input',profileSelection);
-  byId('applyProfile').addEventListener('click',()=>{
-   const profile=profiles[byId('sceneProfile').value];if(!profile)return;
-   settings={...profile,Enabled:settings.Enabled,CaptureDeviceId:settings.CaptureDeviceId};sync();queueSave();
-  });
-  byId('duplicateProfile').addEventListener('click',()=>saveProfile('duplicate'));
-  byId('saveNewProfile').addEventListener('click',()=>saveProfile('new'));
-  byId('updateProfile').addEventListener('click',()=>saveProfile('update'));
-  for(const preset of data.Presets){const b=document.createElement('button');b.textContent='▶ '+names[preset];b.addEventListener('click',async()=>{
-   b.disabled=true;try{const r=await request('/preview',preset);byId('previewStatus').textContent=r.Sent?names[preset]+' event sent. Did you feel it?':'Skipped: another event used the shared playback slot. Try again.';}
+  checkbox(byId('basic'),'BassEnabled','Bass attacks');checkbox(byId('basic'),'HighEnabled','Detail attacks');
+  const presets=Object.keys(names);
+  select(byId('textures'),'BassWaveform','Bass attack',presets);select(byId('textures'),'StrongBassWaveform','Stronger bass attack',presets);select(byId('textures'),'HighWaveform','Detail attack',presets);select(byId('sustain'),'SustainWaveform','Texture pulse',['subtle_collision','damp_collision']);
+  for(const key of ['Enabled','SustainEnabled'])byId(key).addEventListener('change',()=>editSetting(key,byId(key).checked));
+  byId('sceneProfile').addEventListener('change',chooseProfile);byId('customProfileName').addEventListener('input',profileSelection);
+  byId('duplicateProfile').addEventListener('click',()=>saveProfile('duplicate'));byId('saveNewProfile').addEventListener('click',()=>saveProfile('new'));byId('updateProfile').addEventListener('click',()=>saveProfile('update'));
+  for(const preset of presets){const b=document.createElement('button');b.className='secondary';b.textContent='Test '+names[preset];b.addEventListener('click',async()=>{b.disabled=true;
+   try{const r=await request('/preview',preset);byId('previewStatus').textContent=r.Sent?names[preset]+' sent.': 'Another pulse is still using the playback slot. Try again.';}
    catch(error){byId('previewStatus').textContent=error.message;}finally{b.disabled=false;}
   });byId('preview').append(b);}
-  sync();message('Live controls ready');await refreshDevices();
- }catch(error){message(error.message+' — refresh to retry.',true);}
+  controlsBuilt=true;
+ }
+ sync();message('Ready · changes save automatically');await refreshDevices();
 }
+byId('reloadSettings').onclick=()=>controlsBuilt?loadSettings():init();
 function counterValue(value){
  if(typeof value==='number'&&(!Number.isSafeInteger(value)||value<0))return null;
  const text=String(value??'');
@@ -265,7 +290,7 @@ function chart(){
  const c=canvas.getContext('2d');c.setTransform(dpr,0,0,dpr,0,0);c.clearRect(0,0,w,h);
  const left=32,top=8,bottom=h-16;const y=db=>top+(0-Math.max(-80,Math.min(0,db)))/80*(bottom-top);
  c.font='11px system-ui';for(const db of [0,-20,-40,-60,-80]){c.strokeStyle='#343c41';c.beginPath();c.moveTo(left,y(db));c.lineTo(w,y(db));c.stroke();c.fillStyle='#acb9c0';c.fillText(db,0,y(db)+4);}
- for(const [key,color,dash] of [['LowEnvDb','#83e6bc',false],['HighEnvDb','#8cbfff',false],['LowThresholdDb','#83e6bc',true],['HighThresholdDb','#8cbfff',true]]){
+ for(const [key,color,dash] of [['LowEnvDb','#9ae5c0',false],['HighEnvDb','#adbef6',false],['LowThresholdDb','#9ae5c0',true],['HighThresholdDb','#adbef6',true]]){
   c.strokeStyle=color;c.globalAlpha=dash ? 0.5 : 1;c.lineWidth=dash?1:1.8;c.setLineDash(dash?[4,5]:[]);c.beginPath();
   history.forEach((m,i)=>{const x=left+i/119*(w-left);if(i===0)c.moveTo(x,y(m[key]));else c.lineTo(x,y(m[key]));});c.stroke();
  }c.setLineDash([]);c.globalAlpha=1;
@@ -276,7 +301,7 @@ async function poll(){
   const age=m.AudioReceived?Date.now()-Date.parse(m.Timestamp):Infinity;
   byId('state').textContent=m.CaptureError?'Capture unavailable':m.ProcessingError?'Feedback error':!m.Enabled?'Paused':m.Settling?'Settling':!m.AudioReceived?'Waiting for audio':age>1000?'Quiet':'Listening';
   byId('audioStatus').textContent=m.CaptureError?m.CaptureError:m.ProcessingError?m.ProcessingError:!m.Enabled?'Audio-triggered haptics are paused. Preset previews remain available.':m.Settling?'Settings applied. Waiting briefly for the detector to settle.':!m.AudioReceived?'Play audio through the selected source.':age>1000?'No recent audio packets. Last sample '+new Date(m.Timestamp).toLocaleTimeString()+'.':'Audio is arriving. Feel for pulses around the attacks.';
-  showCounter('sent',m.SentCount);showCounter('dropped',m.DroppedCount);byId('last').textContent=m.LastEvent||'—';
+  showCounter('sent',m.SentCount);showCounter('dropped',m.DroppedCount);byId('last').textContent=({bassAudioFeedback:'Rounded thump',sharpAudioFeedback:'Sharp impact',subtleAudioFeedback:'Soft tap',presetSubtleCollision:'Soft tap',presetDampCollision:'Rounded thump',presetSharpCollision:'Sharp impact',presetDampStateChange:'Soft transition',presetSharpStateChange:'Crisp tick',presetWave:'Wave'})[m.LastEvent]||m.LastEvent||'—';
   const ms=n=>Number.isFinite(n)?n.toFixed(1):'—';
   byId('captureTiming').textContent='Capture: '+m.CaptureMode+' · requested buffer '+ms(m.RequestedCaptureBufferMs)+' ms'+(m.CaptureWarning?' · '+m.CaptureWarning:'');
   byId('batchTiming').textContent=ms(m.CaptureBatchMs)+' / '+ms(m.MaxCaptureBatchMs);
@@ -296,4 +321,5 @@ byId('restartCapture').onclick=async()=>{
  }catch(error){byId('audioStatus').textContent=error.message;}finally{button.disabled=false;}
 };
 window.addEventListener('resize',chart);chart();init();poll();
+
 </script></body></html>

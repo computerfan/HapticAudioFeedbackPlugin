@@ -59,7 +59,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private readonly Func<string, bool> _preview;
     private readonly Action _restartCapture;
     private readonly Func<object> _devices;
-    private readonly string _html;
+    private readonly string _html, _picoCss;
     private readonly CustomProfileStore _profiles;
     private readonly string _token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
     private readonly Func<int> _nextPort;
@@ -72,6 +72,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null, Action restartCapture = null, Func<object> devices = null)
     {
         _html = File.ReadAllText(htmlPath);
+        _picoCss = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "vendor", "pico-2.1.1.min.css"));
         _profiles = profiles ?? new CustomProfileStore(() => null, _ => throw new InvalidOperationException("Profile storage unavailable."), _ => { });
         _metrics = metrics;
         _settings = settings;
@@ -150,13 +151,13 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         var path = request.Url?.AbsolutePath ?? "/";
         context.Response.Headers["Cache-Control"] = "no-store";
         context.Response.Headers["X-Content-Type-Options"] = "nosniff";
-        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'";
+        context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; img-src 'self' data:; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'";
         context.Response.Headers["Referrer-Policy"] = "no-referrer";
         // Accept only the exact loopback authority; no wildcard hostnames or DNS rebinding.
         if (request.Url?.GetLeftPart(UriPartial.Authority) + "/" != BaseUrl ||
             request.RemoteEndPoint == null || !IPAddress.IsLoopback(request.RemoteEndPoint.Address))
         { Json(context, new { Error = "Loopback requests only" }, 403); return; }
-        if (path != "/" || request.HttpMethod != "GET")
+        if (request.HttpMethod != "GET" || (path != "/" && path != "/vendor/pico-2.1.1.min.css"))
         {
             var origin = request.Headers["Origin"];
             if (request.Headers["X-Haptic-Token"] != _token ||
@@ -175,6 +176,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                     Json(context, new { snapshot.Settings, snapshot.Revision, Presets = HapticPatterns.Presets.Keys,
                         catalog.Profiles, catalog.ProfileInfo, catalog.ProfilesRevision, catalog.ProfilesError }); return;
                 case "/": Write(context, _html, "text/html; charset=utf-8"); return;
+                case "/vendor/pico-2.1.1.min.css": Write(context, _picoCss, "text/css; charset=utf-8"); return;
                 default: Json(context, new { Error = "Not found" }, 404); return;
             }
         }

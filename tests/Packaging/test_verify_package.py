@@ -1,4 +1,5 @@
 import importlib.util
+import hashlib
 import json
 from pathlib import Path
 import stat
@@ -13,7 +14,7 @@ spec.loader.exec_module(verifier)
 
 
 class PackageChecks(unittest.TestCase):
-    def package(self, *, mac=True, missing=None, wrong_cpu=False, executable=True, bad_license=False):
+    def package(self, *, mac=True, missing=None, wrong_cpu=False, executable=True, bad_license=False, bad_frontend=False):
         root = tempfile.TemporaryDirectory()
         self.addCleanup(root.cleanup)
         path = Path(root.name) / "fixture.lplug4"
@@ -24,6 +25,11 @@ class PackageChecks(unittest.TestCase):
         struct.pack_into("<H", pe, 68, 0x8664)
         payloads = {
             "LICENSE": "project MIT license fixture",
+            "ui/index.html": "<!doctype html><title>Frontend fixture</title>",
+            "licenses/FRONTEND-NOTICES.txt": "frontend notice fixture",
+            "ui/vendor/pico-2.1.1.min.css": "Pico fixture" if not bad_frontend else "changed CSS",
+            "licenses/Pico-CSS-MIT.txt": "MIT fixture",
+            "licenses/FRONTEND-dependencies.json": json.dumps({"dependencies": [{"license": "MIT", "path": "ui/vendor/pico-2.1.1.min.css", "sha256": hashlib.sha256(b"Pico fixture").hexdigest(), "licenseFile": "licenses/Pico-CSS-MIT.txt"}]}),
             "metadata/LoupedeckPackage.yaml": "pluginFolderWin: bin\n" + ("pluginFolderMac: bin-mac\n" if mac else "#pluginFolderMac: bin-mac\n"),
             "bin/HapticAudioFeedbackPlugin.dll": b"managed fixture",
             "bin/HapticAudioCapture.dll": b"managed fixture",
@@ -70,9 +76,13 @@ class PackageChecks(unittest.TestCase):
             verifier.verify_package(self.package(executable=False), True)
 
     def test_missing_files(self):
-        for missing in ["LICENSE", "haptic_cpal.dll", "haptic-cpal-helper", "CodeResources", "NAudio-MIT.txt", "NAudio.Core.dll"]:
+        for missing in ["LICENSE", "ui/index.html", "FRONTEND-NOTICES.txt", "FRONTEND-dependencies.json", "Pico-CSS-MIT.txt", "pico-2.1.1.min.css", "haptic_cpal.dll", "haptic-cpal-helper", "CodeResources", "NAudio-MIT.txt", "NAudio.Core.dll"]:
             with self.subTest(missing=missing), self.assertRaisesRegex(ValueError, "Missing package entry"):
                 verifier.verify_package(self.package(missing=missing), True)
+
+    def test_frontend_integrity(self):
+        with self.assertRaisesRegex(ValueError, "Frontend dependency checksum"):
+            verifier.verify_package(self.package(bad_frontend=True), True)
 
     def test_license_report_must_use_allowed_choices(self):
         with self.assertRaisesRegex(ValueError, "license report"):

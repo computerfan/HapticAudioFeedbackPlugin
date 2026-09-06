@@ -1,0 +1,26 @@
+Feel the Rhythm - browser frontend notices
+
+Project frontend: ui/index.html, including inline JavaScript and CSS.
+License: MIT
+Copyright (c) 2026 computerfan
+Full project license: LICENSE at the plugin package root.
+
+Third-party frontend dependency:
+  Pico CSS (@picocss/pico) 2.1.1 - MIT
+  Copyright (c) 2019-2024 Pico
+  Homepage: https://picocss.com/
+  Source: https://github.com/picocss/pico/tree/v2.1.1
+  Distributed file: ui/vendor/pico-2.1.1.min.css (unmodified)
+  Full license: licenses/Pico-CSS-MIT.txt
+  Integrity and dependency inventory: licenses/FRONTEND-dependencies.json
+
+Pico is distributed as precompiled CSS with its embedded SVG control icons.
+It has no runtime dependencies. Its npm build tools are not redistributed.
+All frontend assets are bundled locally; no CDN or web fonts are requested.
+
+The frontend JavaScript uses browser-provided DOM, Fetch, session storage,
+BigInt, and Canvas 2D APIs. No JavaScript library, polyfill, or browser runtime
+is redistributed. Text uses installed system fonts and Unicode characters.
+
+Native and managed audio components are separate from the browser frontend.
+Their notices are in CPAL-NOTICES.txt and NAudio-MIT.txt in this directory.

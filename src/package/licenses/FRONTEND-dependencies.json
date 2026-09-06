@@ -1,0 +1,14 @@
+{
+  "dependencies": [
+    {
+      "name": "@picocss/pico",
+      "version": "2.1.1",
+      "license": "MIT",
+      "path": "ui/vendor/pico-2.1.1.min.css",
+      "sha256": "fbc9a63fc9fc9f72d12fd7fc9806e11fa9f77ae4f9cad146b27003a1119ba3db",
+      "licenseFile": "licenses/Pico-CSS-MIT.txt",
+      "source": "https://github.com/picocss/pico/tree/v2.1.1",
+      "runtimeDependencies": []
+    }
+  ]
+}

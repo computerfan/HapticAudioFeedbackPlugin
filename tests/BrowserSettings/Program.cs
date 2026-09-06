@@ -21,6 +21,11 @@ HapticMonitorDebugServer Create(Func<int> port = null) => new(Path.Combine(AppCo
     }, _ => { previews++; return true; }, port, customProfiles, () => captureRestarts++, () => { enumerations++; return new { Devices = new[] {
         new { Id = "output:WASAPI:stable-speaker", Name = "Speakers", Kind = "output" },
         new { Id = "input:WASAPI:stable-mic", Name = "Microphone", Kind = "input" } } }; });
+if (args.Contains("--preview")) {
+    using var previewServer = Create(); previewServer.Start();
+    Console.WriteLine("Simulated UI preview. No audio capture or haptic events. " + previewServer.LaunchUrl);
+    await Task.Delay(Timeout.Infinite); return;
+}
 using var first = Create(); first.Start();
 var occupied = new Uri(first.BaseUrl).Port;
 Check(occupied is >= 49152 and <= 65535, "port is in the high dynamic range");
@@ -83,6 +88,9 @@ var invalidMetrics = await Send("metrics", token);
 Check(invalidMetrics.StatusCode == HttpStatusCode.BadRequest && (await invalidMetrics.Content.ReadAsStringAsync()).Length < 600, "validation failures return bounded 400 responses");
 metricsFailure = null;
 Check((await Send("metrics", token)).IsSuccessStatusCode, "listener serves requests after handler failures");
+var cssResponse = await client.GetAsync("vendor/pico-2.1.1.min.css");
+Check(cssResponse.IsSuccessStatusCode && cssResponse.Content.Headers.ContentType.MediaType == "text/css" && (await cssResponse.Content.ReadAsStringAsync()).Contains("Pico CSS"), "bundled Pico CSS is served without exposing authenticated settings");
+Check((await Send("vendor/not-allowed.css")).StatusCode == HttpStatusCode.Forbidden, "asset route does not enable arbitrary unauthenticated files");
 var catalogResponse = await Send("settings", token);
 using (var catalog = JsonDocument.Parse(await catalogResponse.Content.ReadAsStringAsync()))
 {

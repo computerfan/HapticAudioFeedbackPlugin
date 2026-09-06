@@ -1,0 +1,2 @@
+# Preserve vendored assets byte-for-byte for distribution integrity checks.
+/src/package/ui/vendor/** -text

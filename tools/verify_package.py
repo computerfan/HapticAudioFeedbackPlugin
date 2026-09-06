@@ -1,5 +1,6 @@
 """Check native payloads after SDK verification; never load or execute packaged code."""
 import argparse
+import hashlib
 import json
 from pathlib import Path
 import re
@@ -28,6 +29,7 @@ def verify_package(path, require_all=False):
             return data
 
         require("LICENSE")
+        require("ui/index.html")
         metadata = require("metadata/LoupedeckPackage.yaml").decode("utf-8-sig")
         if not re.search(r"^pluginFolderWin:\s*bin\s*$", metadata, re.M):
             raise ValueError("Windows plugin directory is not bin")
@@ -41,12 +43,23 @@ def verify_package(path, require_all=False):
             raise ValueError("CPAL Windows library is not x64")
         if "bin/NAudio.Core.dll" in names or "bin/NAudio.Wasapi.dll" in names:
             raise ValueError("Windows package must use the host's NAudio assemblies")
-        for name in ["CPAL-NOTICES.txt", "NAudio-MIT.txt"]:
+        for name in ["CPAL-NOTICES.txt", "NAudio-MIT.txt", "FRONTEND-NOTICES.txt"]:
             require("licenses/" + name)
         report = json.loads(require("licenses/CPAL-dependencies.json"))
         dependencies = report.get("binaryDependencies", [])
         if not dependencies or any(d.get("selected") not in ("MIT", "Apache-2.0") for d in dependencies):
             raise ValueError("Invalid binary dependency license report")
+
+        frontend = json.loads(require("licenses/FRONTEND-dependencies.json"))
+        entries = frontend.get("dependencies", [])
+        if not entries:
+            raise ValueError("Missing frontend dependency inventory")
+        for dependency in entries:
+            if dependency.get("license") not in ("MIT", "Apache-2.0"):
+                raise ValueError("Invalid frontend dependency license")
+            require(dependency["licenseFile"])
+            if hashlib.sha256(require(dependency["path"])).hexdigest() != dependency.get("sha256"):
+                raise ValueError("Frontend dependency checksum mismatch")
 
         mac_declared = bool(re.search(r"^pluginFolderMac:\s*bin-mac\s*$", metadata, re.M))
         if require_all and not mac_declared:
