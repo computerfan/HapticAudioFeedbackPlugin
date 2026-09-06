@@ -174,3 +174,26 @@ In browser settings, select **Audio source**, then **Use device**. Playback devi
 The choice is saved with SDK settings using CPAL's stable device ID (not a list index or display name), and remains unchanged when applying or saving haptic profiles. A missing or unsupported explicitly selected device produces a capture error; it never falls back to another source. Microphone/input capture is opt-in and subject to OS recording permissions. Audio is processed in memory and is not recorded or uploaded.
 
 macOS uses the same selector through its CPAL helper. CPAL 0.18.2 cannot safely loop back combined input/output CoreAudio devices, so those are omitted from playback choices; their input can be chosen explicitly. Real Mac device/permission testing remains required.
+
+### GitHub CI
+
+The `Build and Package Plugin` workflow runs for pull requests, pushes to `main`/`master`, and manual dispatches. Jobs have time limits and read-only repository permissions; a new run cancels an older run for the same branch or pull request.
+
+- **Workflow validation** runs actionlint 1.7.12.
+- **Regression checks** runs the audio, authenticated browser API, browser device selector, and package validation tests without installing the SDK or opening audio devices.
+- **Native** runs Rust tests with an explicit target on matching Windows x64, macOS 15 Apple Silicon, and macOS 15 Intel runners. It also tests the managed capture protocol, builds the native assets, and checks the Mac helper's development signature.
+- **Build and validate package** waits for those checks, combines all three native archives, installs LogiPluginTool **6.1.4.22672** and the existing pinned SDK installer, then builds with deployment disabled. It runs SDK action checks, SDK package verification, and additional checks for native architectures, Mac executable permissions, required payloads and license notices.
+- **CI** is the final aggregate check. It fails if any required job failed, was cancelled, or was skipped. Select this check in GitHub branch protection when configuring required checks; adding the workflow does not change repository protection settings.
+
+A successful run uploads `Feel-the-Rhythm-<commit SHA>` containing the combined `.lplug4` package (14-day retention). Intermediate native archives are retained for seven days. These are development artifacts; the workflow does not publish a release or notarize the Mac helper. Native tests do not validate real audio hardware, permission prompts, or physical haptic latency.
+
+Local checks for the CI additions:
+
+```powershell
+python -m unittest discover -s tests/Packaging -v
+python tools/verify_package.py ./bin/HapticAudioFeedbackPlugin.lplug4
+# Require Windows x64 plus both Mac architectures for a combined package:
+python tools/verify_package.py ./HapticAudioFeedbackPlugin.lplug4 --require-all
+# With Go 1.25+ installed:
+go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+```

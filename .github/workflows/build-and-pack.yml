@@ -6,17 +6,70 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_CLI_TELEMETRY_OPTOUT: '1'
+  DOTNET_NOLOGO: '1'
+
 jobs:
+  lint:
+    name: Workflow validation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.25.0'
+          cache: false
+      - name: Check GitHub Actions syntax and expressions
+        run: go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12 -color
+
+  checks:
+    name: Regression checks
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Audio regression checks
+        run: dotnet run --project tests/AudioRegression --configuration Release
+      - name: Browser settings integration checks
+        run: dotnet run --project tests/BrowserSettings --configuration Release
+      - name: Browser device selector checks
+        run: node tests/BrowserSettings/device-ui.test.cjs
+      - name: Package validation regression checks
+        run: python -m unittest discover -s tests/Packaging -v
+      - name: Check Python build scripts
+        run: python -m compileall -q tools
+
   native:
+    name: Native (${{ matrix.target }})
+    needs: lint
+    timeout-minutes: 20
     strategy:
       fail-fast: false
       matrix:
         include:
-          - os: windows-latest
+          - os: windows-2022
             target: x86_64-pc-windows-msvc
-          - os: macos-14
+          - os: macos-15
             target: aarch64-apple-darwin
-          - os: macos-14
+          - os: macos-15-intel
             target: x86_64-apple-darwin
     runs-on: ${{ matrix.os }}
     steps:
@@ -29,104 +82,119 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Install pinned Rust toolchain and target
         run: rustup toolchain install 1.90.0 --profile minimal --target ${{ matrix.target }}
+      - name: Require native execution of the selected target
+        shell: pwsh
+        env:
+          EXPECTED_TARGET: ${{ matrix.target }}
+        run: |
+          $rustDetails = rustc +1.90.0 -vV
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          if ($rustDetails -notcontains "host: $env:EXPECTED_TARGET") {
+            throw "The runner cannot natively test $env:EXPECTED_TARGET"
+          }
       - name: Native buffer regression checks
-        run: cargo +1.90.0 test --manifest-path native/cpal-capture/Cargo.toml --locked
+        run: cargo +1.90.0 test --manifest-path native/cpal-capture/Cargo.toml --locked --target ${{ matrix.target }}
       - name: Managed capture protocol checks
         run: dotnet run --project tests/CaptureBridge -c Release
       - name: Build CPAL capture assets
         run: python tools/build_cpal.py --target ${{ matrix.target }} --output native/prebuilt
+      - name: Verify Mac helper signature
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          while IFS= read -r -d '' bundle; do
+            codesign --verify --strict --verbose=2 "$bundle"
+          done < <(find native/prebuilt -name '*.app' -type d -print0)
       - name: Archive native assets preserving Mac permissions
         run: tar -cf native-assets.tar -C native/prebuilt .
       - uses: actions/upload-artifact@v4
         with:
           name: native-${{ matrix.target }}
           path: native-assets.tar
-  build:
-    needs: native
-    runs-on: windows-latest
+          if-no-files-found: error
+          retention-days: 7
 
+  package:
+    name: Build and validate package
+    needs: [checks, native]
+    runs-on: windows-2022
+    timeout-minutes: 25
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
+      - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.13'
-      - name: Install pinned Rust toolchain
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install pinned Rust toolchain for the license audit
         run: rustup toolchain install 1.90.0 --profile minimal
       - uses: actions/download-artifact@v4
         with:
           pattern: native-*
           path: native-downloads
-      - name: Merge native assets
+      - name: Merge all three native archives
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path native/prebuilt -Force | Out-Null
-          Get-ChildItem native-downloads -Recurse -Filter native-assets.tar | ForEach-Object { tar -xf $_.FullName -C native/prebuilt }
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: '8.0.x'
-
-      - name: Install Logi Plugin Tool
+          $archives = @(Get-ChildItem native-downloads -Recurse -Filter native-assets.tar)
+          if ($archives.Count -ne 3) { throw "Expected three native artifacts; received $($archives.Count)" }
+          foreach ($archive in $archives) {
+            tar -xf $archive.FullName -C native/prebuilt
+            if ($LASTEXITCODE -ne 0) { throw "Could not extract $($archive.Name)" }
+          }
+      - name: Install tested Logi Plugin Tool
         shell: pwsh
         run: |
-          dotnet tool install --global LogiPluginTool
+          dotnet tool install --global LogiPluginTool --version 6.1.4.22672
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           "$env:USERPROFILE\.dotnet\tools" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-      - name: Install Logi Options+
+      - name: Install build SDK on the disposable runner
         shell: pwsh
         run: |
-          $installer = "LoupedeckInstaller.exe"
-          $logPath = Join-Path $env:RUNNER_TEMP "logioptions-install.log"
-          if (Test-Path $logPath) { Remove-Item -Path $logPath -Recurse -Force }
-          Invoke-WebRequest -Uri "https://support.loupedeck.com/hubfs/Knowledge%20Base/LD%20Software%20Downloads/6.2.4/LoupedeckInstaller_6.2.4.228.exe" -OutFile $installer
-          $args = "/extract"
-          $proc = Start-Process -FilePath ".\$installer" -ArgumentList $args -Wait -PassThru
-          if ($proc.ExitCode -ne 0) {
-            Write-Error "installer failed with exit code $($proc.ExitCode)"
-            exit $proc.ExitCode
-          }
-          $proc = Start-Process -FilePath ".\Logi Plugin Service 6.0.0.19789\LoupedeckServiceInstaller.msi" -ArgumentList "/quiet" -Wait -PassThru
-          if ($proc.ExitCode -ne 0) {
-            Write-Error "installer failed with exit code $($proc.ExitCode)"
-            exit $proc.ExitCode
-          }
-
-      - name: Restore
+          $installer = Join-Path $env:GITHUB_WORKSPACE 'LoupedeckInstaller.exe'
+          Invoke-WebRequest -Uri 'https://support.loupedeck.com/hubfs/Knowledge%20Base/LD%20Software%20Downloads/6.2.4/LoupedeckInstaller_6.2.4.228.exe' -OutFile $installer
+          $process = Start-Process -FilePath $installer -ArgumentList '/extract' -WorkingDirectory $env:GITHUB_WORKSPACE -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -ne 0) { throw "SDK extraction failed: $($process.ExitCode)" }
+          $sdkInstaller = Join-Path $env:GITHUB_WORKSPACE 'Logi Plugin Service 6.0.0.19789\LoupedeckServiceInstaller.msi'
+          if (!(Test-Path -LiteralPath $sdkInstaller)) { throw 'Extracted SDK installer not found' }
+          $process = Start-Process -FilePath $sdkInstaller -ArgumentList '/quiet /norestart' -WindowStyle Hidden -Wait -PassThru
+          if ($process.ExitCode -notin @(0, 3010)) { throw "SDK installation failed: $($process.ExitCode)" }
+          if (!(Test-Path -LiteralPath 'C:\Program Files\Logi\LogiPluginService\PluginApi.dll')) { throw 'Installed PluginApi.dll not found' }
+      - name: Restore plugin
         run: dotnet restore src/HapticAudioFeedbackPlugin.csproj
-
-      - name: Build
+      - name: Build with every native platform required
         run: dotnet build src/HapticAudioFeedbackPlugin.csproj --configuration Release --no-restore -p:DeployPlugin=false -p:BuildCpalNative=false -p:RequireAllCpalAssets=true
-
-      - name: Audio regression checks
-        run: dotnet run --project tests/AudioRegression --configuration Release
-
       - name: Native SDK control checks
         run: dotnet run --project tests/NativeControls --configuration Release
-
-      - name: Browser settings integration checks
-        run: dotnet run --project tests/BrowserSettings --configuration Release
-
-      - name: Browser device selector checks
-        run: node tests/BrowserSettings/device-ui.test.cjs
-
-      - name: Pack plugin
-        shell: pwsh
+      - name: Pack and verify with the SDK
         run: python tools/pack_plugin.py ./bin/Release/ ./HapticAudioFeedbackPlugin.lplug4
-
-      - name: Verify package
-        shell: pwsh
-        run: logiplugintool verify ./HapticAudioFeedbackPlugin.lplug4
-
-      - name: Upload build output
+      - name: Check native architectures, Mac executables and notices
+        run: python tools/verify_package.py ./HapticAudioFeedbackPlugin.lplug4 --require-all
+      - name: Upload combined plugin package
         uses: actions/upload-artifact@v4
         with:
-          name: build-output
-          path: bin/Release/
-
-      - name: Upload plugin package
-        uses: actions/upload-artifact@v4
-        with:
-          name: plugin-package
+          name: Feel-the-Rhythm-${{ github.sha }}
           path: HapticAudioFeedbackPlugin.lplug4
+          if-no-files-found: error
+          retention-days: 14
+
+  ci:
+    name: CI
+    if: always()
+    needs: [lint, checks, native, package]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Require every job to succeed
+        env:
+          JOB_RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PY'
+          import json, os
+          results = json.loads(os.environ['JOB_RESULTS'])
+          failures = [name for name, job in results.items() if job['result'] != 'success']
+          if failures:
+              raise SystemExit('CI did not pass: ' + ', '.join(failures))
+          print('All regression, native and package checks passed.')
+          PY
