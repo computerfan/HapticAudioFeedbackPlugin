@@ -25,7 +25,7 @@
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2>Music controls</h2><label class="toggle"><input type="checkbox" id="Enabled"> Audio haptics</label></div>
 <p>Changes apply and save automatically. No rebuild needed.</p>
-<div class="profiles"><button data-profile="music">Music</button><button data-profile="bass">Bass focus</button><button data-profile="gentle">Gentle</button></div>
+<div class="profiles"><button data-profile="music">Music</button><button data-profile="bass">Bass focus</button><button data-profile="gentle">Gentle</button><button id="reloadSettings">Reload saved settings</button></div>
 <div id="saveStatus" class="save" role="status" aria-live="polite">Loading controls…</div>
 <div class="grid" id="basic"></div>
 </div>
@@ -44,13 +44,17 @@
 </main>
 <script>
 'use strict';
-const token='__CONTROL_TOKEN__';
+const fragmentToken=new URLSearchParams(location.hash.slice(1)).get('token');
+if(fragmentToken){sessionStorage.setItem('hapticToken',fragmentToken);window.history.replaceState(null,'',location.pathname);}
+const token=sessionStorage.getItem('hapticToken')||'';
+const authHeaders={'X-Haptic-Token':token};
+let revision;
 const byId=id=>document.getElementById(id);
 let settings,profiles,dirty=false,saving=false,saveTimer,history=[],lastSample=null;
 const names={subtle_collision:'Soft tap',damp_collision:'Rounded thump',sharp_collision:'Sharp impact',damp_state_change:'Soft transition',sharp_state_change:'Crisp tick',wave:'Wave'};
 const basic=[
  ['Sensitivity','Sensitivity',0,100,1,'','Higher detects quieter sounds. 50 keeps the base thresholds.'],
- ['MinimumSpacingMilliseconds','Pulse spacing',40,250,5,' ms','More space feels cleaner; less space follows faster rhythms.'],
+ ['MinimumSpacingMilliseconds','Pulse spacing',30,1000,5,' ms','More space feels cleaner; less space follows faster rhythms.'],
  ['BassGainDb','Bass sensitivity',-12,12,1,' dB','Boost or reduce which bass attacks are picked up.'],
  ['HighGainDb','Detail sensitivity',-12,12,1,' dB','Reduce if vocals and bright instruments create too many taps.']
 ];
@@ -59,14 +63,14 @@ const advanced=[
  ['HighCenterHz','Detail band center',800,6000,100,' Hz','Focus on instrument attacks and upper-frequency detail.'],
  ['OnsetRiseDb','Attack contrast',1,12,.5,' dB','Lower picks up smaller rises above sustained music.'],
  ['TransientSeparationMilliseconds','Beat re-arm interval',40,500,5,' ms','Prevents a single attack being detected repeatedly in the same band.'],
- ['LowThresholdDb','Bass floor',-70,-6,1,' dBFS','Minimum level before sensitivity adjustments.'],
- ['HighThresholdDb','Detail floor',-70,-6,1,' dBFS','Minimum level before sensitivity adjustments.'],
- ['OnsetMarginDb','Background contrast',1,20,.5,' dB','How far an onset must rise above the slower background.'],
- ['RearmMarginDb','Re-arm contrast',0,10,.5,' dB','Must be lower than background contrast.'],
+ ['LowThresholdDb','Bass floor',-90,0,1,' dBFS','Minimum level before sensitivity adjustments.'],
+ ['HighThresholdDb','Detail floor',-90,0,1,' dBFS','Minimum level before sensitivity adjustments.'],
+ ['OnsetMarginDb','Background contrast',1,30,.5,' dB','How far an onset must rise above the slower background.'],
+ ['RearmMarginDb','Re-arm contrast',0,29.5,.5,' dB','Must be lower than background contrast.'],
  ['AttackMilliseconds','Envelope attack',1,100,1,' ms','Smaller responds faster.'],
- ['ReleaseMilliseconds','Envelope release',5,500,5,' ms','Larger smooths the decay.'],
- ['BackgroundMilliseconds','Background tracking',100,2000,50,' ms','Must be longer than envelope attack and release.'],
- ['StrongBassAboveThresholdDb','Strong bass threshold',0,40,1,' dB','Level above the effective bass floor that selects the stronger preset.'],
+ ['ReleaseMilliseconds','Envelope release',5,1000,5,' ms','Larger smooths the decay.'],
+ ['BackgroundMilliseconds','Background tracking',100,5000,50,' ms','Must be longer than envelope attack and release.'],
+ ['StrongBassAboveThresholdDb','Strong bass threshold',0,60,1,' dB','Level above the effective bass floor that selects the stronger preset.'],
  ['MaximumEventAgeMilliseconds','Discard events older than',5,250,5,' ms','Avoids late playback when audio arrives in large buffers.']
 ];
 const sustain=[
@@ -101,21 +105,29 @@ function sync(){
  }
 }
 async function request(path,value){
- const response=await fetch(path,{method:'POST',headers:{'Content-Type':'application/json','X-Haptic-Token':token},body:JSON.stringify(value)});
+ const response=await fetch(path,{method:'POST',headers:{...authHeaders,'Content-Type':'application/json','If-Match':'"'+revision+'"'},body:JSON.stringify(value)});
  const body=await response.json();if(!response.ok)throw new Error(body.Error||'Request failed');return body;
 }
 function message(text,error=false){byId('saveStatus').textContent=text;byId('saveStatus').classList.toggle('error',error);}
 function queueSave(){dirty=true;message('Applying…');clearTimeout(saveTimer);saveTimer=setTimeout(save,200);}
 async function save(){
  if(saving||!dirty)return;saving=true;dirty=false;const snapshot=structuredClone(settings);
- try{await request('/settings',snapshot);if(!dirty)message('Saved · live settings updated');}
- catch(error){message('Not applied: '+error.message,true);}
+ try{const result=await request('/settings',snapshot);revision=result.Revision;if(!dirty){settings=result.Settings;sync();message('Saved · live settings updated');}}
+ catch(error){message('Not applied: '+error.message+' Use Reload saved settings to discard this draft.',true);}
  finally{saving=false;if(dirty)save();}
 }
+byId('reloadSettings').addEventListener('click',async()=>{
+ if(saving){message('Wait for the current save to finish.');return;}
+ clearTimeout(saveTimer);dirty=false;
+ try{const response=await fetch('/settings',{headers:authHeaders});const data=await response.json();
+  if(!response.ok)throw new Error(data.Error||'Could not load settings');
+  settings=data.Settings;revision=data.Revision;sync();message('Saved settings loaded');
+ }catch(error){message(error.message,true);}
+});
 async function init(){
  try{
-  const response=await fetch('/settings');if(!response.ok)throw new Error('Could not load settings');
-  const data=await response.json();settings=data.Settings;profiles=data.Profiles;
+  const response=await fetch('/settings',{headers:authHeaders});if(!response.ok)throw new Error('Could not load settings');
+  const data=await response.json();settings=data.Settings;profiles=data.Profiles;revision=data.Revision;
   basic.forEach(d=>range(byId('basic'),d));advanced.forEach(d=>range(byId('advanced'),d));sustain.forEach(d=>range(byId('sustain'),d));
   checkbox(byId('basic'),'BassEnabled','Detect bass attacks');checkbox(byId('basic'),'HighEnabled','Detect detail attacks');
   select(byId('textures'),'BassWaveform','Bass attack',data.Presets);
@@ -144,7 +156,7 @@ function chart(){
 }
 async function poll(){
  try{
-  const response=await fetch('/metrics');if(!response.ok)throw new Error('Monitor unavailable');const m=await response.json();
+  const response=await fetch('/metrics',{headers:authHeaders});if(!response.ok)throw new Error('Monitor unavailable');const m=await response.json();
   const age=m.AudioReceived?Date.now()-Date.parse(m.Timestamp):Infinity;
   byId('state').textContent=!m.Enabled?'Paused':m.Settling?'Settling':!m.AudioReceived?'Waiting for audio':age>1000?'Quiet':'Listening';
   byId('audioStatus').textContent=!m.Enabled?'Audio-triggered haptics are paused. Preset previews remain available.':m.Settling?'Settings applied. Waiting briefly for the detector to settle.':!m.AudioReceived?'Play music through your default audio output.':age>1000?'No recent audio packets. Last sample '+new Date(m.Timestamp).toLocaleTimeString()+'.':'Audio is arriving. Feel for pulses around the attacks.';
@@ -156,7 +168,7 @@ async function poll(){
   byId('backendTiming').textContent=ms(m.BackendCallMs)+' / '+ms(m.MaxBackendCallMs);
   byId('waitTiming').textContent='Callback lock wait: '+ms(m.LockWaitMs)+' / '+ms(m.MaxLockWaitMs)+' max. Last event age within its delivered batch: '+ms(m.LastEventAgeWithinCallbackMs)+'.';
   if(m.AudioReceived&&m.Timestamp!==lastSample){history.push(m);if(history.length>120)history.shift();lastSample=m.Timestamp;chart();}
- }catch(error){byId('state').textContent='Disconnected';byId('audioStatus').textContent='Plugin unavailable. Reload the plugin, then refresh this page.';}
+ }catch(error){byId('state').textContent='Disconnected';byId('audioStatus').textContent='Plugin unavailable. Reopen the settings launcher or use Open haptic settings in Options+. The port changes after reload.';}
  setTimeout(poll,100);
 }
 window.addEventListener('resize',chart);chart();init();poll();

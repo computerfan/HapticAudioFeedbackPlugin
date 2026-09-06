@@ -15,6 +15,8 @@ namespace Loupedeck.HapticAudioFeedback
         public override Boolean HasNoApplication => true;
 
         private HapticAudioMonitor _hapticMonitor;
+        private SdkAudioSettingsStore _settingsStore;
+        private string _settingsLauncherPath;
 
         // Initializes a new instance of the plugin class.
         public HapticAudioFeedbackPlugin()
@@ -38,18 +40,70 @@ namespace Loupedeck.HapticAudioFeedback
             var settings = AudioSettings.Load(this.AssemblyFilePath,
                 ex => PluginLog.Warning(ex, "Could not load audio settings; using defaults."));
             var userSettingsPath = System.IO.Path.Combine(this.GetPluginDataDirectory(), "audio-settings.user.json");
-            settings = AudioSettingsStore.LoadOverride(userSettingsPath, settings,
-                ex => PluginLog.Warning(ex, "Could not load saved audio controls; using package settings."));
+            this._settingsStore = new SdkAudioSettingsStore(
+                () => this.TryGetPluginSetting(SdkAudioSettingsStore.SettingName, out var json) ? json : null,
+                json => this.SetPluginSetting(SdkAudioSettingsStore.SettingName, json, false),
+                ex => PluginLog.Warning(ex, "Could not read or migrate SDK audio settings."));
+            var defaults = settings;
+            settings = this._settingsStore.Load(defaults, () => AudioSettingsStore.LoadOverride(userSettingsPath, defaults,
+                ex => PluginLog.Warning(ex, "Could not import legacy audio controls; using package settings.")));
+            PluginLog.Info($"Audio preferences loaded: enabled {settings.Enabled}, sensitivity {settings.Sensitivity}, spacing {settings.MinimumSpacingMilliseconds} ms. Browser settings use a random loopback port.");
             var packageDirectory = string.IsNullOrWhiteSpace(this.AssemblyFilePath) ? "" :
                 System.IO.Path.GetDirectoryName(System.IO.Path.GetDirectoryName(this.AssemblyFilePath)) ?? "";
             var htmlPath = System.IO.Path.Combine(packageDirectory, "ui", "index.html");
-            this._hapticMonitor = new HapticAudioMonitor(this, settings, userSettingsPath, htmlPath);
+            this._hapticMonitor = new HapticAudioMonitor(this, settings, this._settingsStore.Save, htmlPath);
             this._hapticMonitor.Start();
+            this._settingsLauncherPath = System.IO.Path.Combine(this.GetPluginDataDirectory(), "Open Haptic Settings.html");
+            try { this.StartBrowserSettings(); }
+            catch (Exception ex) { PluginLog.Warning(ex, "Could not start browser settings. Audio capture remains available; Open haptic settings retries."); }
         }
+
+        private string StartBrowserSettings()
+        {
+            var url = this._hapticMonitor.GetOrStartSettingsUrl();
+            // A stable file gives users an entry point independent of an assigned ring action.
+            var html = "<!doctype html><meta charset=\"utf-8\"><title>Haptic Audio Settings</title>" +
+                "<meta name=\"referrer\" content=\"no-referrer\"><meta http-equiv=\"refresh\" content=\"0;url=" +
+                System.Net.WebUtility.HtmlEncode(url) + "\"><p><a href=\"" + System.Net.WebUtility.HtmlEncode(url) +
+                "\">Open Haptic Audio Settings</a></p><p>If the plugin was reloaded, reopen this launcher file.</p>";
+            System.IO.File.WriteAllText(this._settingsLauncherPath, html);
+            PluginLog.Info("Browser settings launcher: " + this._settingsLauncherPath);
+            return url;
+        }
+        internal void OpenSettingsWindow()
+        {
+            try
+            {
+                var url = this.StartBrowserSettings();
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(url) { UseShellExecute = true });
+            }
+            catch (Exception ex)
+            {
+                PluginLog.Warning(ex, "Could not open browser settings.");
+                this.OnPluginStatusChanged(Loupedeck.PluginStatus.Warning, "Could not open browser settings: " + ex.Message);
+            }
+        }
+        internal void ToggleAudioHaptics() => this._hapticMonitor.UpdateSettings(settings => settings.Enabled = !settings.Enabled);
+        internal void SelectAudioProfile(string name) => this._hapticMonitor.UpdateSettings(settings =>
+        {
+            var enabled = settings.Enabled;
+            var profile = AudioSettings.Profile(name);
+            foreach (var property in typeof(AudioSettings).GetProperties().Where(p => p.CanWrite))
+                property.SetValue(settings, property.GetValue(profile));
+            settings.Enabled = enabled;
+        });
+        internal bool PreviewWaveform(string waveform) => HapticPatterns.Presets.TryGetValue(waveform, out var eventName)
+            ? this._hapticMonitor.Preview(eventName) : throw new ArgumentException("Unknown waveform.");
 
         // This method is called when the plugin is unloaded.
         public override void Unload()
         {
+            try
+            {
+                if (this._settingsLauncherPath != null)
+                    System.IO.File.WriteAllText(this._settingsLauncherPath, "<!doctype html><title>Haptic Audio Settings</title><p>The plugin is stopped. Start it in Logi Options+, then reopen this file.</p>");
+            }
+            catch (Exception ex) { PluginLog.Warning(ex, "Could not update the settings launcher."); }
             this._hapticMonitor?.Dispose();
             this._hapticMonitor = null;
         }

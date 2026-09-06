@@ -1,28 +1,33 @@
-# Haptic Audio Feedback — Windows / MX Master 4
+# Haptic Audio Feedback — MX Master 4
 
-Version 0.3.1 adds event-driven audio capture and response timing diagnostics to the live music controls. It keeps the C# Actions SDK backend; native Windows haptics remain a separate feasibility probe.
+Version 0.4 uses a browser settings panel on a random high port and stores preferences through the Logitech SDK. Audio capture currently supports Windows (WASAPI). macOS audio capture is deferred; Options+ being cross-platform does not make this capture backend portable.
 
-## Use the live controls
+## Open settings
 
-Open http://localhost:18888/ after loading the plugin. Play music through the current default output device. The panel distinguishes waiting for audio, listening, quiet, paused, and disconnected. It runs locally without external chart libraries.
+The plugin writes **Open Haptic Settings.html** into its SDK user-data directory on every load. Open that file in your browser; create a shortcut to the file for convenient access. The plugin log records its full path as `Browser settings launcher:`. Reopen this launcher after a plugin reload: it always points to the current port and session. Bookmark the launcher file, rather than the temporary HTTP address. Keep it private because it contains the local session token.
 
-Start with **Music**. Changes apply and save automatically; no rebuild is needed. The detector settles for 400 ms after a change to reduce false attacks from resetting its filters. Sliders apply on release. Invalid combinations display an error and leave the previous live/saved settings intact.
+Alternatively, assign **Open haptic settings** to an Actions Ring slot and activate it. This launches the browser at the current URL. You do not need an assigned action when using the standalone launcher file. Options+' plugin settings page currently exposes plugin information/language; the installed SDK does not expose a general custom form there.
 
-| Control | What it changes |
+| Action | Behavior |
 | --- | --- |
-| Sensitivity | Detects quieter or louder sounds; 0–100, with 50 as the baseline. This is not motor amplitude. |
-| Bass / detail sensitivity | Adjusts each band's detection floor independently, ±12 dB. |
-| Pulse spacing | Shared minimum between haptic send attempts. Increase if feedback feels busy. |
-| Detect bass / detail attacks | Enables each band independently. |
-| Bass, stronger bass, detail textures | Selects the preset used by each type of attack. |
-| Preview buttons | Sends one selected preset through the live Logitech backend. Pause audio haptics to compare them in isolation. |
-| Sustained bass texture | Optional, experimental pulse-density texture during held bass notes; off by default. |
+| Open haptic settings | Opens the browser panel for the current plugin session. |
+| Toggle haptics | Pauses or resumes audio-triggered feedback and saves the state. |
+| Select haptic profile | Applies Music, Bass focus or Gentle when activated; preserves paused/enabled state. |
+| Preview haptic texture | Sends one selected preset, even when audio haptics are paused. |
 
-**Music** uses sensitivity 50, 90 ms spacing and -3 dB detail gain. **Bass focus** disables detail and boosts bass detection. **Gentle** reduces sensitivity, slows playback, and uses softer waveforms. Selecting a profile resets its tuning values while preserving the current audio-haptics on/off state.
+Browser changes apply and save automatically. Basic controls include sensitivity (0–100), independent bass/detail gains, pulse spacing, band toggles and four preset selectors. Advanced controls expose frequency bands, attack/release, onset contrast, re-arm interval and event age. Optional sustained texture uses soft or damped collisions. Invalid combinations preserve the last saved settings. Settings changes allow 400 ms for the detector to settle.
 
-Advanced controls expose band centers, attack/release times, onset/background contrast, minimum time between detected attacks, strong-bass threshold, and maximum event age. Background tracking must be slower than attack/release; re-arm contrast must be below onset contrast. Quiet-bass texture spacing must be at least loud-bass spacing.
+**Music** uses sensitivity 50, 90 ms spacing and -3 dB detail gain. **Bass focus** disables detail and boosts bass detection. **Gentle** reduces sensitivity, slows playback and uses softer waveforms. Sensitivity changes detection, not motor amplitude; Logitech's device settings control overall intensity. A preview may be skipped if another event just occupied the shared playback slot.
 
-Controls are stored in `audio-settings.user.json` inside the SDK's plugin data directory (`GetPluginDataDirectory()`). They survive rebuilds and plugin reloads. `src/package/audio-settings.json` supplies the initial defaults; saved user controls take precedence. The control page is enabled by `EnableDebugServer` at plugin startup.
+Each browser page saves with the revision it loaded. If another tab or a ring action changed preferences, the old page cannot overwrite them: use **Reload saved settings** to discard that draft and load current values.
+
+## Preferences and local endpoint
+
+Preferences are a versioned JSON string under SDK key `AudioSettingsV1`, using `TryGetPluginSetting` and `SetPluginSetting(..., backupOnline: false)`. Writes occur outside the audio callback lock; live state changes only after a successful save. On first load without SDK preferences, the plugin imports `audio-settings.user.json` from `GetPluginDataDirectory()`. That legacy file remains intact for rollback, and is no longer updated after migration. Invalid/newer SDK documents are logged and preserved.
+
+The browser server starts with the plugin. It directly attempts a randomly chosen port in **49152–65535**, retrying up to 32 times if binding fails, including collisions. It never probes and releases a supposedly free port. Exhaustion is logged without stopping audio capture; the Open haptic settings action retries. Unloading closes the listener and marks the launcher as stopped. The obsolete `EnableDebugServer` preference is ignored.
+
+The endpoint accepts only loopback clients using its exact `127.0.0.1:port` authority. All API reads and writes require a random 256-bit session token, and foreign origins are rejected. The token is passed in a URL fragment, removed from the displayed URL, retained in the browser tab's session storage, and never included in public HTML or logs. JSON bodies are size-limited with a read timeout. Random ports handle allocation; authentication and request checks provide access control. Windows HttpListener uses shared HTTP.sys infrastructure, so its kernel socket listing is not proof of application-level network access.
 
 ## How the algorithm works
 
@@ -46,9 +51,7 @@ Logitech events do not expose per-event motor frequency, amplitude, playback com
 
 ## Diagnostics
 
-- Page: http://localhost:18888/
-- Metrics: http://localhost:18888/metrics
-- Settings snapshot: http://localhost:18888/settings
+- The browser panel includes live audio graphs and response timing. `/settings` and `/metrics` require the session token.
 - `SentCount` counts successful calls to the event API, not confirmed physical vibrations.
 - `DroppedCount` counts candidates skipped by age, priority or spacing (including backend exceptions).
 - `AudioReceived` distinguishes initial placeholders from actual audio. `Timestamp` is the most recent audio sample; it stops advancing during a packet gap. `LastSentUtc` includes manual previews.
@@ -76,6 +79,8 @@ Install .NET 8 SDK or newer and Logi Options+ / Logi Plugin Service. `PluginApi.
 
 ```powershell
 dotnet run --project tests/AudioRegression -c Release
+dotnet run --project tests/NativeControls -c Release
+dotnet run --project tests/BrowserSettings -c Release
 dotnet build HapticAudioFeedbackPlugin.sln -c Release -p:DeployPlugin=false
 logiplugintool pack ./bin/Release/ ./bin/HapticAudioFeedbackPlugin.lplug4
 logiplugintool verify ./bin/HapticAudioFeedbackPlugin.lplug4
@@ -102,9 +107,11 @@ Click using the MX Master 4, then compare immediate playback with the delayed te
 
 The synthetic regression suite covers stereo phase, filtering, sample rates, callback boundaries, sustained sounds, beats over a sustained baseline, sensitivity, waveform selection, optional pulse density, disabled bands, scheduling priority, cooldown, malformed inputs and saved settings. These tests never capture audio or drive hardware.
 
-Live control verification separately checks startup, profile/slider saving, persistence across plugin reload, and preview dispatch. Tactile quality and music sensitivity still need hands-on tuning; a successful API call alone does not prove the mouse vibrated.
-
+SDK action tests use the installed SDK with a simulated controller to verify action dispatch and dropdown selection. Browser integration tests exercise real local HTTP listeners, collision retries, authentication, origin/host restrictions, validation, stale saves and cleanup. Run HTTP listener tests under a normal user account; the restricted Windows sandbox cannot initialize HTTP.sys handles. Live verification must separately check host loading, saved preferences, browser interaction, and the old fixed port being closed. A successful SDK call does not prove a physical vibration.
 Official references:
+
+- [SDK settings storage](https://logitech.github.io/actions-sdk-docs/csharp/plugin-features/managing-plugin-settings/)
+- [Native Action Editor controls](https://logitech.github.io/actions-sdk-docs/csharp/plugin-features/action-editor-actions/)
 
 - [Logitech event/waveform interface](https://logitech.github.io/actions-sdk-docs/csharp/haptics/haptics-getting-started/)
 - [Logitech haptics best practices](https://logitech.github.io/actions-sdk-docs/csharp/haptics/haptics-best-practices/)

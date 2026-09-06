@@ -263,4 +263,47 @@ Test("music profiles are valid and independent", () =>
     var music = AudioSettings.Profile("music"); music.Sensitivity = 80;
     Check(AudioSettings.Profile("music").Sensitivity == 50, "Profile instance mutated shared defaults.");
 });
+Test("SDK settings import legacy preferences once and never import the listener", () =>
+{
+    string saved = null!; var imports = 0;
+    var store = new SdkAudioSettingsStore(() => saved, value => saved = value, ex => throw ex);
+    AudioSettings Legacy() { imports++; return new AudioSettings { Sensitivity = 73, Enabled = false, EnableDebugServer = true }; }
+    var first = store.Load(new AudioSettings(), Legacy);
+    var second = store.Load(new AudioSettings(), Legacy);
+    Check(imports == 1 && first.Sensitivity == 73 && second.Sensitivity == 73 && !second.Enabled, "Legacy settings were lost or imported again.");
+    Check(!first.EnableDebugServer && !second.EnableDebugServer, "Migration reopened diagnostics.");
+});
+Test("SDK settings survive round-trip without re-enabling diagnostics", () =>
+{
+    string saved = null!;
+    var store = new SdkAudioSettingsStore(() => saved, value => saved = value, ex => throw ex);
+    store.Save(new AudioSettings { Sensitivity = 67, BassWaveform = "wave", EnableDebugServer = true });
+    var loaded = store.Load(new AudioSettings(), () => throw new Exception("Unexpected migration"));
+    Check(loaded.Sensitivity == 67 && loaded.BassWaveform == "wave" && !loaded.EnableDebugServer, "SDK round-trip failed.");
+});
+Test("invalid or future SDK documents are preserved instead of overwritten", () =>
+{
+    foreach (var payload in new[] { "invalid", "null", "{\"Version\":2,\"Settings\":{}}", "{\"Version\":1,\"Settings\":null}" })
+    {
+        var errors = 0; var writes = 0;
+        var store = new SdkAudioSettingsStore(() => payload, _ => writes++, _ => errors++);
+        var loaded = store.Load(new AudioSettings { Sensitivity = 42 }, () => throw new Exception("Unexpected migration"));
+        Check(errors == 1 && writes == 0 && loaded.Sensitivity == 42, "Invalid saved document was overwritten.");
+    }
+});
+Test("SDK read failure does not overwrite unknown stored data", () =>
+{
+    var errors = 0; var writes = 0;
+    var store = new SdkAudioSettingsStore(() => throw new IOException("unavailable"), _ => writes++, _ => errors++);
+    store.Load(new AudioSettings(), () => throw new Exception("Unexpected migration"));
+    Check(errors == 1 && writes == 0, "Read failure caused a migration write.");
+});
+Test("SDK save failure is surfaced and leaves the caller's settings intact", () =>
+{
+    var settings = new AudioSettings { Sensitivity = 71, EnableDebugServer = true };
+    var store = new SdkAudioSettingsStore(() => null!, _ => throw new IOException("save failed"), _ => { });
+    var failed = false;
+    try { store.Save(settings); } catch (IOException) { failed = true; }
+    Check(failed && settings.Sensitivity == 71 && settings.EnableDebugServer, "Save failure was hidden or mutated input.");
+});
 Console.WriteLine($"{passed} audio regression checks passed. No capture or haptic device was used.");

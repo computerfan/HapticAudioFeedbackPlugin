@@ -9,8 +9,11 @@ internal sealed class HapticAudioMonitor : IDisposable
 {
     private readonly Plugin _plugin;
     private AudioSettings _settings;
-    private readonly string _userSettingsPath, _htmlPath;
+    private readonly string _htmlPath;
+    private readonly Action<AudioSettings> _saveSettings;
+    private readonly object _settingsGate = new(), _diagnosticsGate = new();
     private HapticMonitorSample _latest = new();
+    private int _settingsRevision;
     private string _lastEvent;
     private DateTime? _lastSentUtc;
     private double _suppressUntilMs;
@@ -26,12 +29,12 @@ internal sealed class HapticAudioMonitor : IDisposable
     private double _backendCallMs, _maxBackendCallMs, _maxBufferMs, _maxProcessingMs, _maxLockWaitMs;
     private double _lastWarningMs = double.NegativeInfinity;
 
-    public HapticAudioMonitor(Plugin plugin, AudioSettings settings, string userSettingsPath, string htmlPath)
+    public HapticAudioMonitor(Plugin plugin, AudioSettings settings, Action<AudioSettings> saveSettings, string htmlPath)
     {
         _plugin = plugin ?? throw new ArgumentNullException(nameof(plugin));
         settings.Validate();
         _settings = settings.Copy();
-        _userSettingsPath = userSettingsPath;
+        _saveSettings = saveSettings;
         _htmlPath = htmlPath;
     }
 
@@ -48,15 +51,7 @@ internal sealed class HapticAudioMonitor : IDisposable
                 Stop();
                 StartCapture(false);
             }
-            if (_settings.EnableDebugServer)
-            {
-                try
-                {
-                    _debugServer = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettings, ApplySettings, Preview);
-                    _debugServer.Start();
-                }
-                catch (Exception ex) { PluginLog.Warning(ex, "Controls unavailable; audio monitoring continues."); }
-            }
+            // Browser settings startup is independent of audio capture initialization.
             PluginLog.Info($"Audio onset monitor started: {_capture.WaveFormat}; capture {_captureMode}, requested buffer {ResponsiveLoopbackCapture.RequestedBufferMilliseconds} ms; global spacing {_settings.MinimumSpacingMilliseconds} ms.");
         }
         catch (Exception ex)
@@ -148,9 +143,9 @@ internal sealed class HapticAudioMonitor : IDisposable
         }
     }
 
-    private AudioSettings GetSettings() { lock (_gate) return _settings.Copy(); }
+    internal AudioSettings GetSettings() { lock (_gate) return _settings.Copy(); }
 
-    private HapticMonitorSample GetMetrics()
+    internal HapticMonitorSample GetMetrics()
     {
         lock (_gate)
         {
@@ -173,26 +168,67 @@ internal sealed class HapticAudioMonitor : IDisposable
         }
     }
 
-    private void ApplySettings(AudioSettings settings)
+    internal (AudioSettings Settings, int Revision) GetSettingsSnapshot()
+    {
+        lock (_gate) return (_settings.Copy(), _settingsRevision);
+    }
+    internal void ApplySettingsIfCurrent(AudioSettings settings, int? expectedRevision)
+    {
+        lock (_settingsGate)
+        {
+            if (!expectedRevision.HasValue || GetSettingsSnapshot().Revision != expectedRevision.Value)
+                throw new InvalidOperationException("Settings changed elsewhere. Reload current settings before saving this draft.");
+            ApplySettingsCore(settings);
+        }
+    }
+    internal void UpdateSettings(Action<AudioSettings> update)
+    {
+        lock (_settingsGate)
+        {
+            var settings = GetSettings();
+            update(settings);
+            ApplySettingsCore(settings);
+        }
+    }
+
+    private void ApplySettingsCore(AudioSettings settings)
     {
         settings.Validate();
+        var copy = settings.Copy();
+        copy.EnableDebugServer = false;
+        AudioOnsetDetector detector;
         lock (_gate)
         {
             if (_capture == null) throw new InvalidOperationException("Audio capture is not running.");
-            // Prepare and persist before replacing live state. A failed save leaves the old state intact.
-            var copy = settings.Copy();
-            var detector = new AudioOnsetDetector(_capture.WaveFormat.SampleRate, _capture.WaveFormat.Channels, copy);
-            AudioSettingsStore.Save(_userSettingsPath, copy);
+            detector = new AudioOnsetDetector(_capture.WaveFormat.SampleRate, _capture.WaveFormat.Channels, copy);
+        }
+        // SDK persistence can block. Keep it outside the audio callback lock.
+        _saveSettings(copy);
+        lock (_gate)
+        {
             _settings = copy;
+            _settingsRevision++;
             _detector = detector;
             _scheduler.UpdateSettings(copy);
             _candidates.Clear();
             _suppressUntilMs = _clock.Elapsed.TotalMilliseconds + 400;
-            PluginLog.Info("Audio controls applied and saved.");
+        }
+        PluginLog.Info("Audio controls applied and saved through SDK settings.");
+    }
+
+    internal string GetOrStartSettingsUrl()
+    {
+        lock (_diagnosticsGate)
+        {
+            if (_debugServer != null) return _debugServer.LaunchUrl;
+            var server = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettingsSnapshot, ApplySettingsIfCurrent, Preview);
+            try { server.Start(); lock (_gate) _debugServer = server; }
+            catch { server.Dispose(); throw; }
+            return server.LaunchUrl;
         }
     }
 
-    private bool Preview(string eventName)
+    internal bool Preview(string eventName)
     {
         lock (_gate)
         {
@@ -224,6 +260,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     {
         WasapiCapture capture;
         HapticMonitorDebugServer debug;
+        lock (_diagnosticsGate)
         lock (_gate)
         {
             capture = _capture;

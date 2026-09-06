@@ -12,7 +12,7 @@ internal sealed class AudioSettings
     public double MinimumSpacingMilliseconds { get; set; } = 80;
     public double MaximumEventAgeMilliseconds { get; set; } = 50;
     public double StrongBassAboveThresholdDb { get; set; } = 12;
-    public bool EnableDebugServer { get; set; } = true;
+    public bool EnableDebugServer { get; set; } = false;
 
     public bool Enabled { get; set; } = true;
     public double Sensitivity { get; set; } = 50;

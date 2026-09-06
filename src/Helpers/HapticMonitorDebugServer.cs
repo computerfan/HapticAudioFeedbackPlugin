@@ -40,41 +40,62 @@ internal sealed class HapticMonitorSample
 
 internal sealed class HapticMonitorDebugServer : IDisposable
 {
-    private readonly HttpListener _listener = new();
+    private HttpListener _listener;
     private readonly Thread _thread;
     private readonly Func<HapticMonitorSample> _metrics;
-    private readonly Func<AudioSettings> _settings;
-    private readonly Action<AudioSettings> _apply;
+    private readonly Func<(AudioSettings Settings, int Revision)> _settings;
+    private readonly Action<AudioSettings, int?> _apply;
     private readonly Func<string, bool> _preview;
     private readonly string _html;
-    private readonly string _token = Guid.NewGuid().ToString("N");
+    private readonly string _token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
+    private readonly Func<int> _nextPort;
+    public string BaseUrl { get; private set; }
+    public string LaunchUrl => BaseUrl + "#token=" + _token;
     private volatile bool _running;
 
     public HapticMonitorDebugServer(string htmlPath, Func<HapticMonitorSample> metrics,
-        Func<AudioSettings> settings, Action<AudioSettings> apply, Func<string, bool> preview)
+        Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null)
     {
-        _html = File.ReadAllText(htmlPath).Replace("__CONTROL_TOKEN__", _token);
+        _html = File.ReadAllText(htmlPath);
         _metrics = metrics;
         _settings = settings;
         _apply = apply;
         _preview = preview;
-        _listener.Prefixes.Add("http://localhost:18888/");
-        _listener.Prefixes.Add("http://127.0.0.1:18888/");
+        _nextPort = nextPort ?? (() => System.Security.Cryptography.RandomNumberGenerator.GetInt32(49152, 65536));
         _thread = new Thread(Loop) { IsBackground = true, Name = "HapticMonitorControlServer" };
     }
 
     public void Start()
     {
-        _listener.Start();
-        _running = true;
-        _thread.Start();
-        PluginLog.Info("Haptic controls listening at http://localhost:18888/");
+        if (_running) return;
+        Exception lastError = null;
+        for (var attempt = 0; attempt < 32; attempt++)
+        {
+            var port = _nextPort();
+            if (port < 49152 || port > 65535) throw new ArgumentOutOfRangeException(nameof(port));
+            var url = $"http://127.0.0.1:{port}/";
+            var listener = new HttpListener();
+            listener.Prefixes.Add(url);
+            try
+            {
+                // Bind directly: probing and then releasing a port would leave a race.
+                listener.Start();
+                _listener = listener;
+                BaseUrl = url;
+                _running = true;
+                _thread.Start();
+                PluginLog.Info($"Haptic browser settings listening at {BaseUrl} (session token required).");
+                return;
+            }
+            catch (HttpListenerException ex) { lastError = ex; listener.Close(); }
+            catch { listener.Close(); throw; }
+        }
+        throw new IOException("Could not bind browser settings after 32 high-port attempts.", lastError);
     }
-
     public void Dispose()
     {
         _running = false;
-        _listener.Close();
+        _listener?.Close();
         if (_thread.IsAlive && Thread.CurrentThread != _thread) _thread.Join(1000);
     }
 
@@ -104,13 +125,26 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         context.Response.Headers["Cache-Control"] = "no-store";
         context.Response.Headers["X-Content-Type-Options"] = "nosniff";
         context.Response.Headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'";
+        context.Response.Headers["Referrer-Policy"] = "no-referrer";
+        // Accept only the exact loopback authority; no wildcard hostnames or DNS rebinding.
+        if (request.Url?.GetLeftPart(UriPartial.Authority) + "/" != BaseUrl ||
+            request.RemoteEndPoint == null || !IPAddress.IsLoopback(request.RemoteEndPoint.Address))
+        { Json(context, new { Error = "Loopback requests only" }, 403); return; }
+        if (path != "/" || request.HttpMethod != "GET")
+        {
+            var origin = request.Headers["Origin"];
+            if (request.Headers["X-Haptic-Token"] != _token ||
+                (origin != null && origin + "/" != BaseUrl))
+            { Json(context, new { Error = "Reopen settings using the launcher or Open haptic settings action." }, 403); return; }
+        }
         if (request.HttpMethod == "GET")
         {
             switch (path)
             {
                 case "/metrics": Json(context, _metrics()); return;
                 case "/settings":
-                    Json(context, new { Settings = _settings(), Presets = HapticPatterns.Presets.Keys,
+                    var snapshot = _settings();
+                    Json(context, new { snapshot.Settings, snapshot.Revision, Presets = HapticPatterns.Presets.Keys,
                         Profiles = new Dictionary<string, AudioSettings> {
                             ["music"] = AudioSettings.Profile("music"), ["bass"] = AudioSettings.Profile("bass"),
                             ["gentle"] = AudioSettings.Profile("gentle") } }); return;
@@ -119,11 +153,6 @@ internal sealed class HapticMonitorDebugServer : IDisposable
             }
         }
         if (request.HttpMethod != "POST") { Json(context, new { Error = "Method not allowed" }, 405); return; }
-        // Browser control requests must come from this local page, not an unrelated website.
-        var origin = request.Headers["Origin"];
-        if (request.Headers["X-Haptic-Token"] != _token ||
-            (origin != null && origin != request.Url?.GetLeftPart(UriPartial.Authority)))
-        { Json(context, new { Error = "Refresh the local control page and try again." }, 403); return; }
         if (!(request.ContentType?.StartsWith("application/json", StringComparison.OrdinalIgnoreCase) ?? false))
         { Json(context, new { Error = "JSON required" }, 415); return; }
         if (request.ContentLength64 < 0 || request.ContentLength64 > 32768)
@@ -137,8 +166,11 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                 { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow })
                 ?? throw new ArgumentException("Settings must be an object.");
             settings.Validate();
-            _apply(settings);
-            Json(context, new { Settings = _settings(), Saved = true });
+            if (!int.TryParse(request.Headers["If-Match"]?.Trim('"'), out var revision))
+            { Json(context, new { Error = "Reload current settings before saving." }, 428); return; }
+            _apply(settings, revision);
+            var snapshot = _settings();
+            Json(context, new { snapshot.Settings, snapshot.Revision, Saved = true });
         }
         else if (path == "/preview")
         {

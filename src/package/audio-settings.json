@@ -9,7 +9,7 @@
   "MinimumSpacingMilliseconds": 90,
   "MaximumEventAgeMilliseconds": 50,
   "StrongBassAboveThresholdDb": 12,
-  "EnableDebugServer": true,
+  "EnableDebugServer": false,
   "OnsetRiseDb": 3,
   "HighWaveform": "subtle_collision",
   "BassEnabled": true,

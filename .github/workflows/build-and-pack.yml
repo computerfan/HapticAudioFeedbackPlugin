@@ -53,6 +53,12 @@ jobs:
       - name: Audio regression checks
         run: dotnet run --project tests/AudioRegression --configuration Release
 
+      - name: Native SDK control checks
+        run: dotnet run --project tests/NativeControls --configuration Release
+
+      - name: Browser settings integration checks
+        run: dotnet run --project tests/BrowserSettings --configuration Release
+
       - name: Pack plugin
         shell: pwsh
         run: logiplugintool pack ./bin/Release/ ./HapticAudioFeedbackPlugin.lplug4

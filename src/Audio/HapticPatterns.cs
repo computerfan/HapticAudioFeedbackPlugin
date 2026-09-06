@@ -12,6 +12,13 @@ internal static class HapticPatterns
         ["wave"] = "presetWave"
     };
 
+    public static readonly IReadOnlyDictionary<string, string> WaveformNames = new Dictionary<string, string>
+    {
+        ["subtle_collision"] = "Soft tap", ["damp_collision"] = "Rounded thump",
+        ["sharp_collision"] = "Sharp impact", ["damp_state_change"] = "Soft transition",
+        ["sharp_state_change"] = "Crisp tick", ["wave"] = "Wave"
+    };
+
     public static string EventFor(string waveform, string role) => (role, waveform) switch
     {
         ("bass", "damp_collision") => "bassAudioFeedback",
