@@ -11,6 +11,8 @@ internal sealed class HapticAudioMonitor : IDisposable
     private readonly Action<AudioSettings> _saveSettings;
     private readonly object _settingsGate = new(), _diagnosticsGate = new();
     private HapticMonitorSample _latest = new();
+    private readonly OnsetHistory _onsetHistory = new();
+    private readonly AudioTraceHistory _traceHistory = new();
     private int _settingsRevision;
     private string _lastEvent;
     private DateTime? _lastSentUtc;
@@ -90,8 +92,12 @@ internal sealed class HapticAudioMonitor : IDisposable
     }
     private void ResetDetector()
     {
-        _detector = new AudioOnsetDetector(_capture.SampleRate, _capture.Channels, _settings);
-        _lastAudioMs = _clock.Elapsed.TotalMilliseconds;
+        lock (_gate)
+        {
+            _traceHistory.Clear();
+            _detector = new AudioOnsetDetector(_capture.SampleRate, _capture.Channels, _settings);
+            _lastAudioMs = _clock.Elapsed.TotalMilliseconds;
+        }
     }
 
     private void OnDataAvailable(object sender, AudioCaptureData e)
@@ -115,7 +121,13 @@ internal sealed class HapticAudioMonitor : IDisposable
                 _lastAudioMs = callbackEntryMs;
                 _candidates.Clear();
                 var processingStartMs = _clock.Elapsed.TotalMilliseconds;
-                _detector.Process(e.Samples.Span, _candidates.Add);
+                var audioEndMilliseconds = _detector.AudioMilliseconds + bufferMs;
+                var audioTimestamp = DateTime.UtcNow.AddMilliseconds(-Math.Max(0,
+                    e.NewestSampleAgeMs + _clock.Elapsed.TotalMilliseconds - callbackEntryMs));
+                _detector.Process(e.Samples.Span, _candidates.Add, reading =>
+                    _traceHistory.Add(audioTimestamp.AddMilliseconds(reading.AudioMilliseconds - audioEndMilliseconds),
+                        reading.AudioMilliseconds, reading.Low.EnvelopeDb, reading.High.EnvelopeDb,
+                        reading.Low.ThresholdDb, reading.High.ThresholdDb));
                 var dispatchNow = _clock.Elapsed.TotalMilliseconds;
                 var processingMs = dispatchNow - processingStartMs;
                 _maxProcessingMs = Math.Max(_maxProcessingMs, processingMs);
@@ -123,9 +135,16 @@ internal sealed class HapticAudioMonitor : IDisposable
                 var sent = _scheduler.Dispatch(_candidates, _detector.AudioMilliseconds + e.NewestSampleAgeMs + dispatchNow - callbackEntryMs, dispatchNow,
                     Send);
                 if (sent.HasValue) _processingError = null;
+                // Preserve dispatched attacks between browser polls; previews and sustain pulses are excluded.
+                if (sent is { IsSustain: false, LevelDb: { } level } onset)
+                {
+                    var onsetTimestamp = audioTimestamp.AddMilliseconds(onset.AudioMilliseconds - _detector.AudioMilliseconds);
+                    _onsetHistory.Add(onsetTimestamp, onset.Band, level, level - onset.StrengthDb);
+                    _traceHistory.MarkSent(onset.AudioMilliseconds, onset.Band, onset.TriggerReason);
+                }
                 _latest = new HapticMonitorSample
                 {
-                    Timestamp = DateTime.UtcNow,
+                    Timestamp = audioTimestamp.AddMilliseconds(_detector.ReadingAudioMilliseconds - _detector.AudioMilliseconds),
                     AudioReceived = true,
                     CaptureBatchMs = bufferMs,
                     NewestSampleAgeMs = e.NewestSampleAgeMs,
@@ -186,6 +205,8 @@ internal sealed class HapticAudioMonitor : IDisposable
             sample.DroppedCount = _scheduler?.DroppedCount ?? 0;
             sample.LastEvent = _lastEvent;
             sample.LastSentUtc = _lastSentUtc;
+            sample.RecentOnsets = _onsetHistory.Snapshot(DateTime.UtcNow);
+            sample.RecentAudio = _traceHistory.Snapshot(DateTime.UtcNow);
             return sample;
         }
     }

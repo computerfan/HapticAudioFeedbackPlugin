@@ -15,9 +15,9 @@ Both `src/package/actionicons/` (assigned actions) and `src/package/actionsymbol
 
 | Action class | Symbol |
 | --- | --- |
-| `ConfigureAudioHaptics` | Sliders |
-| `ToggleAudioHaptics` | Power |
-| `SelectAudioProfile` | Equalizer |
+| `ConfigureAudioHaptics` | Sliders with a Moving beat corner mark |
+| `ToggleAudioHaptics` | Power with a Moving beat mark in the lower-right corner |
+| `SelectAudioProfile` | Equalizer with a Moving beat corner mark |
 | `PreviewAudioHaptic` | Simplified Moving beat mark |
 
 Every filename starts with the unchanged namespace `Loupedeck.HapticAudioFeedback.`. The SVGs have a 64 × 64 viewBox, transparent backgrounds, and black strokes/fills. They use only inline geometry, with no fonts, scripts, embedded bitmaps, or external dependencies. The same artwork is copied to both folders. They are covered by the repository's MIT license.

@@ -14,7 +14,7 @@ spec.loader.exec_module(verifier)
 
 
 class PackageChecks(unittest.TestCase):
-    def package(self, *, mac=True, missing=None, wrong_cpu=False, executable=True, bad_license=False, bad_frontend=False):
+    def package(self, *, mac=True, missing=None, wrong_cpu=False, executable=True, bad_license=False, bad_frontend=False, bad_locale=False):
         root = tempfile.TemporaryDirectory()
         self.addCleanup(root.cleanup)
         path = Path(root.name) / "fixture.lplug4"
@@ -26,6 +26,9 @@ class PackageChecks(unittest.TestCase):
         payloads = {
             "LICENSE": "project MIT license fixture",
             "ui/index.html": "<!doctype html><title>Frontend fixture</title>",
+            "ui/localization.js": "// locale fixture",
+            "ui/locales/zh-CN.json": json.dumps({"Sensitivity": "灵敏度"}),
+            "localization/HapticAudioFeedback_zh-CN.xliff": '<xliff><file target-language="'+('en-US' if bad_locale else 'zh-CN')+'"><body><trans-unit><source>Profile</source><target>配置</target></trans-unit></body></file></xliff>',
             "licenses/FRONTEND-NOTICES.txt": "frontend notice fixture",
             "ui/vendor/pico-2.1.1.min.css": "Pico fixture" if not bad_frontend else "changed CSS",
             "licenses/Pico-CSS-MIT.txt": "MIT fixture",
@@ -76,9 +79,13 @@ class PackageChecks(unittest.TestCase):
             verifier.verify_package(self.package(executable=False), True)
 
     def test_missing_files(self):
-        for missing in ["LICENSE", "ui/index.html", "FRONTEND-NOTICES.txt", "FRONTEND-dependencies.json", "Pico-CSS-MIT.txt", "pico-2.1.1.min.css", "haptic_cpal.dll", "haptic-cpal-helper", "CodeResources", "NAudio-MIT.txt", "NAudio.Core.dll"]:
+        for missing in ["ui/localization.js", "ui/locales/zh-CN.json", "localization/HapticAudioFeedback_zh-CN.xliff", "LICENSE", "ui/index.html", "FRONTEND-NOTICES.txt", "FRONTEND-dependencies.json", "Pico-CSS-MIT.txt", "pico-2.1.1.min.css", "haptic_cpal.dll", "haptic-cpal-helper", "CodeResources", "NAudio-MIT.txt", "NAudio.Core.dll"]:
             with self.subTest(missing=missing), self.assertRaisesRegex(ValueError, "Missing package entry"):
                 verifier.verify_package(self.package(missing=missing), True)
+
+    def test_sdk_locale_language(self):
+        with self.assertRaisesRegex(ValueError, "SDK translation language"):
+            verifier.verify_package(self.package(bad_locale=True))
 
     def test_frontend_integrity(self):
         with self.assertRaisesRegex(ValueError, "Frontend dependency checksum"):

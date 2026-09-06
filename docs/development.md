@@ -125,7 +125,7 @@ Runtime diagnostic logs live in the plugin data directory's `logs` folder: `feel
 
 Storage failures do not interrupt capture or settings. The writer backs off for 60 seconds, and the browser's Diagnostics panel shows logging failures and suppressed counts. Mac helper stderr is continuously drained with only its first 4,096 characters retained. Logitech's own host logs have separate retention outside this plugin's control; the plugin sends one log-location entry to the SDK per load.
 
-Sent, dropped, and suppressed counters saturate at their 64-bit limits instead of wrapping. The metrics API sends counters as decimal strings so JavaScript does not lose precision above `2^53 - 1`. The browser uses `BigInt`, compact labels, and exact totals in tooltips; a `+` marks a saturated counter. The chart retains only 120 samples. Settings and profile revisions reject further writes at their limit while preserving existing data.
+Sent, dropped, and suppressed counters saturate at their 64-bit limits instead of wrapping. The metrics API sends counters as decimal strings so JavaScript does not lose precision above `2^53 - 1`. The browser uses `BigInt`, compact labels, and exact totals in tooltips; a `+` marks a saturated counter. The chart retains at most 2,560 detector frames and 256 onset markers. Settings and profile revisions reject further writes at their limit while preserving existing data.
 
 Run the logging failure and size-limit checks with:
 
@@ -183,3 +183,33 @@ Pinned upstream declarations for crates missing notice files are retained in [na
 - [CPAL 0.18.2](https://github.com/RustAudio/cpal/tree/v0.18.2)
 - [NAudio 2.2.1](https://github.com/naudio/NAudio/tree/v2.2.1)
 - [Windows loopback recording](https://learn.microsoft.com/en-us/windows/win32/coreaudio/loopback-recording)
+
+
+## Localization
+
+Simplified Chinese uses the SDK language ID `zh-CN`. Action names/descriptions and the action group are translated by `src/package/localization/HapticAudioFeedback_zh-CN.xliff`, generated from the running plugin using `logiplugintool xliff HapticAudioFeedback <output-directory>`. Keep the generated IDs and English source strings stable. Options+ selects its language automatically when supported, or the user can choose a plugin language in plugin settings; restart Logi Plugin Service after installing locale files.
+
+`src/package/ui/locales/zh-CN.json` contains browser strings and runtime action-editor labels/profile descriptions. It is embedded into the assembly for native list items, and included in the package for the browser. Names supplied by the user and device names are displayed unchanged. Low-level operating-system/backend diagnostics retain their original wording when there is no translation.
+
+The browser uses its preferred supported language, falling back to English. Its language selector changes only presentation and records `?lang=en` or `?lang=zh-CN` in the current URL; refreshing preserves that choice. Opening the launcher after a plugin restart uses browser preferences again because the local port changes. The browser language and Options+ plugin language are independent. No audio settings are written when switching languages.
+
+Only `/localization.js` and `/locales/zh-CN.json` are public localization routes; settings and device endpoints still require the session token. The locale adds no third-party dependencies.
+
+
+### Tabbed settings and onset chart
+
+The live overview sits outside the three tab panels. Built-in profile selection and expandable custom-profile management share the first (Tune) tab. Tabs use ARIA tab/tabpanel roles, roving focus, and arrow/Home/End keyboard navigation. Switching tabs hides existing controls instead of recreating them, preserving drafts, Undo, and pending audio-source selections. Chart scale is presentation-only and never writes audio settings.
+
+The detector emits envelope/threshold readings for every completed analysis window (about 5 ms). `AudioTraceHistory` stores at most 2,560 frames in a fixed ring; a successful attack dispatch sets `SentBand` on that exact detector frame. Preview calls and sustained pulses are excluded. There is no raw audio in this telemetry. Capture timestamps approximate the audio clock, but a dot and its line vertex share one timestamp and one measured level. Resets clear the ring and set `BreakBefore` on the next frame; sequence counters continue across resets and serialize as decimal strings.
+
+`RecentAudio` sends at most the latest 256 frames per metrics response, covering roughly 1.28 seconds at 200 Hz. This overlaps successive polls without retransmitting the full graph. The browser deduplicates by sequence plus timestamp and keeps at most 2,560 frames within 12 seconds; markers are derived only from those frames and capped at 256. Long polling interruptions create gaps rather than invented readings. Separate legacy `RecentOnsets` telemetry remains bounded for API compatibility, but the chart does not use it to interpolate or alter the line.
+
+The chart breaks lines at capture resets or gaps over 50 ms, includes visible levels/thresholds in auto-scaling, expands immediately, and contracts gradually with a minimum 30 dB span. Silent sentinel values do not distort scaling. A fixed −80 to 0 dBFS mode remains available. Polling slows from 100 ms to 500 ms when the document is hidden. A dot confirms an onset was sent through the SDK; it does not confirm physical vibration. The dashed line is the adaptive level threshold, not the only trigger rule: rapid rises can trigger below it, and re-arm/spacing rules can skip crossings.
+
+The detector records the qualifying trigger rule before changing its armed state. Sent trace frames carry `TriggerReason`: `threshold` draws a circle and `rise` draws a diamond. If both rules qualify, the level rule takes precedence; a rapid-rise marker means the rapid-rise rule was needed. Color continues to identify the band. Missing/unknown reasons draw hollow circles rather than being guessed from envelope/threshold positions. This annotation does not change onset selection, timing, or scheduling.
+
+### Settings-to-chart connections
+
+Tune groups shared sensitivity/spacing, mint bass controls, purple detail controls, and the two trigger rules. Band groups show the latest envelope and adaptive threshold, with stale data replaced by a dash and disabled bands labeled Off. The legend buttons navigate to the corresponding Tune group without saving settings or changing capture. Hover/focus emphasizes matching plotted lines or marker outlines; all original field IDs, auto-save, Undo, and explicit audio-source confirmation remain in place.
+
+The monitor is sticky only above 900 CSS pixels wide and at least 600 pixels tall, with a shorter plot on screens up to 800 pixels tall. A ResizeObserver measures its actual height for anchor offsets, so legend navigation leaves the selected group below the plot. Smaller viewports use normal scrolling. Detail controls inherit purple slider colors with the same contrast treatment as the mint controls.

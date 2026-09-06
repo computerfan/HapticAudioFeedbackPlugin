@@ -203,6 +203,8 @@ Test("new bass attack is detected above a sustained note", () =>
 {
     var result = Analyze(48000, 2, (t, _) => Tone(t, 100, t >= 1.2 && t < 1.3 ? 0.14 : 0.08), options: new AudioSettings { HighEnabled = false });
     Check(result.Events.Any(e => e.AudioMilliseconds >= 1200 && e.AudioMilliseconds < 1270), "Attack over sustained bass was lost.");
+    Check(result.Events[0].TriggerReason == "threshold", "Initial level trigger was not classified before re-arming.");
+    Check(result.Events.Any(e => e.AudioMilliseconds >= 1200 && e.AudioMilliseconds < 1270 && e.TriggerReason == "rise"), "Rapid-rise reason was lost.");
 });
 Test("disabled engine and disabled bass suppress all bass texture", () =>
 {
@@ -427,5 +429,63 @@ Test("custom profile revision exhaustion preserves readable saved data", () =>
     var rejected = false;
     try { reloaded.Save(new() { Operation = "duplicate", Id = "music", Name = "Overflow", ExpectedRevision = int.MaxValue }); } catch (InvalidOperationException) { rejected = true; }
     Check(rejected && writes == 1 && reloaded.Snapshot().ProfilesRevision == int.MaxValue, "Exhausted revision reached storage.");
+});
+Test("onset telemetry preserves measured levels and bounded recent history", () =>
+{
+    var events = Analyze(48000, 2, (t, _) => Tone(t, 100)).Events;
+    Check(events.Count > 0 && events.All(e => e.LevelDb is >= -180 and <= 0), "Missing onset level.");
+    var history = new OnsetHistory();
+    var now = DateTime.UtcNow;
+    for (var i = 0; i < 300; i++) history.Add(now.AddMilliseconds(-1000 + i), "bass", -35, -42.5);
+    var snapshot = history.Snapshot(now);
+    Check(snapshot.Length == OnsetHistory.Capacity && snapshot[0].Sequence == 45 && snapshot[^1].Sequence == 300, "Telemetry capacity or order changed.");
+    Check(snapshot.All(marker => marker.ThresholdDb == -42.5), "Detection threshold was not preserved.");
+    history.Add(now, "preview", -20); history.Add(now, "high", double.NaN);
+    Check(history.Snapshot(now).Length == OnsetHistory.Capacity, "Invalid marker accepted.");
+    Check(history.Snapshot(now.AddSeconds(13)).Length == 0 && snapshot.Length == OnsetHistory.Capacity, "Telemetry expiry or snapshot isolation failed.");
+});
+Test("reading timestamps exclude an unfinished detector window", () =>
+{
+    var detector = new AudioOnsetDetector(48000, 1, new AudioSettings());
+    detector.Process(new float[250], _ => { });
+    Check(detector.ReadingAudioMilliseconds == 5 && detector.AudioMilliseconds > 5, "Partial window shifted the plotted reading.");
+    detector.Process(new float[230], _ => { });
+    Check(detector.ReadingAudioMilliseconds == 10 && detector.AudioMilliseconds == 10, "Completed window timestamp incorrect.");
+});
+Test("trace frames retain every detector window and the exact sent frame", () =>
+{
+    var baseline = Analyze(48000, 1, (t, _) => Tone(t, 100), seconds: .1);
+    var detector = new AudioOnsetDetector(48000, 1, new AudioSettings());
+    var readings = new List<DetectorReading>();
+    var candidates = new List<HapticOnset>();
+    detector.Process(baseline.Audio, candidates.Add, readings.Add);
+    Check(readings.Count == 20 && readings[0].AudioMilliseconds == 5 && readings[^1].AudioMilliseconds == 100, "Lost intermediate detector frames.");
+    Check(candidates.SequenceEqual(baseline.Events), "Telemetry changed detection.");
+    var trace = new AudioTraceHistory();
+    var now = DateTime.UtcNow;
+    foreach (var reading in readings) trace.Add(now.AddMilliseconds(reading.AudioMilliseconds - 100), reading.AudioMilliseconds,
+        reading.Low.EnvelopeDb, reading.High.EnvelopeDb, reading.Low.ThresholdDb, reading.High.ThresholdDb);
+    var sent = candidates.First();
+    Check(trace.MarkSent(sent.AudioMilliseconds, sent.Band, sent.TriggerReason), "Sent event could not find its recorded frame.");
+    var point = trace.Snapshot(now).Single(point => point.SentBand != null);
+    Check((sent.Band == "bass" ? point.LowEnvDb : point.HighEnvDb) == sent.LevelDb, "Dot differs from the actual line vertex.");
+    Check(point.TriggerReason == sent.TriggerReason && point.TriggerReason != null, "Sent frame lost its trigger reason.");
+    Check(point.Timestamp == now.AddMilliseconds(sent.AudioMilliseconds - 100), "Dot timestamp differs from its detector frame.");
+});
+Test("trace history bounds polling payloads, retains flags and breaks on reset", () =>
+{
+    var trace = new AudioTraceHistory();
+    var now = DateTime.UtcNow;
+    for (var i = 0; i < 3000; i++) trace.Add(now.AddMilliseconds((i - 2999) * 5), i * 5, -40, -50, -35, -45);
+    Check(!trace.MarkSent(0, "bass"), "Evicted frame retained.");
+    Check(trace.MarkSent(2999 * 5, "bass"), "Latest frame missing.");
+    var snapshot = trace.Snapshot(now);
+    Check(snapshot.Length == AudioTraceHistory.SnapshotCapacity && snapshot[^1].Sequence == 3000, "Polling payload grew past its bound.");
+    Check(snapshot[^1].SentBand == "bass" && !snapshot[^1].BreakBefore, "Sent flag lost.");
+    trace.Clear();
+    trace.Add(now, 5, -40, -50, -35, -45);
+    Check(trace.Snapshot(now).Single() is { BreakBefore: true, Sequence: 3001, SentBand: null }, "Reset joined disconnected traces or reused sequence.");
+    Check(snapshot[^1].SentBand == "bass", "Snapshot changed after reset.");
+    Check(trace.Snapshot(now.AddSeconds(13)).Length == 0, "Stale telemetry returned.");
 });
 Console.WriteLine($"{passed} audio regression checks passed. No capture or haptic device was used.");

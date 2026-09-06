@@ -32,6 +32,7 @@
     </PackageReference>
     <Compile Remove="Helpers/ResponsiveLoopbackCapture.cs;Capture/**/*.cs" />
     <ProjectReference Include="Capture/HapticAudioCapture.csproj" />
+    <EmbeddedResource Include="package/ui/locales/zh-CN.json" LogicalName="HapticAudioFeedback.zh-CN.json" />
     <Reference Include="PluginApi">
       <HintPath>$(PluginApiDir)PluginApi.dll</HintPath>
       <Private>False</Private>

@@ -1,9 +1,12 @@
+#nullable enable
+
 namespace Loupedeck.HapticAudioFeedback;
 
 using NAudio.Dsp;
 
-internal readonly record struct HapticOnset(string EventName, double StrengthDb, double AudioMilliseconds, bool IsSustain = false, string Band = "unknown");
-internal readonly record struct BandReading(double EnvelopeDb, double BackgroundDb, double ThresholdDb, bool Onset);
+internal readonly record struct HapticOnset(string EventName, double StrengthDb, double AudioMilliseconds, bool IsSustain = false, string Band = "unknown", double? LevelDb = null, string? TriggerReason = null);
+internal readonly record struct DetectorReading(double AudioMilliseconds, BandReading Low, BandReading High);
+internal readonly record struct BandReading(double EnvelopeDb, double BackgroundDb, double ThresholdDb, bool Onset, string? TriggerReason = null);
 
 /// <summary>Per-channel filtering and fixed-duration energy windows. No device I/O.</summary>
 internal sealed class AudioOnsetDetector
@@ -19,6 +22,7 @@ internal sealed class AudioOnsetDetector
 
     public int Channels => _lowFilters.Length;
     public double AudioMilliseconds => _frames * 1000.0 / _sampleRate;
+    public double ReadingAudioMilliseconds => (_frames - _framesInWindow) * 1000.0 / _sampleRate;
     public BandReading Low { get; private set; }
     public BandReading High { get; private set; }
 
@@ -42,7 +46,7 @@ internal sealed class AudioOnsetDetector
         _high = new BandEnvelope(windowMs, settings.EffectiveHighThresholdDb, settings);
     }
 
-    public void Process(ReadOnlySpan<float> interleaved, Action<HapticOnset> onOnset)
+    public void Process(ReadOnlySpan<float> interleaved, Action<HapticOnset> onOnset, Action<DetectorReading>? onReading = null)
     {
         if (interleaved.Length % Channels != 0)
             throw new ArgumentException("Audio must contain complete interleaved frames.");
@@ -71,10 +75,10 @@ internal sealed class AudioOnsetDetector
                     ? HapticPatterns.EventFor(_settings.StrongBassWaveform, "strong")
                     : HapticPatterns.EventFor(_settings.BassWaveform, "bass");
                 _lastBassPulseMs = AudioMilliseconds;
-                candidate = new HapticOnset(pattern, Low.EnvelopeDb - Low.ThresholdDb, AudioMilliseconds, Band: "bass");
+                candidate = new HapticOnset(pattern, Low.EnvelopeDb - Low.ThresholdDb, AudioMilliseconds, Band: "bass", LevelDb: Low.EnvelopeDb, TriggerReason: Low.TriggerReason);
             }
             if (_settings.Enabled && _settings.HighEnabled && High.Onset && (!candidate.HasValue || High.EnvelopeDb - High.ThresholdDb > candidate.Value.StrengthDb))
-                candidate = new HapticOnset(HapticPatterns.EventFor(_settings.HighWaveform, "high"), High.EnvelopeDb - High.ThresholdDb, AudioMilliseconds, Band: "high");
+                candidate = new HapticOnset(HapticPatterns.EventFor(_settings.HighWaveform, "high"), High.EnvelopeDb - High.ThresholdDb, AudioMilliseconds, Band: "high", LevelDb: High.EnvelopeDb, TriggerReason: High.TriggerReason);
             // Optional pulse-density texture. It never predicts beats or queues a repeating timer.
             var sustainFloor = _settings.SustainThresholdDb - _settings.SensitivityGainDb - _settings.BassGainDb;
             if (!_settings.Enabled || !_settings.BassEnabled || !_settings.SustainEnabled || Low.EnvelopeDb < sustainFloor)
@@ -93,6 +97,7 @@ internal sealed class AudioOnsetDetector
                     _lastBassPulseMs = AudioMilliseconds;
                 }
             }
+            onReading?.Invoke(new DetectorReading(AudioMilliseconds, Low, High));
             if (candidate.HasValue) onOnset(candidate.Value);
         }
     }
@@ -131,10 +136,13 @@ internal sealed class AudioOnsetDetector
             // A new attack can emerge above sustained music before the slow threshold is crossed.
             var newAttack = riseDb >= _settings.OnsetRiseDb &&
                 envDb >= Math.Max(_floorDb, backgroundDb + _settings.RearmMarginDb);
-            var onset = ((_armed && envDb >= thresholdDb) || newAttack) &&
+            var levelTrigger = _armed && envDb >= thresholdDb;
+            var onset = (levelTrigger || newAttack) &&
                 _elapsedMs - _lastOnsetMs >= _settings.TransientSeparationMilliseconds;
             if (onset) { _armed = false; _lastOnsetMs = _elapsedMs; }
-            return new BandReading(envDb, backgroundDb, thresholdDb, onset);
+            // If both rules qualify, report the level rule; rapid rise means it was needed.
+            return new BandReading(envDb, backgroundDb, thresholdDb, onset,
+                onset ? (levelTrigger ? "threshold" : "rise") : null);
         }
     }
 }

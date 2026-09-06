@@ -22,9 +22,11 @@ public sealed class SelectAudioProfile : ActionEditorCommand
         this.Name = "SelectAudioProfile"; this.DisplayName = "Select haptic profile"; this.GroupName = "Audio haptics";
         this.Description = "Apply a listening profile while preserving whether audio haptics are paused.";
         this.ActionEditor.AddControlEx(new ActionEditorListbox("Profile", "Profile"));
+        this.ActionEditor.Started += (_, e) => e.ActionEditorState.SetLabelText("Profile", PluginText.Translate(this.Plugin, "Profile"));
         this.ActionEditor.ListboxItemsRequested += (_, e) =>
         {
-            foreach (var profile in ((HapticAudioFeedbackPlugin)this.Plugin).AvailableProfiles) e.AddItem(profile.Id, profile.Label, profile.Description);
+            foreach (var profile in ((HapticAudioFeedbackPlugin)this.Plugin).AvailableProfiles) e.AddItem(profile.Id, profile.IsCustom ? profile.Label : PluginText.Translate(this.Plugin, profile.Label),
+                    PluginText.Translate(this.Plugin, profile.Description));
             if (string.IsNullOrEmpty(e.ActionEditorState.GetControlValue("Profile"))) e.SetSelectedItemName("music");
         };
     }
@@ -42,9 +44,10 @@ public sealed class PreviewAudioHaptic : ActionEditorCommand
         this.Name = "PreviewAudioHaptic"; this.DisplayName = "Preview haptic texture"; this.GroupName = "Audio haptics";
         this.Description = "Send one preset, including while audio haptics are paused.";
         this.ActionEditor.AddControlEx(new ActionEditorListbox("Waveform", "Texture"));
+        this.ActionEditor.Started += (_, e) => e.ActionEditorState.SetLabelText("Waveform", PluginText.Translate(this.Plugin, "Texture"));
         this.ActionEditor.ListboxItemsRequested += (_, e) =>
         {
-            foreach (var item in HapticPatterns.WaveformNames) e.AddItem(item.Key, item.Value, "Logitech preset");
+            foreach (var item in HapticPatterns.WaveformNames) e.AddItem(item.Key, PluginText.Translate(this.Plugin, item.Value), PluginText.Translate(this.Plugin, "Logitech preset"));
             if (string.IsNullOrEmpty(e.ActionEditorState.GetControlValue("Waveform"))) e.SetSelectedItemName("subtle_collision");
         };
     }

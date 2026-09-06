@@ -46,6 +46,8 @@ internal sealed class HapticMonitorSample
     public long DroppedCount { get; set; }
     public string LastEvent { get; set; }
     public DateTime? LastSentUtc { get; set; }
+    public OnsetMarker[] RecentOnsets { get; set; } = Array.Empty<OnsetMarker>();
+    public AudioTracePoint[] RecentAudio { get; set; } = Array.Empty<AudioTracePoint>();
     public HapticMonitorSample Copy() => (HapticMonitorSample)MemberwiseClone();
 }
 
@@ -59,7 +61,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private readonly Func<string, bool> _preview;
     private readonly Action _restartCapture;
     private readonly Func<object> _devices;
-    private readonly string _html, _picoCss;
+    private readonly string _html, _picoCss, _localizationJs, _chineseJson;
     private readonly byte[] _logoPng;
     private readonly CustomProfileStore _profiles;
     private readonly string _token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
@@ -73,6 +75,8 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null, Action restartCapture = null, Func<object> devices = null)
     {
         _html = File.ReadAllText(htmlPath);
+        _localizationJs = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "localization.js"));
+        _chineseJson = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "locales", "zh-CN.json"));
         _logoPng = File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(htmlPath), "logo.png"));
         _picoCss = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "vendor", "pico-2.1.1.min.css"));
         _profiles = profiles ?? new CustomProfileStore(() => null, _ => throw new InvalidOperationException("Profile storage unavailable."), _ => { });
@@ -159,7 +163,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         if (request.Url?.GetLeftPart(UriPartial.Authority) + "/" != BaseUrl ||
             request.RemoteEndPoint == null || !IPAddress.IsLoopback(request.RemoteEndPoint.Address))
         { Json(context, new { Error = "Loopback requests only" }, 403); return; }
-        if (request.HttpMethod != "GET" || (path != "/" && path != "/vendor/pico-2.1.1.min.css" && path != "/logo.png"))
+        if (request.HttpMethod != "GET" || (path != "/" && path != "/vendor/pico-2.1.1.min.css" && path != "/logo.png" && path != "/localization.js" && path != "/locales/zh-CN.json"))
         {
             var origin = request.Headers["Origin"];
             if (request.Headers["X-Haptic-Token"] != _token ||
@@ -178,6 +182,8 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                     Json(context, new { snapshot.Settings, snapshot.Revision, Presets = HapticPatterns.Presets.Keys,
                         catalog.Profiles, catalog.ProfileInfo, catalog.ProfilesRevision, catalog.ProfilesError }); return;
                 case "/": Write(context, _html, "text/html; charset=utf-8"); return;
+                case "/localization.js": Write(context, _localizationJs, "text/javascript; charset=utf-8"); return;
+                case "/locales/zh-CN.json": Write(context, _chineseJson, "application/json; charset=utf-8"); return;
                 case "/logo.png": Write(context, _logoPng, "image/png"); return;
                 case "/vendor/pico-2.1.1.min.css": Write(context, _picoCss, "text/css; charset=utf-8"); return;
                 default: Json(context, new { Error = "Not found" }, 404); return;

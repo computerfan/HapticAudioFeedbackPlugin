@@ -14,7 +14,7 @@ var enumerations = 0;
 Exception metricsFailure = null;
 var customProfiles = new CustomProfileStore(() => null, _ => { }, ex => throw ex);
 HapticMonitorDebugServer Create(Func<int> port = null) => new(Path.Combine(AppContext.BaseDirectory, "index.html"),
-    () => metricsFailure != null ? throw metricsFailure : new HapticMonitorSample { SentCount = long.MaxValue, DroppedCount = 9007199254740993L, CaptureDroppedFrames = ulong.MaxValue, LogSuppressedCount = long.MaxValue }, () => (settings.Copy(), revision), (next, expected) =>
+    () => metricsFailure != null ? throw metricsFailure : new HapticMonitorSample { SentCount = long.MaxValue, DroppedCount = 9007199254740993L, CaptureDroppedFrames = ulong.MaxValue, LogSuppressedCount = long.MaxValue, RecentAudio = new[] { new AudioTracePoint(9007199254740993L, DateTime.UtcNow, -32.5, -50, -38.25, -45, true, "bass", "threshold") }, RecentOnsets = new[] { new OnsetMarker(9007199254740993L, DateTime.UtcNow, "bass", -32.5, -38.25) } }, () => (settings.Copy(), revision), (next, expected) =>
     {
         if (expected != revision) throw new InvalidOperationException("Settings changed elsewhere. Reload current settings.");
         settings = next.Copy(); revision++;
@@ -78,6 +78,12 @@ Check((await Send("settings", token)).IsSuccessStatusCode, "authenticated settin
 using (var metrics = JsonDocument.Parse(await (await Send("metrics", token)).Content.ReadAsStringAsync())) {
     foreach (var pair in new[] { ("SentCount", "9223372036854775807"), ("DroppedCount", "9007199254740993"), ("CaptureDroppedFrames", "18446744073709551615"), ("LogSuppressedCount", "9223372036854775807") })
         Check(metrics.RootElement.GetProperty(pair.Item1).GetString() == pair.Item2, pair.Item1 + " crosses JSON without precision loss");
+    var tracePoint = metrics.RootElement.GetProperty("RecentAudio")[0];
+    Check(tracePoint.GetProperty("Sequence").GetString() == "9007199254740993" && tracePoint.GetProperty("LowEnvDb").GetDouble() == -32.5 && tracePoint.GetProperty("SentBand").GetString() == "bass" && tracePoint.GetProperty("TriggerReason").GetString() == "threshold" && tracePoint.GetProperty("BreakBefore").GetBoolean(), "sent flag and recorded levels share one precision-safe trace frame");
+    var onset = metrics.RootElement.GetProperty("RecentOnsets")[0];
+    Check(onset.GetProperty("Sequence").GetString() == "9007199254740993", "onset sequence crosses JSON without precision loss");
+    Check(onset.GetProperty("Band").GetString() == "bass" && onset.GetProperty("LevelDb").GetDouble() == -32.5 &&
+        onset.GetProperty("Timestamp").GetDateTime().Kind == DateTimeKind.Utc, "onset marker includes its band, measured level and UTC timestamp");
 }
 metricsFailure = new IOException("Private filesystem detail " + new string('x', 10000));
 var failedMetrics = await Send("metrics", token);
@@ -96,6 +102,12 @@ Check(logoResponse.IsSuccessStatusCode && logoResponse.Content.Headers.ContentTy
     (await logoResponse.Content.ReadAsByteArrayAsync()).SequenceEqual(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "logo.png"))),
     "public branding route returns the packaged PNG unchanged");
 Check((await Send("metadata/Icon256x256.png")).StatusCode == HttpStatusCode.Forbidden, "branding route does not expose arbitrary package files");
+var localeResponse = await client.GetAsync("locales/zh-CN.json");
+Check(localeResponse.IsSuccessStatusCode && localeResponse.Content.Headers.ContentType.MediaType == "application/json" &&
+    (await localeResponse.Content.ReadAsStringAsync()).Contains("灵敏度"), "Chinese catalog is served as a public static asset");
+var localeScript = await client.GetAsync("localization.js");
+Check(localeScript.IsSuccessStatusCode && localeScript.Content.Headers.ContentType.MediaType == "text/javascript", "localization script is served");
+Check((await Send("locales/not-allowed.json")).StatusCode == HttpStatusCode.Forbidden, "locale route does not expose arbitrary files");
 var catalogResponse = await Send("settings", token);
 using (var catalog = JsonDocument.Parse(await catalogResponse.Content.ReadAsStringAsync()))
 {

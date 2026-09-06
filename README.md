@@ -10,6 +10,7 @@ Turn music and other audio into haptic feedback on compatible Logitech devices. 
 - Adjust sensitivity, bass/detail response, pulse spacing, and haptic textures.
 - Start with profiles for music, movies, games, and ambient listening.
 - Duplicate profiles and save your own tuning.
+- English and Simplified Chinese (简体中文) interfaces.
 
 ## Compatibility
 
@@ -27,6 +28,8 @@ Requires Logi Options+ and a Logitech device with supported haptic mappings.
 1. Install a plugin package built for your platform. To build one, see the [developer guide](docs/development.md).
 2. In Logi Options+, assign **Open haptic settings** to an Actions Ring slot and activate it.
 3. Choose an **Audio source** and press **Use this source**. Select a **Listening profile** and play some audio. Profile changes apply immediately; **Undo profile change** restores your previous tuning.
+
+Use **Language / 语言** in the browser header to switch languages. Options+ action language follows its plugin language setting.
 
 You can also open **Open Haptic Settings.html** from the [plugin data folder](#plugin-data-folder). Reopen this launcher after a plugin restart instead of bookmarking the temporary browser address.
 
@@ -50,9 +53,11 @@ Open `Open Haptic Settings.html` for settings. Diagnostic logs are in the `logs`
 
 Start with **Music**, **Bass focus**, or **Gentle**. Additional profiles cover electronic, rock, acoustic, cinematic, action, and ambient audio. Profiles tune the response; they do not recognize instruments or gameplay events.
 
+**Listening now** stays above all three tabs. **Tune** groups profiles, overall response, bass, detail, and trigger controls alongside matching live readouts; **Textures** changes pulse character; **Advanced** contains detection and diagnostics. Select a chart legend to jump to its controls. Mint identifies bass and purple identifies detail; circles mark level triggers and diamonds mark rapid-rise triggers. On larger screens, the chart stays visible while you tune. Its vertical range adjusts automatically; choose **Fixed** for a consistent −80 to 0 dBFS view.
+
 Tuning controls save automatically. Sensitivity changes which sounds trigger feedback; overall haptic intensity is controlled in Logi Options+.
 
-Open **Save & manage your profiles** to duplicate a profile, **Save as new** to keep your current tuning, or **Update selected** to replace a saved custom profile. Profile selection preserves your audio source and paused state; the page shows when you have modified a profile.
+In the **Tune** tab, expand **Save & manage your profiles** beneath the profile selector to duplicate a profile, **Save as new** to keep your current tuning, or **Update selected** to replace a saved custom profile. Profile selection preserves your audio source and paused state; the page shows when you have modified a profile.
 
 The **Toggle haptics**, **Select haptic profile**, and **Preview haptic texture** actions are also available in Options+.
 
