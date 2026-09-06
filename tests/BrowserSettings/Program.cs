@@ -11,9 +11,10 @@ var revision = 0;
 var previews = 0;
 var captureRestarts = 0;
 var enumerations = 0;
+Exception metricsFailure = null;
 var customProfiles = new CustomProfileStore(() => null, _ => { }, ex => throw ex);
 HapticMonitorDebugServer Create(Func<int> port = null) => new(Path.Combine(AppContext.BaseDirectory, "index.html"),
-    () => new HapticMonitorSample(), () => (settings.Copy(), revision), (next, expected) =>
+    () => metricsFailure != null ? throw metricsFailure : new HapticMonitorSample { SentCount = long.MaxValue, DroppedCount = 9007199254740993L, CaptureDroppedFrames = ulong.MaxValue, LogSuppressedCount = long.MaxValue }, () => (settings.Copy(), revision), (next, expected) =>
     {
         if (expected != revision) throw new InvalidOperationException("Settings changed elsewhere. Reload current settings.");
         settings = next.Copy(); revision++;
@@ -69,6 +70,19 @@ Check((await Send("settings", "wrong")).StatusCode == HttpStatusCode.Forbidden, 
 Check((await Send("settings", token, "https://example.invalid")).StatusCode == HttpStatusCode.Forbidden, "foreign origins are rejected even with a valid token");
 Check((await Send("settings", token, host: $"attacker.invalid:{new Uri(server.BaseUrl).Port}")).StatusCode != HttpStatusCode.OK, "foreign Host header cannot reach settings");
 Check((await Send("settings", token)).IsSuccessStatusCode, "authenticated settings reads succeed");
+using (var metrics = JsonDocument.Parse(await (await Send("metrics", token)).Content.ReadAsStringAsync())) {
+    foreach (var pair in new[] { ("SentCount", "9223372036854775807"), ("DroppedCount", "9007199254740993"), ("CaptureDroppedFrames", "18446744073709551615"), ("LogSuppressedCount", "9223372036854775807") })
+        Check(metrics.RootElement.GetProperty(pair.Item1).GetString() == pair.Item2, pair.Item1 + " crosses JSON without precision loss");
+}
+metricsFailure = new IOException("Private filesystem detail " + new string('x', 10000));
+var failedMetrics = await Send("metrics", token);
+var failedBody = await failedMetrics.Content.ReadAsStringAsync();
+Check(failedMetrics.StatusCode == HttpStatusCode.InternalServerError && failedBody.Length < 600 && !failedBody.Contains("Private filesystem"), "unexpected failures return a bounded generic 500 response");
+metricsFailure = new ArgumentException(new string('x', 10000));
+var invalidMetrics = await Send("metrics", token);
+Check(invalidMetrics.StatusCode == HttpStatusCode.BadRequest && (await invalidMetrics.Content.ReadAsStringAsync()).Length < 600, "validation failures return bounded 400 responses");
+metricsFailure = null;
+Check((await Send("metrics", token)).IsSuccessStatusCode, "listener serves requests after handler failures");
 var catalogResponse = await Send("settings", token);
 using (var catalog = JsonDocument.Parse(await catalogResponse.Content.ReadAsStringAsync()))
 {
@@ -126,9 +140,15 @@ server.Dispose();
 using var rebound = Create(() => new Uri(server.BaseUrl).Port); rebound.Start();
 Check(rebound.BaseUrl == server.BaseUrl, "dispose releases the endpoint for reuse");
 Check((await Send("settings", token)).StatusCode == HttpStatusCode.Forbidden, "old session tokens fail after the same port is reused");
+using (var broken = Create()) {
+    broken.Start();
+    var listener = (HttpListener)typeof(HapticMonitorDebugServer).GetField("_listener", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic).GetValue(broken);
+    listener.Close();
+    Check(SpinWait.SpinUntil(() => !broken.IsRunning, 2000), "failed listener stops instead of spinning on errors");
+}
 Console.WriteLine($"{count} browser settings integration checks passed; no audio or hardware used.");
 
 namespace Loupedeck.HapticAudioFeedback
 {
-    internal static class PluginLog { public static void Info(string message) { } }
+    internal static class PluginLog { public static void Info(string message) { } public static void Warning(Exception ex, string message) { } public static void Error(Exception ex, string message) { } }
 }

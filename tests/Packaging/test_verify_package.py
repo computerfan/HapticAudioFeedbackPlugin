@@ -23,6 +23,7 @@ class PackageChecks(unittest.TestCase):
         pe[64:68] = b"PE\0\0"
         struct.pack_into("<H", pe, 68, 0x8664)
         payloads = {
+            "LICENSE": "project MIT license fixture",
             "metadata/LoupedeckPackage.yaml": "pluginFolderWin: bin\n" + ("pluginFolderMac: bin-mac\n" if mac else "#pluginFolderMac: bin-mac\n"),
             "bin/HapticAudioFeedbackPlugin.dll": b"managed fixture",
             "bin/HapticAudioCapture.dll": b"managed fixture",
@@ -69,7 +70,7 @@ class PackageChecks(unittest.TestCase):
             verifier.verify_package(self.package(executable=False), True)
 
     def test_missing_files(self):
-        for missing in ["haptic_cpal.dll", "haptic-cpal-helper", "CodeResources", "NAudio-MIT.txt", "NAudio.Core.dll"]:
+        for missing in ["LICENSE", "haptic_cpal.dll", "haptic-cpal-helper", "CodeResources", "NAudio-MIT.txt", "NAudio.Core.dll"]:
             with self.subTest(missing=missing), self.assertRaisesRegex(ValueError, "Missing package entry"):
                 verifier.verify_package(self.package(missing=missing), True)
 

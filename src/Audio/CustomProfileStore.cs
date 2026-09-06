@@ -44,7 +44,7 @@ internal sealed class CustomProfileStore
             var json = read();
             if (json == null) return;
             var document = JsonSerializer.Deserialize<Document>(json) ?? throw new InvalidDataException("Missing profile document.");
-            if (document.Version != 1 || document.Revision < 0 || document.Revision == int.MaxValue || document.Profiles == null || document.Profiles.Count > MaximumProfiles)
+            if (document.Version != 1 || document.Revision < 0 || document.Profiles == null || document.Profiles.Count > MaximumProfiles)
                 throw new InvalidDataException("Unsupported profile document.");
             var ids = new HashSet<string>();
             var names = new HashSet<string>(AudioProfiles.All.Select(p => p.Label), StringComparer.OrdinalIgnoreCase);
@@ -96,6 +96,7 @@ internal sealed class CustomProfileStore
             if (_loadError != null) throw new InvalidOperationException(_loadError);
             if (request.ExpectedRevision != _document.Revision)
                 throw new InvalidOperationException("Profiles changed elsewhere. Reload saved settings before saving a profile.");
+            if (_document.Revision == int.MaxValue) throw new InvalidOperationException("Profile revision limit reached. Saved profiles remain available, but further changes cannot be saved.");
             var name = ValidateName(request.Name);
             Entry previous = null;
             AudioSettings settings;

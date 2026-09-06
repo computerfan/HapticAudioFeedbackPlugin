@@ -1,0 +1,48 @@
+using Loupedeck.HapticAudioFeedback;
+var checks = 0;
+void Check(bool condition, string message) { if (!condition) throw new Exception(message); checks++; Console.WriteLine("PASS " + message); }
+var root = Path.Combine(Path.GetTempPath(), "haptic-log-tests-" + Guid.NewGuid().ToString("N"));
+Directory.CreateDirectory(root);
+try {
+    var repeat = Path.Combine(root, "repeat");
+    using (var log = new BoundedPluginLogger(repeat, () => 0)) {
+        for (var i=0;i<10000;i++) log.Write("Warning", "The same capture error", new IOException("Device disconnected"));
+        Check(log.SuppressedCount==9999,"repeated failures produce one log entry per window");
+    }
+    Check(File.ReadAllLines(Path.Combine(repeat,"feel-the-rhythm.log")).Length==1,"suppressed errors do not produce per-event disk writes");
+    var flood = Path.Combine(root,"flood");
+    using(var log=new BoundedPluginLogger(flood,()=>0)) {
+        for(var i=0;i<10000;i++) log.Write("Error","Varying failure "+i);
+        Check(log.SuppressedCount==9970,"global budget bounds distinct failure storms and dedup storage");
+    }
+    Check(File.ReadAllLines(Path.Combine(flood,"feel-the-rhythm.log")).Length==30,"global log budget permits at most 30 entries per minute");
+    var rotation=Path.Combine(root,"rotation");Directory.CreateDirectory(rotation);
+    foreach(var name in new[]{"feel-the-rhythm.log","feel-the-rhythm.1.log","feel-the-rhythm.2.log"}) File.WriteAllBytes(Path.Combine(rotation,name),new byte[BoundedPluginLogger.FileLimitBytes]);
+    File.WriteAllText(Path.Combine(rotation,"unrelated.log"),"retain this");
+    var token=new string('A',64);
+    using(var log=new BoundedPluginLogger(rotation)) log.Write("Error","token="+token+"\n"+new string('x',10000));
+    var files=Directory.GetFiles(rotation,"feel-the-rhythm*.log");
+    Check(files.Length==3 && files.All(f=>new FileInfo(f).Length<=BoundedPluginLogger.FileLimitBytes),"rotation caps exactly three files at 512 KiB each");
+    var line=File.ReadAllText(Path.Combine(rotation,"feel-the-rhythm.log"));
+    Check(!line.Contains(token)&&line.Contains("[redacted]")&&line.Length<2300&&File.ReadAllLines(Path.Combine(rotation,"feel-the-rhythm.log")).Length==1,"large multiline entries are bounded and session tokens are redacted");
+    Check(File.ReadAllText(Path.Combine(rotation,"unrelated.log"))=="retain this","rotation leaves other logs untouched");
+    var blocked=Path.Combine(root,"not-a-directory");File.WriteAllText(blocked,"block");
+    using(var log=new BoundedPluginLogger(blocked)) {
+        log.Write("Info","Write will fail");
+        Check(SpinWait.SpinUntil(()=>log.LastError!=null,2000),"disk failures are surfaced without throwing into callers");
+        log.Write("Error","A later failure does not recurse into logging");
+    }
+    var time = 0.0;
+    var recovery = Path.Combine(root, "recovery"); File.WriteAllText(recovery, "blocked");
+    using (var log = new BoundedPluginLogger(recovery, () => Volatile.Read(ref time))) {
+        log.Write("Error", "Recoverable failure");
+        Check(SpinWait.SpinUntil(() => log.SuppressedCount == 1 && log.LastError != null, 2000), "failed writes count as suppressed");
+        File.Delete(recovery); Volatile.Write(ref time, 61);
+        log.Write("Error", "Recoverable failure");
+        Check(SpinWait.SpinUntil(() => log.LastError == null && File.Exists(Path.Combine(recovery, "feel-the-rhythm.log")), 2000), "logging recovers after its backoff and rate window reset");
+    }
+    Check(File.ReadAllText(Path.Combine(recovery, "feel-the-rhythm.log")).Contains("suppressed 1 log messages"), "recovered logging summarizes suppressed messages");
+    Check(!BoundedPluginLogger.SafeText(new string('x', 2040) + new string('A', 64)).Contains("AAAAAAAA"), "tokens crossing the truncation boundary are redacted");
+    Check(SaturatingCounter.Add(long.MaxValue-1,2)==long.MaxValue && SaturatingCounter.Add(long.MaxValue,1)==long.MaxValue,"counters saturate without wrapping negative");
+    Console.WriteLine($"{checks} robustness checks passed.");
+} finally { Directory.Delete(root,true); }

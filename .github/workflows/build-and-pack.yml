@@ -50,6 +50,8 @@ jobs:
         run: dotnet run --project tests/AudioRegression --configuration Release
       - name: Browser settings integration checks
         run: dotnet run --project tests/BrowserSettings --configuration Release
+      - name: Bounded logging and counter checks
+        run: dotnet run --project tests/Robustness --configuration Release
       - name: Browser device selector checks
         run: node tests/BrowserSettings/device-ui.test.cjs
       - name: Package validation regression checks

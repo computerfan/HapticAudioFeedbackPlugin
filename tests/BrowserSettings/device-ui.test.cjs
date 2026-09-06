@@ -39,5 +39,15 @@ vm.runInContext(script,context);
  enumerationError=true;await vm.runInContext('refreshDevices()',context);
  assert.equal(select.value,'output:missing');assert.equal(elements.get('refreshDevices').disabled,false);
  assert.match(elements.get('deviceStatus').textContent,/Device service unavailable/);
+ for(const value of ['0','9007199254740993','9223372036854775807','18446744073709551615']){
+  const formatted=vm.runInContext(`formatCounter('${value}')`,context);
+  assert.equal(formatted.title.split(' (')[0],BigInt(value).toLocaleString());
+  assert.ok(formatted.label.length<=12);
+ }
+ for(const value of ['-1','18446744073709551616','1e10','garbage']) assert.equal(vm.runInContext(`formatCounter('${value}').label`,context),'—');
+ assert.equal(vm.runInContext('formatCounter(9007199254740992).label',context),'—');
+ assert.equal(vm.runInContext("formatCounter('1500').label",context),'1.5K');
+ assert.ok(vm.runInContext("formatCounter('9223372036854775807').label",context).endsWith('+'));
+ console.log('PASS exact large counters, bounded display, saturation marker and invalid counter handling');
  console.log('PASS browser device groups, Unicode text, explicit save, profile source preservation, missing source and enumeration retry');
 })().catch(error=>{console.error(error);process.exitCode=1;});

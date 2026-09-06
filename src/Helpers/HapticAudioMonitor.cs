@@ -24,7 +24,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     private HapticMonitorDebugServer _debugServer;
     private double _lastAudioMs;
     private string _captureMode = "starting";
-    private string _captureError, _captureWarning;
+    private string _captureError, _captureWarning, _processingError;
     private readonly string _binaryDirectory;
     private double _backendCallMs, _maxBackendCallMs, _maxBufferMs, _maxProcessingMs, _maxLockWaitMs;
     private double _lastWarningMs = double.NegativeInfinity;
@@ -46,7 +46,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         lock (_settingsGate)
         {
             if (_capture != null) return;
-            _captureError = _captureWarning = null;
+            _captureError = _captureWarning = _processingError = null;
             try { StartCapture(OperatingSystem.IsMacOS() ? new MacAudioCapture(_binaryDirectory, _settings.CaptureDeviceId) : new CpalAudioCapture(_binaryDirectory, _settings.CaptureDeviceId)); }
             catch (Exception ex)
             {
@@ -122,6 +122,7 @@ internal sealed class HapticAudioMonitor : IDisposable
                 if (dispatchNow < _suppressUntilMs) _candidates.Clear();
                 var sent = _scheduler.Dispatch(_candidates, _detector.AudioMilliseconds + e.NewestSampleAgeMs + dispatchNow - callbackEntryMs, dispatchNow,
                     Send);
+                if (sent.HasValue) _processingError = null;
                 _latest = new HapticMonitorSample
                 {
                     Timestamp = DateTime.UtcNow,
@@ -147,6 +148,8 @@ internal sealed class HapticAudioMonitor : IDisposable
             }
             catch (Exception ex)
             {
+                _processingError = "Audio processing or haptic feedback failed. " + BoundedPluginLogger.SafeText(ex.Message, 512);
+                _latest.AudioReceived = true; _latest.Timestamp = DateTime.UtcNow;
                 var now = _clock.Elapsed.TotalMilliseconds;
                 if (now - _lastWarningMs >= 5000)
                 {
@@ -165,9 +168,12 @@ internal sealed class HapticAudioMonitor : IDisposable
         {
             var sample = _latest.Copy();
             sample.Enabled = _settings.Enabled;
+            sample.LoggingError = PluginLog.LoggingError;
+            sample.LogSuppressedCount = PluginLog.SuppressedCount;
             sample.Settling = _clock.Elapsed.TotalMilliseconds < _suppressUntilMs;
             sample.CaptureMode = _captureMode;
             sample.CaptureError = _captureError;
+            sample.ProcessingError = _processingError;
             sample.CaptureWarning = _captureWarning;
             sample.RequestedCaptureBufferMs = _capture?.RequestedBufferMilliseconds ?? 20;
             sample.BackendCallMs = _backendCallMs;
@@ -210,6 +216,8 @@ internal sealed class HapticAudioMonitor : IDisposable
     private void ApplySettingsCore(AudioSettings settings)
     {
         settings.Validate();
+        if (_settingsRevision == int.MaxValue) throw new InvalidOperationException("Settings revision limit reached. Restart the plugin before saving more changes.");
+        var nextRevision = checked(_settingsRevision + 1);
         var copy = settings.Copy();
         copy.EnableDebugServer = false;
         bool deviceChanged;
@@ -224,7 +232,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         lock (_gate)
         {
             _settings = copy;
-            _settingsRevision++;
+            _settingsRevision = nextRevision;
             _detector = detector;
             _scheduler.UpdateSettings(copy);
             _candidates.Clear();
@@ -238,7 +246,8 @@ internal sealed class HapticAudioMonitor : IDisposable
     {
         lock (_diagnosticsGate)
         {
-            if (_debugServer != null) return _debugServer.LaunchUrl;
+            if (_debugServer?.IsRunning == true) return _debugServer.LaunchUrl;
+            _debugServer?.Dispose();
             var server = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettingsSnapshot, ApplySettingsIfCurrent, Preview, profiles: _profiles, restartCapture: RestartCapture, devices: ListDevices);
             try { server.Start(); lock (_gate) _debugServer = server; }
             catch { server.Dispose(); throw; }
@@ -294,7 +303,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         // Never hold the callback lock while joining the consumer or releasing native capture.
         try { capture?.StopRecording(); }
         catch (Exception ex) { PluginLog.Warning(ex, "Error stopping audio capture."); }
-        finally { capture?.Dispose(); }
+        finally { try { capture?.Dispose(); } catch (Exception ex) { PluginLog.Warning(ex, "Error disposing audio capture."); } }
     }
     public void Stop()
     {

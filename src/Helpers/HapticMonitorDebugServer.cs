@@ -13,8 +13,13 @@ internal sealed class HapticMonitorSample
     public bool Settling { get; set; }
     public string CaptureMode { get; set; }
     public string CaptureError { get; set; }
+    public string ProcessingError { get; set; }
     public string CaptureWarning { get; set; }
+    public string LoggingError { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString)]
+    public long LogSuppressedCount { get; set; }
     public double NewestSampleAgeMs { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString)]
     public ulong CaptureDroppedFrames { get; set; }
     public int RequestedCaptureBufferMs { get; set; }
     public double CaptureBatchMs { get; set; }
@@ -35,7 +40,9 @@ internal sealed class HapticMonitorSample
     public double HighThresholdDb { get; set; } = -180;
     public bool LowTriggered { get; set; }
     public bool HighTriggered { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString)]
     public long SentCount { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString)]
     public long DroppedCount { get; set; }
     public string LastEvent { get; set; }
     public DateTime? LastSentUtc { get; set; }
@@ -59,6 +66,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     public string BaseUrl { get; private set; }
     public string LaunchUrl => BaseUrl + "#token=" + _token;
     private volatile bool _running;
+    public bool IsRunning => _running;
 
     public HapticMonitorDebugServer(string htmlPath, Func<HapticMonitorSample> metrics,
         Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null, Action restartCapture = null, Func<object> devices = null)
@@ -117,12 +125,20 @@ internal sealed class HapticMonitorDebugServer : IDisposable
             try { context = _listener.GetContext(); Handle(context); }
             catch (Exception ex)
             {
-                if (context != null)
-                {
-                    try { Json(context, new { Error = ex.Message }, 400); }
-                    catch { }
-                }
                 if (!_running) break;
+                if (context == null) {
+                    // A failed listener must stop, not spin continuously on GetContext.
+                    _running = false;
+                    try { _listener.Close(); } catch { }
+                    PluginLog.Error(ex, "Browser listener stopped unexpectedly. Reopen settings to restart it.");
+                    break;
+                }
+                var expected = ex is ArgumentException or InvalidOperationException or JsonException or EndOfStreamException;
+                var status = ex is OperationCanceledException ? 408 : expected ? 400 : 500;
+                if (!expected && status != 408) PluginLog.Warning(ex, "Browser request failed.");
+                var message = expected ? ex.Message : status == 408 ? "Request timed out." : "The operation failed. Check capture status or the plugin log, then retry.";
+                if (message.Length > 512) message = message[..512] + "…";
+                try { Json(context, new { Error = message }, status); } catch { }
             }
             finally { try { context?.Response.Close(); } catch { } }
         }

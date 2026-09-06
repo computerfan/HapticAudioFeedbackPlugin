@@ -55,6 +55,15 @@ foreach (var bad in new[]{Catalog(("wrong:one","bad")), Catalog(("input:","bad")
 var oversized=Catalog();BinaryPrimitives.WriteUInt32LittleEndian(oversized.AsSpan(4),257);
 try{AudioDeviceCatalog.Decode(oversized);throw new Exception("Oversized catalog accepted");}
 catch(IOException){Check(true,"device count is bounded");}
+using (var stderr = new StringReader(new string('x', 1000000))) {
+    var retained = await BoundedTextReader.DrainAsync(stderr, 4096);
+    Check(retained.Length == 4096 && stderr.Peek() == -1, "helper stderr is bounded while excess output is drained");
+}
+using (var cancelled = new CancellationTokenSource()) {
+    cancelled.Cancel();
+    try { await BoundedTextReader.DrainAsync(new StringReader("error"), 4096, cancelled.Token); throw new Exception("Cancellation ignored"); }
+    catch (OperationCanceledException) { Check(true, "helper stderr drain respects cancellation"); }
+}
 if (args.Length == 2 && args[0] == "--device-smoke") {
     var directory=Path.GetFullPath(args[1]);
     var live=CpalAudioCapture.ListDevices(directory);

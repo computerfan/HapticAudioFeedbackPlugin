@@ -23,14 +23,17 @@ internal sealed class HapticScheduler
             if (!best.HasValue || (best.Value.IsSustain && !onset.IsSustain) ||
                 (best.Value.IsSustain == onset.IsSustain && onset.StrengthDb > best.Value.StrengthDb)) best = onset;
         }
-        DroppedCount += candidates.Count;
-        if (!best.HasValue || monotonicNowMs - _lastSentMs < _settings.MinimumSpacingMilliseconds) return null;
+        if (!best.HasValue || monotonicNowMs - _lastSentMs < _settings.MinimumSpacingMilliseconds) {
+            DroppedCount = SaturatingCounter.Add(DroppedCount, candidates.Count);
+            return null;
+        }
         // Reserve the slot even if the backend throws, avoiding a tight retry loop.
         _lastSentMs = monotonicNowMs;
         LastEventAgeMilliseconds = audioNowMs - best.Value.AudioMilliseconds;
-        send(best.Value.EventName);
-        SentCount++;
-        DroppedCount--;
+        try { send(best.Value.EventName); }
+        catch { DroppedCount = SaturatingCounter.Add(DroppedCount, candidates.Count); throw; }
+        SentCount = SaturatingCounter.Add(SentCount, 1);
+        DroppedCount = SaturatingCounter.Add(DroppedCount, candidates.Count - 1);
         return best;
     }
 }

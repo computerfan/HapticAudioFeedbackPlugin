@@ -27,6 +27,7 @@ def verify_package(path, require_all=False):
                 raise ValueError(f"Empty package entry: {name}")
             return data
 
+        require("LICENSE")
         metadata = require("metadata/LoupedeckPackage.yaml").decode("utf-8-sig")
         if not re.search(r"^pluginFolderWin:\s*bin\s*$", metadata, re.M):
             raise ValueError("Windows plugin directory is not bin")

@@ -47,7 +47,7 @@ impl Pending {
         let skipped = data.len() - incoming;
         if overflow + skipped > 0 {
             self.discontinuity = true;
-            self.dropped_frames += ((overflow + skipped) / self.channels) as u64;
+            self.dropped_frames = self.dropped_frames.saturating_add(((overflow + skipped) / self.channels) as u64);
             self.start = (self.start + overflow) % capacity;
             self.len -= overflow;
         }
@@ -92,8 +92,8 @@ where T: SizedSample + Copy, f32: FromSample<T> {
         if let Ok(mut pending) = shared.pending.try_lock() {
             let missed = shared.missed_frames.swap(0, Ordering::Relaxed);
             let gap = shared.gap.swap(false, Ordering::Relaxed);
-            pending.dropped_frames += missed;
-            if missed > 0 || gap { pending.dropped_frames += (pending.len / channels) as u64; pending.len = 0; pending.start = 0; }
+            pending.dropped_frames = pending.dropped_frames.saturating_add(missed);
+            if missed > 0 || gap { pending.dropped_frames = pending.dropped_frames.saturating_add((pending.len / channels) as u64); pending.len = 0; pending.start = 0; }
             pending.discontinuity |= missed > 0 || gap;
             if data.len() % channels != 0 { return; }
             let stamp = info.timestamp();
@@ -103,7 +103,7 @@ where T: SizedSample + Copy, f32: FromSample<T> {
             drop(pending);
             shared.ready.notify_one();
         } else {
-            shared.missed_frames.fetch_add((data.len() / channels) as u64, Ordering::Relaxed);
+            let _ = shared.missed_frames.fetch_update(Ordering::Relaxed, Ordering::Relaxed, |value| Some(value.saturating_add((data.len() / channels) as u64)));
         }
     }, move |error| {
         match error.kind() {
@@ -230,6 +230,18 @@ pub unsafe extern "C" fn haptic_cpal_close(handle: *mut Capture) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn dropped_counter_saturates_without_affecting_pcm() {
+        let mut pending = super::Pending::new(4, 2);
+        pending.dropped_frames = u64::MAX - 1;
+        pending.push(&[1.0f32, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0], 0.0);
+        pending.push(&[9.0f32, 10.0], 0.0);
+        let mut pcm = [0.0; 4];
+        let packet = pending.drain(&mut pcm).unwrap();
+        assert_eq!(packet.dropped_frames, u64::MAX);
+        assert_eq!(pcm, [7.0, 8.0, 9.0, 10.0]);
+    }
+
     use super::*;
     #[test] fn combines_callbacks_and_drains_once() {
         let mut pending = Pending::new(8, 2);

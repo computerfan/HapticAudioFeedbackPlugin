@@ -32,6 +32,7 @@ namespace Loupedeck.HapticAudioFeedback
         // This method is called when the plugin is loaded.
         public override void Load()
         {
+            PluginLog.Start(this.GetPluginDataDirectory());
             this.PluginEvents.AddEvent("subtleAudioFeedback", "High-band onset", "Subtle feedback for a mid/high-frequency onset");
             this.PluginEvents.AddEvent("sharpAudioFeedback", "Strong bass onset", "Sharp feedback for a stronger bass onset");
             this.PluginEvents.AddEvent("bassAudioFeedback", "Bass onset", "Damped feedback for a bass onset");
@@ -112,8 +113,9 @@ namespace Loupedeck.HapticAudioFeedback
                     System.IO.File.WriteAllText(this._settingsLauncherPath, "<!doctype html><title>Feel the Rhythm · Settings</title><p>The plugin is stopped. Start it in Logi Options+, then reopen this file.</p>");
             }
             catch (Exception ex) { PluginLog.Warning(ex, "Could not update the settings launcher."); }
-            this._hapticMonitor?.Dispose();
-            this._hapticMonitor = null;
+            try { this._hapticMonitor?.Dispose(); }
+            catch (Exception ex) { PluginLog.Warning(ex, "Could not fully stop audio capture."); }
+            finally { this._hapticMonitor = null; PluginLog.Stop(); }
         }
     }
 }

@@ -5,11 +5,11 @@
 <title>Feel the Rhythm · Settings</title>
 <style>
 :root{color-scheme:dark;--bg:#101315;--panel:#1a1f22;--border:#343c41;--text:#edf3f5;--muted:#acb9c0;--mint:#83e6bc;--blue:#8cbfff}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:30px 24px 60px}header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}h1{font-size:28px;font-weight:620;letter-spacing:-.7px;margin:0}h2{font-size:18px;margin:0 0 4px}p{margin:4px 0 18px;color:var(--muted)}.eyebrow{color:var(--mint);font-size:12px;letter-spacing:1.5px;text-transform:uppercase}.card{padding:22px;border:1px solid var(--border);border-radius:16px;background:var(--panel);margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.field{margin:12px 0 18px}.field label{display:flex;justify-content:space-between;gap:10px;font-weight:550}.field small{display:block;color:var(--muted);margin-top:4px;font-size:12px}input[type=range]{width:100%;accent-color:var(--mint);margin:12px 0 0}input[type=checkbox]{accent-color:var(--mint);width:17px;height:17px;vertical-align:middle}select,input[type=number]{color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px;width:100%;margin-top:7px}button{border:1px solid var(--border);background:#273138;color:var(--text);padding:9px 14px;border-radius:8px;font:inherit;cursor:pointer}button:hover{border-color:var(--mint)}button:disabled{opacity:.5;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--mint);outline-offset:3px}.profiles{display:flex;gap:8px;flex-wrap:wrap}.badge{border-radius:30px;padding:6px 12px;font-size:12px;background:#293a33;color:var(--mint);white-space:nowrap}.stats{display:flex;gap:30px;flex-wrap:wrap;margin:14px 0}.stat strong{display:block;font-size:24px}.stat span{color:var(--muted);font-size:12px}.legend{display:flex;gap:16px;color:var(--muted);font-size:12px;flex-wrap:wrap}.bass{color:var(--mint)}.detail{color:var(--blue)}canvas{display:block;width:100%;height:175px;margin:10px 0}.save{font-size:13px;color:var(--mint);min-height:22px;margin:8px 0}.error{color:#ffacac}.toggle{display:flex;gap:8px;align-items:center;font-weight:550}summary{cursor:pointer;font-weight:600}.hint{font-size:12px;color:var(--muted);margin-top:12px}.preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.preview button{font-size:13px}output{font-variant-numeric:tabular-nums;color:var(--mint);font-weight:500}.footnote{font-size:12px;color:var(--muted)}@media(max-width:640px){main{padding:20px 14px}.grid{grid-template-columns:1fr;gap:0}header{align-items:flex-start}h1{font-size:24px}.card{padding:17px}.stats{gap:20px}}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,sans-serif}main{max-width:1080px;margin:auto;padding:30px 24px 60px}header{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:20px}h1{font-size:28px;font-weight:620;letter-spacing:-.7px;margin:0}h2{font-size:18px;margin:0 0 4px}p{margin:4px 0 18px;color:var(--muted)}.eyebrow{color:var(--mint);font-size:12px;letter-spacing:1.5px;text-transform:uppercase}.card{padding:22px;border:1px solid var(--border);border-radius:16px;background:var(--panel);margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:18px}.field{margin:12px 0 18px}.field label{display:flex;justify-content:space-between;gap:10px;font-weight:550}.field small{display:block;color:var(--muted);margin-top:4px;font-size:12px}input[type=range]{width:100%;accent-color:var(--mint);margin:12px 0 0}input[type=checkbox]{accent-color:var(--mint);width:17px;height:17px;vertical-align:middle}select,input[type=number]{color:var(--text);background:var(--bg);border:1px solid var(--border);border-radius:7px;padding:8px;width:100%;margin-top:7px}button{border:1px solid var(--border);background:#273138;color:var(--text);padding:9px 14px;border-radius:8px;font:inherit;cursor:pointer}button:hover{border-color:var(--mint)}button:disabled{opacity:.5;cursor:wait}button:focus-visible,input:focus-visible,select:focus-visible,summary:focus-visible{outline:2px solid var(--mint);outline-offset:3px}.profiles{display:flex;gap:8px;flex-wrap:wrap}.badge{border-radius:30px;padding:6px 12px;font-size:12px;background:#293a33;color:var(--mint);white-space:nowrap}.stats{display:flex;gap:30px;flex-wrap:wrap;margin:14px 0}.stat{min-width:0;max-width:100%}.stat strong{display:block;font-size:24px;overflow-wrap:anywhere}.stat span{color:var(--muted);font-size:12px}.legend{display:flex;gap:16px;color:var(--muted);font-size:12px;flex-wrap:wrap}.bass{color:var(--mint)}.detail{color:var(--blue)}canvas{display:block;width:100%;height:175px;margin:10px 0}.save{font-size:13px;color:var(--mint);min-height:22px;margin:8px 0}.error{color:#ffacac}.toggle{display:flex;gap:8px;align-items:center;font-weight:550}summary{cursor:pointer;font-weight:600}.hint{font-size:12px;color:var(--muted);margin-top:12px}.preview{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}.preview button{font-size:13px}output{font-variant-numeric:tabular-nums;color:var(--mint);font-weight:500}.footnote{font-size:12px;color:var(--muted)}@media(max-width:640px){main{padding:20px 14px}.grid{grid-template-columns:1fr;gap:0}header{align-items:flex-start}h1{font-size:24px}.card{padding:17px}.stats{gap:20px}}
 </style>
 </head>
 <body><main>
-<header><div><div class="eyebrow">MX Master 4 · Audio feedback</div><h1>Feel the Rhythm</h1></div><span class="badge" id="state">Connecting</span></header>
+<header><div><div class="eyebrow">Logitech · Audio feedback</div><h1>Feel the Rhythm</h1></div><span class="badge" id="state">Connecting</span></header>
 <div class="card">
 <h2>Listening now</h2>
 <div class="field"><label for="captureDevice">Audio source</label>
@@ -24,7 +24,7 @@
 <details class="card"><summary>Response timing</summary>
 <p class="hint" id="captureTiming">Waiting for capture information…</p>
 <div class="stats"><div class="stat"><strong id="batchTiming">—</strong><span>Audio batch · latest / max</span></div><div class="stat"><strong id="processingTiming">—</strong><span>Detection · latest / max</span></div><div class="stat"><strong id="backendTiming">—</strong><span>Logitech call · last / max</span></div></div>
-<p class="hint" id="waitTiming"></p>
+<p class="hint" id="waitTiming"></p><p class="hint" id="logStatus"></p>
 <p class="hint">All values are milliseconds, since reload. Audio batch is the amount of audio delivered together. These measurements exclude Windows audio already buffered before delivery and Logitech playback after dispatch; they do not measure total sound-to-vibration delay.</p>
 </details>
 <div class="card">
@@ -243,6 +243,22 @@ async function init(){
   sync();message('Live controls ready');await refreshDevices();
  }catch(error){message(error.message+' — refresh to retry.',true);}
 }
+function counterValue(value){
+ if(typeof value==='number'&&(!Number.isSafeInteger(value)||value<0))return null;
+ const text=String(value??'');
+ if(!/^[0-9]{1,20}$/.test(text))return null;
+ const count=BigInt(text);return count<=18446744073709551615n?count:null;
+}
+function formatCounter(value){
+ const count=counterValue(value);if(count===null)return {label:'—',title:'Counter unavailable'};
+ const capped=count===9223372036854775807n||count===18446744073709551615n;
+ let label=count.toLocaleString();
+ for(const [unit,scale] of [['Q',1000000000000000n],['T',1000000000000n],['B',1000000000n],['M',1000000n],['K',1000n]]){
+  if(count>=scale){const hundredths=count*100n/scale;label=(Number(hundredths)/100).toFixed(2).replace(/\.?0+$/,'')+unit;break;}
+ }
+ return {label:label+(capped?'+':''),title:count.toLocaleString()+(capped?' (counter limit reached)':'')};
+}
+function showCounter(id,value){const formatted=formatCounter(value);byId(id).textContent=formatted.label;byId(id).title=formatted.title;}
 function chart(){
  const canvas=byId('chart'),dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=175;
  if(canvas.width!==Math.round(w*dpr)){canvas.width=Math.round(w*dpr);canvas.height=h*dpr;}
@@ -258,15 +274,16 @@ async function poll(){
  try{
   const response=await fetch('/metrics',{headers:authHeaders});if(!response.ok)throw new Error('Monitor unavailable');const m=await response.json();
   const age=m.AudioReceived?Date.now()-Date.parse(m.Timestamp):Infinity;
-  byId('state').textContent=m.CaptureError?'Capture unavailable':!m.Enabled?'Paused':m.Settling?'Settling':!m.AudioReceived?'Waiting for audio':age>1000?'Quiet':'Listening';
-  byId('audioStatus').textContent=m.CaptureError?m.CaptureError:!m.Enabled?'Audio-triggered haptics are paused. Preset previews remain available.':m.Settling?'Settings applied. Waiting briefly for the detector to settle.':!m.AudioReceived?'Play audio through the selected source.':age>1000?'No recent audio packets. Last sample '+new Date(m.Timestamp).toLocaleTimeString()+'.':'Audio is arriving. Feel for pulses around the attacks.';
-  byId('sent').textContent=m.SentCount;byId('dropped').textContent=m.DroppedCount;byId('last').textContent=m.LastEvent||'—';
+  byId('state').textContent=m.CaptureError?'Capture unavailable':m.ProcessingError?'Feedback error':!m.Enabled?'Paused':m.Settling?'Settling':!m.AudioReceived?'Waiting for audio':age>1000?'Quiet':'Listening';
+  byId('audioStatus').textContent=m.CaptureError?m.CaptureError:m.ProcessingError?m.ProcessingError:!m.Enabled?'Audio-triggered haptics are paused. Preset previews remain available.':m.Settling?'Settings applied. Waiting briefly for the detector to settle.':!m.AudioReceived?'Play audio through the selected source.':age>1000?'No recent audio packets. Last sample '+new Date(m.Timestamp).toLocaleTimeString()+'.':'Audio is arriving. Feel for pulses around the attacks.';
+  showCounter('sent',m.SentCount);showCounter('dropped',m.DroppedCount);byId('last').textContent=m.LastEvent||'—';
   const ms=n=>Number.isFinite(n)?n.toFixed(1):'—';
   byId('captureTiming').textContent='Capture: '+m.CaptureMode+' · requested buffer '+ms(m.RequestedCaptureBufferMs)+' ms'+(m.CaptureWarning?' · '+m.CaptureWarning:'');
   byId('batchTiming').textContent=ms(m.CaptureBatchMs)+' / '+ms(m.MaxCaptureBatchMs);
   byId('processingTiming').textContent=ms(m.ProcessingMs)+' / '+ms(m.MaxProcessingMs);
   byId('backendTiming').textContent=ms(m.BackendCallMs)+' / '+ms(m.MaxBackendCallMs);
-  byId('waitTiming').textContent='Callback lock wait: '+ms(m.LockWaitMs)+' / '+ms(m.MaxLockWaitMs)+' max. Last event age within its delivered batch: '+ms(m.LastEventAgeWithinCallbackMs)+'. Newest sample age: '+ms(m.NewestSampleAgeMs)+' ms. Capture frames discarded: '+(m.CaptureDroppedFrames||0)+'.';
+  byId('waitTiming').textContent='Callback lock wait: '+ms(m.LockWaitMs)+' / '+ms(m.MaxLockWaitMs)+' max. Last event age within its delivered batch: '+ms(m.LastEventAgeWithinCallbackMs)+'. Newest sample age: '+ms(m.NewestSampleAgeMs)+' ms. Capture frames discarded: '+formatCounter(m.CaptureDroppedFrames??'0').label+'.';
+  byId('logStatus').textContent=m.LoggingError||('Log messages suppressed: '+formatCounter(m.LogSuppressedCount??'0').label+'. Diagnostic logs keep at most three 512 KiB files.');
   if(m.AudioReceived&&m.Timestamp!==lastSample){history.push(m);if(history.length>120)history.shift();lastSample=m.Timestamp;chart();}
  }catch(error){byId('state').textContent='Disconnected';byId('audioStatus').textContent='Plugin unavailable. Reopen the settings launcher or use Open haptic settings in Options+. The port changes after reload.';}
  setTimeout(poll,100);

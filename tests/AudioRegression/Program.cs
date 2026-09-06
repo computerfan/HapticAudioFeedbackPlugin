@@ -402,4 +402,30 @@ Test("custom profiles have bounded storage and omit playback state", () =>
     store.Save(new() { Operation = "save", Id = first.Id, Name = first.Label, Settings = stored, ExpectedRevision = CustomProfileStore.MaximumProfiles });
     Check(store.Snapshot().ProfileInfo.Count(p => p.IsCustom) == CustomProfileStore.MaximumProfiles, "Updating at capacity changed profile count.");
 });
+Test("scheduler counters saturate and still account for failed sends", () =>
+{
+    var scheduler = new HapticScheduler(new AudioSettings());
+    typeof(HapticScheduler).GetProperty("SentCount")!.SetValue(scheduler, long.MaxValue - 1);
+    typeof(HapticScheduler).GetProperty("DroppedCount")!.SetValue(scheduler, long.MaxValue - 1);
+    var onsets = new[] { new HapticOnset("bass", 5, 0), new HapticOnset("high", 3, 0) };
+    scheduler.Dispatch(onsets, 0, 0, _ => { });
+    scheduler.Dispatch(onsets, 0, 1000, _ => { });
+    Check(scheduler.SentCount == long.MaxValue && scheduler.DroppedCount == long.MaxValue, "Successful sends overflowed counters.");
+    var threw = false;
+    try { scheduler.Dispatch(onsets, 0, 2000, _ => throw new IOException("Disconnected")); } catch (IOException) { threw = true; }
+    scheduler.Dispatch(onsets, 0, 2001, _ => throw new Exception("Cooldown was bypassed"));
+    Check(threw && scheduler.SentCount == long.MaxValue && scheduler.DroppedCount == long.MaxValue, "Failure or cooldown wrapped counters.");
+});
+Test("custom profile revision exhaustion preserves readable saved data", () =>
+{
+    var saved = "{\"Version\":1,\"Revision\":2147483646,\"Profiles\":[]}";
+    var writes = 0;
+    var store = new CustomProfileStore(() => saved, json => { saved = json; writes++; }, ex => throw ex);
+    var result = store.Save(new() { Operation = "duplicate", Id = "music", Name = "Last revision", ExpectedRevision = int.MaxValue - 1 });
+    var reloaded = new CustomProfileStore(() => saved, _ => writes++, ex => throw ex);
+    Check(reloaded.Snapshot().ProfilesRevision == int.MaxValue && reloaded.Resolve(result.SelectedId).Sensitivity == 50, "Final revision became unreadable.");
+    var rejected = false;
+    try { reloaded.Save(new() { Operation = "duplicate", Id = "music", Name = "Overflow", ExpectedRevision = int.MaxValue }); } catch (InvalidOperationException) { rejected = true; }
+    Check(rejected && writes == 1 && reloaded.Snapshot().ProfilesRevision == int.MaxValue, "Exhausted revision reached storage.");
+});
 Console.WriteLine($"{passed} audio regression checks passed. No capture or haptic device was used.");

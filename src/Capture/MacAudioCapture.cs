@@ -10,6 +10,7 @@ public sealed class MacAudioCapture : ISystemAudioCapture
     private readonly BinaryReader _reader;
     private readonly CancellationTokenSource _stop = new();
     private Thread _thread;
+    private Task<string> _stderr;
     private bool _disposed;
     private readonly CpalHelperProtocol _protocol;
     public int SampleRate { get; }
@@ -29,6 +30,7 @@ public sealed class MacAudioCapture : ISystemAudioCapture
         try
         {
             _process.Start();
+            _stderr = BoundedTextReader.DrainAsync(_process.StandardError, 4096, _stop.Token);
             _reader = new BinaryReader(_process.StandardOutput.BaseStream);
             var header = new byte[24];
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
@@ -41,7 +43,7 @@ public sealed class MacAudioCapture : ISystemAudioCapture
         catch (Exception ex)
         {
             string detail = null;
-            if (HasExited()) detail = _process.StandardError.ReadToEnd();
+            if (HasExited()) detail = ErrorDetail();
             Dispose();
             throw new IOException("Could not start system audio capture. " + (string.IsNullOrWhiteSpace(detail) ? ex.Message : detail.Trim()), ex);
         }
@@ -61,7 +63,7 @@ public sealed class MacAudioCapture : ISystemAudioCapture
         process.Start();
         try {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            var stderr = process.StandardError.ReadToEndAsync(timeout.Token);
+            var stderr = BoundedTextReader.DrainAsync(process.StandardError, 4096, timeout.Token);
             using var bytes = new MemoryStream();
             var buffer = new byte[8192];
             int count;
@@ -77,6 +79,7 @@ public sealed class MacAudioCapture : ISystemAudioCapture
             if (!process.HasExited) { process.Kill(); process.WaitForExit(); }
         }
     }
+    private string ErrorDetail() { try { return _stderr?.GetAwaiter().GetResult()?.Trim(); } catch { return null; } }
     private bool HasExited() { try { return _process.HasExited; } catch { return false; } }
     public void StartRecording()
     {
@@ -100,7 +103,7 @@ public sealed class MacAudioCapture : ISystemAudioCapture
         {
             if (!_stop.IsCancellationRequested)
             {
-                var detail = HasExited() ? _process.StandardError.ReadToEnd().Trim() : null;
+                var detail = HasExited() ? ErrorDetail() : null;
                 RecordingStopped?.Invoke(this, new IOException(string.IsNullOrWhiteSpace(detail) ? ex.Message : detail, ex));
             }
         }

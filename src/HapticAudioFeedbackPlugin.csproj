@@ -45,6 +45,7 @@
       <PackageFiles Include="package\**\*" />
     </ItemGroup>
     <Copy SourceFiles="@(PackageFiles)" DestinationFolder="$(OutputPath)..\%(RecursiveDir)" />
+    <Copy SourceFiles="$(MSBuildThisFileDirectory)..\LICENSE" DestinationFiles="$(OutputPath)..\LICENSE" />
     <Message Text="✅ Package files copied to $(OutputPath)..\" Importance="High" />
   </Target>
 
