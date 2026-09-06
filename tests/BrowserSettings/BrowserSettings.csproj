@@ -9,10 +9,12 @@
     <Compile Include="../../src/Audio/OnsetHistory.cs" Link="OnsetHistory.cs" />
     <Compile Include="../../src/Audio/SaturatingCounter.cs" Link="SaturatingCounter.cs" />
     <Compile Include="../../src/Audio/HapticPatterns.cs" Link="HapticPatterns.cs" />
-    <None Include="../../src/package/ui/vendor/pico-2.1.1.min.css" Link="vendor/pico-2.1.1.min.css" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../src/package/ui/localization.js" Link="localization.js" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../src/package/ui/locales/zh-CN.json" Link="locales/zh-CN.json" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../src/package/ui/logo.png" Link="logo.png" CopyToOutputDirectory="PreserveNewest" />
-    <None Include="../../src/package/ui/index.html" Link="index.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/package/ui/vendor/pico-2.1.1.min.css" Link="ui/vendor/pico-2.1.1.min.css" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/package/ui/localization.js" Link="ui/localization.js" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/package/ui/locales/zh-CN.json" Link="ui/locales/zh-CN.json" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/package/ui/logo.png" Link="ui/logo.png" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/package/ui/index.html" Link="ui/index.html" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../LICENSE" Link="LICENSE" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="../../src/package/licenses/*.txt" Link="licenses/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

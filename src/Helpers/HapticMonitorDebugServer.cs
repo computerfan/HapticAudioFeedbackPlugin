@@ -63,6 +63,8 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private readonly Func<object> _devices;
     private readonly string _html, _picoCss, _localizationJs, _chineseJson;
     private readonly byte[] _logoPng;
+    private readonly Dictionary<string, string> _licenseTexts = new(StringComparer.Ordinal);
+    private readonly string _licensesHtml;
     private readonly CustomProfileStore _profiles;
     private readonly string _token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
     private readonly Func<int> _nextPort;
@@ -79,6 +81,33 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         _chineseJson = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "locales", "zh-CN.json"));
         _logoPng = File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(htmlPath), "logo.png"));
         _picoCss = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "vendor", "pico-2.1.1.min.css"));
+        // Only these bundled, public notices are exposed; request paths never become file paths.
+        var packageRoot = Path.GetDirectoryName(Path.GetDirectoryName(Path.GetFullPath(htmlPath)));
+        var notices = new[]
+        {
+            ("LICENSE", "Feel the Rhythm — MIT", "项目许可证"),
+            ("licenses/FRONTEND-NOTICES.txt", "Browser frontend notices", "浏览器前端声明"),
+            ("licenses/Pico-CSS-MIT.txt", "Pico CSS — MIT", "界面样式库许可证"),
+            ("licenses/NAudio-MIT.txt", "NAudio — MIT", "Windows 音频库许可证"),
+            ("licenses/CPAL-NOTICES.txt", "CPAL and native dependencies — MIT / Apache 2.0", "原生音频库及依赖许可证")
+        };
+        var links = new StringBuilder();
+        foreach (var (file, title, chinese) in notices)
+        {
+            var route = "/licenses/" + Path.GetFileName(file);
+            _licenseTexts.Add(route, File.ReadAllText(Path.Combine(packageRoot, file)));
+            links.Append($"<li><a href=\"{route}\">{WebUtility.HtmlEncode(title)}</a><br><span lang=\"zh-CN\">{chinese}</span></li>");
+        }
+        _licensesHtml = "<!doctype html><html lang=\"en\"><meta charset=\"utf-8\">" +
+            "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">" +
+            "<title>Feel the Rhythm · Open-source licenses</title>" +
+            "<style>body{color:#edf5f1;background:#17221d;font:16px/1.6 system-ui,sans-serif;margin:0;padding:32px 24px}" +
+            "main{max-width:760px;margin:auto}h1{font-size:1.8rem;line-height:1.3}a{color:#a1eed0;text-underline-offset:4px}" +
+            "a:focus-visible{outline:2px solid #a1eed0;outline-offset:5px}li{margin:24px 0}ul{padding-left:24px}" +
+            "span{color:#c0d0c7}h1 span{font-size:1.1rem;font-weight:400}</style>" +
+            "<main><p>Feel the Rhythm</p><h1>Open-source licenses<br><span lang=\"zh-CN\">开源许可证</span></h1>" +
+            "<p>License texts and acknowledgements bundled with this plugin.<br>" +
+            "<span lang=\"zh-CN\">本插件随附的许可证全文及致谢声明。</span></p><ul>" + links + "</ul></main></html>";
         _profiles = profiles ?? new CustomProfileStore(() => null, _ => throw new InvalidOperationException("Profile storage unavailable."), _ => { });
         _metrics = metrics;
         _settings = settings;
@@ -163,7 +192,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         if (request.Url?.GetLeftPart(UriPartial.Authority) + "/" != BaseUrl ||
             request.RemoteEndPoint == null || !IPAddress.IsLoopback(request.RemoteEndPoint.Address))
         { Json(context, new { Error = "Loopback requests only" }, 403); return; }
-        if (request.HttpMethod != "GET" || (path != "/" && path != "/vendor/pico-2.1.1.min.css" && path != "/logo.png" && path != "/localization.js" && path != "/locales/zh-CN.json"))
+        if (request.HttpMethod != "GET" || (path != "/" && path != "/vendor/pico-2.1.1.min.css" && path != "/logo.png" && path != "/localization.js" && path != "/locales/zh-CN.json" && path != "/licenses" && !_licenseTexts.ContainsKey(path)))
         {
             var origin = request.Headers["Origin"];
             if (request.Headers["X-Haptic-Token"] != _token ||
@@ -172,6 +201,8 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         }
         if (request.HttpMethod == "GET")
         {
+            if (_licenseTexts.TryGetValue(path, out var licenseText))
+            { Write(context, licenseText, "text/plain; charset=utf-8"); return; }
             switch (path)
             {
                 case "/devices": Json(context, _devices?.Invoke() ?? throw new InvalidOperationException("Device enumeration unavailable.")); return;
@@ -181,6 +212,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                     var catalog = _profiles.Snapshot();
                     Json(context, new { snapshot.Settings, snapshot.Revision, Presets = HapticPatterns.Presets.Keys,
                         catalog.Profiles, catalog.ProfileInfo, catalog.ProfilesRevision, catalog.ProfilesError }); return;
+                case "/licenses": Write(context, _licensesHtml, "text/html; charset=utf-8"); return;
                 case "/": Write(context, _html, "text/html; charset=utf-8"); return;
                 case "/localization.js": Write(context, _localizationJs, "text/javascript; charset=utf-8"); return;
                 case "/locales/zh-CN.json": Write(context, _chineseJson, "application/json; charset=utf-8"); return;

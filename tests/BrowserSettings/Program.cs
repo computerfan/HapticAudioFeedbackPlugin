@@ -13,7 +13,7 @@ var captureRestarts = 0;
 var enumerations = 0;
 Exception metricsFailure = null;
 var customProfiles = new CustomProfileStore(() => null, _ => { }, ex => throw ex);
-HapticMonitorDebugServer Create(Func<int> port = null) => new(Path.Combine(AppContext.BaseDirectory, "index.html"),
+HapticMonitorDebugServer Create(Func<int> port = null) => new(Path.Combine(AppContext.BaseDirectory, "ui", "index.html"),
     () => metricsFailure != null ? throw metricsFailure : new HapticMonitorSample { SentCount = long.MaxValue, DroppedCount = 9007199254740993L, CaptureDroppedFrames = ulong.MaxValue, LogSuppressedCount = long.MaxValue, RecentAudio = new[] { new AudioTracePoint(9007199254740993L, DateTime.UtcNow, -32.5, -50, -38.25, -45, true, "bass", "threshold") }, RecentOnsets = new[] { new OnsetMarker(9007199254740993L, DateTime.UtcNow, "bass", -32.5, -38.25) } }, () => (settings.Copy(), revision), (next, expected) =>
     {
         if (expected != revision) throw new InvalidOperationException("Settings changed elsewhere. Reload current settings.");
@@ -69,6 +69,20 @@ var page = await client.GetAsync("");
 var html = await page.Content.ReadAsStringAsync();
 Check(page.IsSuccessStatusCode && !html.Contains(token), "public HTML never exposes the session token");
 Check(page.Headers.Contains("Content-Security-Policy") && page.Headers.GetValues("Referrer-Policy").Single() == "no-referrer", "page limits embedding and referrer leaks");
+var licensePage = await client.GetStringAsync("licenses");
+Check(html.Contains("href=\"/licenses\"") && licensePage.Contains("开源许可证") && !licensePage.Contains(token), "footer opens public bilingual license credits without a session token");
+foreach (var file in new[] { "LICENSE", "FRONTEND-NOTICES.txt", "Pico-CSS-MIT.txt", "NAudio-MIT.txt", "CPAL-NOTICES.txt" })
+{
+    var response = await client.GetAsync("licenses/" + file);
+    var diskPath = file == "LICENSE" ? Path.Combine(AppContext.BaseDirectory, file) : Path.Combine(AppContext.BaseDirectory, "licenses", file);
+    Check(response.IsSuccessStatusCode && response.Content.Headers.ContentType.MediaType == "text/plain" &&
+        await response.Content.ReadAsStringAsync() == File.ReadAllText(diskPath), "bundled license is served unchanged: " + file);
+}
+Check((await Send("licenses/private.txt")).StatusCode == HttpStatusCode.Forbidden &&
+    (await Send("licenses/private.txt", token)).StatusCode == HttpStatusCode.NotFound,
+    "license route cannot expose unlisted files");
+Check((await Send("licenses/LICENSE", body: new { })).StatusCode == HttpStatusCode.Forbidden,
+    "public license access does not allow unauthenticated writes");
 Check((await Send("settings")).StatusCode == HttpStatusCode.Forbidden, "settings reads require the session token");
 Check((await Send("metrics")).StatusCode == HttpStatusCode.Forbidden, "metrics reads require the session token");
 Check((await Send("settings", "wrong")).StatusCode == HttpStatusCode.Forbidden, "wrong tokens are rejected");
@@ -99,7 +113,7 @@ Check(cssResponse.IsSuccessStatusCode && cssResponse.Content.Headers.ContentType
 Check((await Send("vendor/not-allowed.css")).StatusCode == HttpStatusCode.Forbidden, "asset route does not enable arbitrary unauthenticated files");
 var logoResponse = await client.GetAsync("logo.png");
 Check(logoResponse.IsSuccessStatusCode && logoResponse.Content.Headers.ContentType.MediaType == "image/png" &&
-    (await logoResponse.Content.ReadAsByteArrayAsync()).SequenceEqual(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "logo.png"))),
+    (await logoResponse.Content.ReadAsByteArrayAsync()).SequenceEqual(File.ReadAllBytes(Path.Combine(AppContext.BaseDirectory, "ui", "logo.png"))),
     "public branding route returns the packaged PNG unchanged");
 Check((await Send("metadata/Icon256x256.png")).StatusCode == HttpStatusCode.Forbidden, "branding route does not expose arbitrary package files");
 var localeResponse = await client.GetAsync("locales/zh-CN.json");
