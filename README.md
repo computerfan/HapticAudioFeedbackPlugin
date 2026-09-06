@@ -1,6 +1,6 @@
 # Haptic Audio Feedback — MX Master 4
 
-Version 0.4 uses a browser settings panel on a random high port and stores preferences through the Logitech SDK. Audio capture currently supports Windows (WASAPI). macOS audio capture is deferred; Options+ being cross-platform does not make this capture backend portable.
+Version 0.4.1 uses a browser settings panel on a random high port and stores preferences through the Logitech SDK. Audio capture currently supports Windows (WASAPI). macOS audio capture is deferred; Options+ being cross-platform does not make this capture backend portable.
 
 ## Open settings
 
@@ -12,7 +12,7 @@ Alternatively, assign **Open haptic settings** to an Actions Ring slot and activ
 | --- | --- |
 | Open haptic settings | Opens the browser panel for the current plugin session. |
 | Toggle haptics | Pauses or resumes audio-triggered feedback and saves the state. |
-| Select haptic profile | Applies Music, Bass focus or Gentle when activated; preserves paused/enabled state. |
+| Select haptic profile | Applies any of the nine listening profiles when activated; preserves paused/enabled state. |
 | Preview haptic texture | Sends one selected preset, even when audio haptics are paused. |
 
 Browser changes apply and save automatically. Basic controls include sensitivity (0–100), independent bass/detail gains, pulse spacing, band toggles and four preset selectors. Advanced controls expose frequency bands, attack/release, onset contrast, re-arm interval and event age. Optional sustained texture uses soft or damped collisions. Invalid combinations preserve the last saved settings. Settings changes allow 400 ms for the detector to settle.
@@ -20,6 +20,24 @@ Browser changes apply and save automatically. Basic controls include sensitivity
 **Music** uses sensitivity 50, 90 ms spacing and -3 dB detail gain. **Bass focus** disables detail and boosts bass detection. **Gentle** reduces sensitivity, slows playback and uses softer waveforms. Sensitivity changes detection, not motor amplitude; Logitech's device settings control overall intensity. A preview may be skipped if another event just occupied the shared playback slot.
 
 Each browser page saves with the revision it loaded. If another tab or a ring action changed preferences, the old page cannot overwrite them: use **Reload saved settings** to discard that draft and load current values.
+
+## Listening profiles
+
+Choose a **Starting profile** in the browser, read its description, then press **Apply profile**. Choosing from the list alone does not change settings. All profiles are also available through the Options+ Select haptic profile action. Applying one replaces the tuning but preserves whether haptics are paused. Reload the plugin once after upgrading to load the expanded catalog.
+
+| Profile | Intended starting point | Pulse spacing |
+| --- | --- | --- |
+| Music | Balanced bass and detail attacks | 90 ms |
+| Bass focus | Bass-only rhythm | 100 ms |
+| Gentle | Softer, less frequent background feedback | 140 ms |
+| Electronic / dance | Deep bass emphasis and reduced bright detail | 110 ms |
+| Rock / live | Separated impacts in dense mixes | 120 ms |
+| Acoustic / jazz | Soft taps for lighter arrangements | 150 ms |
+| Movies / cinematic | Sparse, higher-threshold low-end impacts | 220 ms |
+| Games / action | Higher thresholds and separated bass/detail impacts | 160 ms |
+| Ambient / sustained | Experimental soft texture during held bass | 180 ms attacks; 280–650 ms texture |
+
+These are manually selected tuning presets, not automatic scene recognition. Movies cannot distinguish dialogue from music, and Games cannot identify footsteps, shots or other gameplay events. Only Ambient enables sustained texture. The new tunings have synthetic validation; their tactile quality needs listening tests on the mouse. Adjust sensitivity for the source volume and mix.
 
 ## Preferences and local endpoint
 

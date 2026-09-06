@@ -41,14 +41,8 @@ internal sealed class AudioSettings
     [System.Text.Json.Serialization.JsonIgnore]
     public double EffectiveHighThresholdDb => HighThresholdDb - SensitivityGainDb - HighGainDb;
 
-    public static AudioSettings Profile(string name) => name switch
-    {
-        "music" => new AudioSettings { HighGainDb = -3, MinimumSpacingMilliseconds = 90 },
-        "bass" => new AudioSettings { HighEnabled = false, BassGainDb = 3, MinimumSpacingMilliseconds = 100 },
-        "gentle" => new AudioSettings { Sensitivity = 35, HighGainDb = -6, MinimumSpacingMilliseconds = 140,
-            BassWaveform = "subtle_collision", StrongBassWaveform = "damp_collision" },
-        _ => throw new ArgumentException("Unknown profile.")
-    };
+    public static AudioSettings Profile(string name) => AudioProfiles.Create(name);
+
     public static AudioSettings Load(string assemblyFilePath, Action<Exception> onError)
     {
         try

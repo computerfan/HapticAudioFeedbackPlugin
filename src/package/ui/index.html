@@ -25,7 +25,8 @@
 <div class="card">
 <div style="display:flex;justify-content:space-between;align-items:center;gap:12px"><h2>Music controls</h2><label class="toggle"><input type="checkbox" id="Enabled"> Audio haptics</label></div>
 <p>Changes apply and save automatically. No rebuild needed.</p>
-<div class="profiles"><button data-profile="music">Music</button><button data-profile="bass">Bass focus</button><button data-profile="gentle">Gentle</button><button id="reloadSettings">Reload saved settings</button></div>
+<div class="field"><label for="sceneProfile">Starting profile</label><select id="sceneProfile" aria-describedby="profileDescription"><option value="">Choose a listening situation…</option></select><small id="profileDescription">Profiles are starting points. Applying one replaces the tuning below and preserves whether haptics are paused.</small></div>
+<div class="profiles"><button id="applyProfile" disabled>Apply profile</button><button id="reloadSettings">Reload saved settings</button></div>
 <div id="saveStatus" class="save" role="status" aria-live="polite">Loading controls…</div>
 <div class="grid" id="basic"></div>
 </div>
@@ -135,7 +136,15 @@ async function init(){
   select(byId('textures'),'HighWaveform','Detail attack',data.Presets);
   select(byId('sustain'),'SustainWaveform','Texture pulse',['subtle_collision','damp_collision']);
   for(const key of ['Enabled','SustainEnabled'])byId(key).addEventListener('change',()=>{settings[key]=byId(key).checked;queueSave();});
-  document.querySelectorAll('[data-profile]').forEach(b=>b.addEventListener('click',()=>{settings={...profiles[b.dataset.profile],Enabled:settings.Enabled};sync();queueSave();}));
+  for(const profile of data.ProfileInfo){const option=document.createElement('option');option.value=profile.Id;option.textContent=profile.Label;byId('sceneProfile').append(option);}
+  byId('sceneProfile').addEventListener('change',()=>{
+   const profile=data.ProfileInfo.find(p=>p.Id===byId('sceneProfile').value);byId('applyProfile').disabled=!profile;
+   byId('profileDescription').textContent=profile?profile.Description:'Choose a starting profile. Current settings stay unchanged until you apply it.';
+  });
+  byId('applyProfile').addEventListener('click',()=>{
+   const profile=profiles[byId('sceneProfile').value];if(!profile)return;
+   settings={...profile,Enabled:settings.Enabled};sync();queueSave();
+  });
   for(const preset of data.Presets){const b=document.createElement('button');b.textContent='▶ '+names[preset];b.addEventListener('click',async()=>{
    b.disabled=true;try{const r=await request('/preview',preset);byId('previewStatus').textContent=r.Sent?names[preset]+' event sent. Did you feel it?':'Skipped: another event used the shared playback slot. Try again.';}
    catch(error){byId('previewStatus').textContent=error.message;}finally{b.disabled=false;}

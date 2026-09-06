@@ -20,11 +20,11 @@ public sealed class SelectAudioProfile : ActionEditorCommand
     public SelectAudioProfile()
     {
         this.Name = "SelectAudioProfile"; this.DisplayName = "Select haptic profile"; this.GroupName = "Audio haptics";
-        this.Description = "Apply a music profile while preserving whether audio haptics are paused.";
+        this.Description = "Apply a listening profile while preserving whether audio haptics are paused.";
         this.ActionEditor.AddControlEx(new ActionEditorListbox("Profile", "Profile"));
         this.ActionEditor.ListboxItemsRequested += (_, e) =>
         {
-            e.AddItem("music", "Music", "Balanced rhythm"); e.AddItem("bass", "Bass focus", "Bass only"); e.AddItem("gentle", "Gentle", "Softer feedback");
+            foreach (var profile in AudioProfiles.All) e.AddItem(profile.Id, profile.Label, profile.Description);
             if (string.IsNullOrEmpty(e.ActionEditorState.GetControlValue("Profile"))) e.SetSelectedItemName("music");
         };
     }

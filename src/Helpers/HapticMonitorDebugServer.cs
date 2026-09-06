@@ -145,9 +145,8 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                 case "/settings":
                     var snapshot = _settings();
                     Json(context, new { snapshot.Settings, snapshot.Revision, Presets = HapticPatterns.Presets.Keys,
-                        Profiles = new Dictionary<string, AudioSettings> {
-                            ["music"] = AudioSettings.Profile("music"), ["bass"] = AudioSettings.Profile("bass"),
-                            ["gentle"] = AudioSettings.Profile("gentle") } }); return;
+                        Profiles = AudioProfiles.All.ToDictionary(profile => profile.Id, profile => profile.Create()),
+                        ProfileInfo = AudioProfiles.All.Select(profile => new { profile.Id, profile.Label, profile.Description }) }); return;
                 case "/": Write(context, _html, "text/html; charset=utf-8"); return;
                 default: Json(context, new { Error = "Not found" }, 404); return;
             }

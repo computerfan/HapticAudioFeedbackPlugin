@@ -64,6 +64,15 @@ Check((await Send("settings", "wrong")).StatusCode == HttpStatusCode.Forbidden, 
 Check((await Send("settings", token, "https://example.invalid")).StatusCode == HttpStatusCode.Forbidden, "foreign origins are rejected even with a valid token");
 Check((await Send("settings", token, host: $"attacker.invalid:{new Uri(server.BaseUrl).Port}")).StatusCode != HttpStatusCode.OK, "foreign Host header cannot reach settings");
 Check((await Send("settings", token)).IsSuccessStatusCode, "authenticated settings reads succeed");
+var catalogResponse = await Send("settings", token);
+using (var catalog = JsonDocument.Parse(await catalogResponse.Content.ReadAsStringAsync()))
+{
+    var profiles = catalog.RootElement.GetProperty("Profiles");
+    var info = catalog.RootElement.GetProperty("ProfileInfo");
+    Check(info.GetArrayLength() == AudioProfiles.All.Count && profiles.EnumerateObject().Count() == AudioProfiles.All.Count,
+        "browser receives the complete profile catalog and descriptions");
+    foreach (var entry in info.EnumerateArray()) profiles.GetProperty(entry.GetProperty("Id").GetString()).Deserialize<AudioSettings>().Validate();
+}
 var next = settings.Copy(); next.Sensitivity = 61;
 Check((int)(await Send("settings", token, body: next)).StatusCode == 428 && revision == 0, "writes without a revision cannot overwrite settings");
 Check((await Send("settings", token, server.BaseUrl.TrimEnd('/'), next, 0)).IsSuccessStatusCode && settings.Sensitivity == 61 && revision == 1, "valid settings save reaches the controller with its revision");

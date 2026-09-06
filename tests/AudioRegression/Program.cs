@@ -257,11 +257,32 @@ Test("saved controls round-trip and invalid changes preserve last saved version"
     }
     finally { if (File.Exists(path)) File.Delete(path); if (Directory.Exists(root)) Directory.Delete(root); }
 });
-Test("music profiles are valid and independent", () =>
+Test("listening profiles are valid, distinct, and independent", () =>
 {
-    foreach (var name in new[] { "music", "bass", "gentle" }) AudioSettings.Profile(name).Validate();
-    var music = AudioSettings.Profile("music"); music.Sensitivity = 80;
-    Check(AudioSettings.Profile("music").Sensitivity == 50, "Profile instance mutated shared defaults.");
+    Check(AudioProfiles.All.Select(p => p.Id).Distinct().Count() == AudioProfiles.All.Count, "Duplicate profile ID.");
+    var values = new HashSet<string>();
+    foreach (var profile in AudioProfiles.All)
+    {
+        var settings = AudioSettings.Profile(profile.Id); settings.Validate();
+        Check(values.Add(System.Text.Json.JsonSerializer.Serialize(settings)), "Two profiles have identical tuning.");
+        var expected = settings.Sensitivity; settings.Sensitivity = expected + 1;
+        Check(AudioSettings.Profile(profile.Id).Sensitivity == expected, "Profile instance mutated shared defaults.");
+        Check(!string.IsNullOrWhiteSpace(profile.Description), "Profile has no explanation.");
+    }
+    var rejected = false;
+    try { AudioSettings.Profile("unknown"); } catch (ArgumentException) { rejected = true; }
+    Check(rejected, "Unknown profile silently changed tuning.");
+});
+Test("all listening profiles remain silent with silent input", () =>
+{
+    foreach (var profile in AudioProfiles.All)
+        Check(Analyze(48000, 2, (_, _) => 0, options: profile.Create()).Events.Count == 0, profile.Id + " triggered on silence.");
+});
+Test("ambient texture follows held bass and stops after silence", () =>
+{
+    var result = Analyze(48000, 2, (t, _) => t < 3 ? Tone(t, 100, .15) : 0, 5, options: AudioSettings.Profile("ambient"));
+    Check(result.Events.Count(e => e.AudioMilliseconds > 500 && e.AudioMilliseconds < 3000) >= 2, "Ambient produced no held-bass texture.");
+    Check(result.Events.All(e => e.AudioMilliseconds < 4000), "Ambient continued after the bass envelope decayed.");
 });
 Test("SDK settings import legacy preferences once and never import the listener", () =>
 {

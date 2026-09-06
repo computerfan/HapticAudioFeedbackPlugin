@@ -33,11 +33,12 @@ Test("profile and preview dropdowns keep assigned selections", () =>
     var profile = new SelectAudioProfile(); var state = State(profile);
     state.GetControlState("Profile").Value = "gentle";
     var items = (ActionEditorListboxItemsRequestedEventArgs)Invoke(profile.ActionEditor, "InvokeListboxItemsRequestedEvent", state, "Profile");
-    Check(items.Items.Count == 3 && items.SelectedItemName == null, "Profile selection changed.");
+    Check(items.Items.Count == AudioProfiles.All.Count && items.SelectedItemName == null, "Profile selection changed.");
     var preview = new PreviewAudioHaptic(); state = State(preview);
     items = (ActionEditorListboxItemsRequestedEventArgs)Invoke(preview.ActionEditor, "InvokeListboxItemsRequestedEvent", state, "Waveform");
     Check(items.Items.Count == 6 && items.SelectedItemName == "subtle_collision", "Preview choices missing.");
-});Test("assigned profile and preview actions route through the controller", () =>
+});
+Test("assigned profile and preview actions route through the controller", () =>
 {
     var owner = new HapticAudioFeedbackPlugin(); var profile = new SelectAudioProfile(); Attach(profile, owner);
     Check((bool)Invoke(profile, "RunCommand", new ActionEditorActionParameters(new Dictionary<string, string> { ["Profile"] = "gentle" })), "Profile execution failed.");
@@ -45,6 +46,16 @@ Test("profile and preview dropdowns keep assigned selections", () =>
     var preview = new PreviewAudioHaptic(); Attach(preview, owner);
     Check((bool)Invoke(preview, "RunCommand", new ActionEditorActionParameters(new Dictionary<string, string> { ["Waveform"] = "sharp_collision" })), "Preview execution failed.");
     Check(owner.Previews.Last() == "sharp_collision", "Wrong assigned preview.");
+});
+Test("every scene profile can be assigned without resuming paused haptics", () =>
+{
+    var owner = new HapticAudioFeedbackPlugin(); var action = new SelectAudioProfile(); Attach(action, owner);
+    foreach (var profile in AudioProfiles.All)
+    {
+        Check((bool)Invoke(action, "RunCommand", new ActionEditorActionParameters(new Dictionary<string, string> { ["Profile"] = profile.Id })), "Profile action failed: " + profile.Id);
+        Check(!owner.CurrentSettings.Enabled, "Profile resumed haptics: " + profile.Id);
+        owner.CurrentSettings.Validate();
+    }
 });
 Test("assigned toggle action pauses and resumes through the controller", () =>
 {
