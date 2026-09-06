@@ -156,6 +156,22 @@ python tools/verify_package.py ./HapticAudioFeedbackPlugin.lplug4 --require-all
 go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
 ```
 
+### Publishing a release
+
+[Release Plugin](../.github/workflows/release.yml) runs when a tag such as `v0.5.0` is pushed. The tag must be exactly `vMAJOR.MINOR.PATCH` and match `version` in `src/package/metadata/LoupedeckPackage.yaml`. Commit the version change and workflow before tagging. Ordinary branch pushes and manual CI runs do not publish releases.
+
+For example, after committing version `0.5.0`:
+
+```powershell
+git push origin main
+git tag -a v0.5.0 -m "Feel the Rhythm 0.5.0"
+git push origin v0.5.0
+```
+
+The release reuses the full CI pipeline at the tagged commit. Only after all checks pass does it upload `Feel-the-Rhythm-0.5.0.lplug4` and publish a GitHub Release with generated notes. Windows x64 and both Mac architectures are combined in this one asset; macOS remains experimental. Native archives and other CI artifacts are not attached to the release. GitHub still supplies its automatic source-code ZIP and tarball links.
+
+No extra secret is needed: only the publishing job receives `contents: write` through `GITHUB_TOKEN`. Uploads happen while the release is a draft, and existing releases are never overwritten. If building fails, rerun the failed jobs. If publishing fails after creating a draft, delete that unpublished draft in GitHub (keep the tag), then rerun the failed publishing job. If the release is already published, leave it intact and use a new version for corrections. Do not move published version tags. Rerun the whole workflow if its package artifact has expired.
+
 ## Licenses and references
 
 ### Browser frontend

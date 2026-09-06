@@ -1,0 +1,86 @@
+name: Release Plugin
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: plugin-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  version:
+    name: Validate release version
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Require a version tag matching the package metadata
+        id: version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          python3 - <<'PY'
+          import os, re
+          from pathlib import Path
+          tag = os.environ['RELEASE_TAG']
+          number = r'(?:0|[1-9][0-9]*)'
+          if not re.fullmatch(rf'v{number}\.{number}\.{number}', tag):
+              raise SystemExit('Use a stable version tag such as v0.5.0.')
+          metadata = Path('src/package/metadata/LoupedeckPackage.yaml').read_text(encoding='utf-8')
+          versions = re.findall(r'^version:\s*([^\s#]+)\s*$', metadata, re.MULTILINE)
+          if versions != [tag[1:]]:
+              raise SystemExit(f'Tag {tag} must match the package metadata version: {versions}')
+          with open(os.environ['GITHUB_OUTPUT'], 'a', encoding='utf-8') as output:
+              output.write(f'version={tag[1:]}\n')
+          print(f'Releasing package version {tag[1:]}')
+          PY
+
+  build:
+    name: Test and package release
+    needs: version
+    uses: ./.github/workflows/build-and-pack.yml
+    permissions:
+      contents: read
+
+  release:
+    name: Publish plugin package
+    needs: [version, build]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: Feel-the-Rhythm-${{ github.sha }}
+          path: release
+      - name: Publish only the verified lplug4 asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_VERSION: ${{ needs.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' assets < <(find release -type f -print0)
+          if [[ ${#assets[@]} -ne 1 || "${assets[0]}" != 'release/HapticAudioFeedbackPlugin.lplug4' || ! -s "${assets[0]}" ]]; then
+            echo 'Expected exactly one nonempty, verified plugin package.' >&2
+            exit 1
+          fi
+          package="release/Feel-the-Rhythm-${RELEASE_VERSION}.lplug4"
+          mv -- "${assets[0]}" "$package"
+          # Create and upload as a draft first, so upload failures cannot publish an empty release.
+          # Existing releases are never overwritten; see the developer guide for retry instructions.
+          gh release create "$RELEASE_TAG" "$package" --verify-tag --draft \
+            --title "Feel the Rhythm ${RELEASE_VERSION}" --generate-notes \
+            --notes 'Install the attached .lplug4 in Logi Options+. Includes Windows x64 and experimental macOS 14.6+ support for Apple Silicon and Intel. Mac hardware and recording permissions still need validation.'
+          gh release edit "$RELEASE_TAG" --draft=false
