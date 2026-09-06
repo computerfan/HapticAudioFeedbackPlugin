@@ -9,13 +9,17 @@ void Check(bool ok, string why) { if (!ok) throw new Exception(why); count++; Co
 var settings = new AudioSettings { Enabled = false };
 var revision = 0;
 var previews = 0;
+var captureRestarts = 0;
+var enumerations = 0;
 var customProfiles = new CustomProfileStore(() => null, _ => { }, ex => throw ex);
 HapticMonitorDebugServer Create(Func<int> port = null) => new(Path.Combine(AppContext.BaseDirectory, "index.html"),
     () => new HapticMonitorSample(), () => (settings.Copy(), revision), (next, expected) =>
     {
         if (expected != revision) throw new InvalidOperationException("Settings changed elsewhere. Reload current settings.");
         settings = next.Copy(); revision++;
-    }, _ => { previews++; return true; }, port, customProfiles);
+    }, _ => { previews++; return true; }, port, customProfiles, () => captureRestarts++, () => { enumerations++; return new { Devices = new[] {
+        new { Id = "output:WASAPI:stable-speaker", Name = "Speakers", Kind = "output" },
+        new { Id = "input:WASAPI:stable-mic", Name = "Microphone", Kind = "input" } } }; });
 using var first = Create(); first.Start();
 var occupied = new Uri(first.BaseUrl).Port;
 Check(occupied is >= 49152 and <= 65535, "port is in the high dynamic range");
@@ -101,6 +105,23 @@ Check((await Send("preview", token, body: "subtle_collision")).IsSuccessStatusCo
 Check(!(await Send("preview", token, body: "invalid")).IsSuccessStatusCode && previews == 1, "invalid preview cannot dispatch");
 Check((await Send("preview", body: "subtle_collision")).StatusCode == HttpStatusCode.Forbidden && previews == 1, "unauthenticated preview cannot dispatch");
 Check((int)(await Send("settings", token, body: new string('x', 33000), rev: 1)).StatusCode == 413, "oversized request bodies are rejected");
+Check((await Send("capture/restart", body: new { })).StatusCode == HttpStatusCode.Forbidden && captureRestarts == 0, "capture restart requires authentication");
+Check((await Send("capture/restart", token, "https://example.invalid", new { })).StatusCode == HttpStatusCode.Forbidden && captureRestarts == 0, "foreign origins cannot restart capture");
+Check((await Send("capture/restart", token, body: new { })).IsSuccessStatusCode && captureRestarts == 1, "authenticated capture restart reaches the controller");
+Check((await Send("settings", token)).IsSuccessStatusCode, "capture restart preserves the settings endpoint session");
+Check((await Send("devices")).StatusCode == HttpStatusCode.Forbidden && enumerations == 0, "device enumeration requires authentication");
+Check((await Send("devices", token, "https://example.invalid")).StatusCode == HttpStatusCode.Forbidden && enumerations == 0, "foreign origins cannot enumerate audio devices");
+using (var catalog = JsonDocument.Parse(await (await Send("devices", token)).Content.ReadAsStringAsync()))
+    Check(catalog.RootElement.GetProperty("Devices").GetArrayLength() == 2 && enumerations == 1 && captureRestarts == 1, "authenticated enumeration returns playback and input devices without restarting capture");
+var deviceSettings = settings.Copy(); deviceSettings.CaptureDeviceId = "input:WASAPI:stable-mic";
+Check((await Send("settings", token, body: deviceSettings, rev: revision)).IsSuccessStatusCode && settings.CaptureDeviceId == deviceSettings.CaptureDeviceId, "explicit input choice survives settings serialization");
+var savedDevice = settings.CaptureDeviceId;
+foreach (var invalid in new string[] { null, "input:", "other:device", "input:bad\0id", "output:" + new string('x', 4096) }) {
+    deviceSettings.CaptureDeviceId = invalid;
+    Check(!(await Send("settings", token, body: deviceSettings, rev: revision)).IsSuccessStatusCode && settings.CaptureDeviceId == savedDevice, "invalid device choice preserves saved source");
+}
+var savedProfile = customProfiles.Save(new ProfileRequest { Operation = "save", Name = "Source-independent tuning", Settings = settings, ExpectedRevision = 2 });
+Check(customProfiles.Resolve(savedProfile.SelectedId).CaptureDeviceId == "", "custom profiles exclude machine-specific audio source");
 server.Dispose();
 using var rebound = Create(() => new Uri(server.BaseUrl).Port); rebound.Start();
 Check(rebound.BaseUrl == server.BaseUrl, "dispose releases the endpoint for reuse");

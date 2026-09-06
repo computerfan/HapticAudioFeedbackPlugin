@@ -298,9 +298,9 @@ Test("SDK settings survive round-trip without re-enabling diagnostics", () =>
 {
     string saved = null!;
     var store = new SdkAudioSettingsStore(() => saved, value => saved = value, ex => throw ex);
-    store.Save(new AudioSettings { Sensitivity = 67, BassWaveform = "wave", EnableDebugServer = true });
+    store.Save(new AudioSettings { Sensitivity = 67, BassWaveform = "wave", EnableDebugServer = true, CaptureDeviceId = "input:CoreAudio:stable-device" });
     var loaded = store.Load(new AudioSettings(), () => throw new Exception("Unexpected migration"));
-    Check(loaded.Sensitivity == 67 && loaded.BassWaveform == "wave" && !loaded.EnableDebugServer, "SDK round-trip failed.");
+    Check(loaded.CaptureDeviceId == "input:CoreAudio:stable-device" && loaded.Sensitivity == 67 && loaded.BassWaveform == "wave" && !loaded.EnableDebugServer, "SDK round-trip failed.");
 });
 Test("invalid or future SDK documents are preserved instead of overwritten", () =>
 {

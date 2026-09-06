@@ -56,7 +56,7 @@ namespace Loupedeck.HapticAudioFeedback
             var packageDirectory = string.IsNullOrWhiteSpace(this.AssemblyFilePath) ? "" :
                 System.IO.Path.GetDirectoryName(System.IO.Path.GetDirectoryName(this.AssemblyFilePath)) ?? "";
             var htmlPath = System.IO.Path.Combine(packageDirectory, "ui", "index.html");
-            this._hapticMonitor = new HapticAudioMonitor(this, settings, this._settingsStore.Save, htmlPath, this._profiles);
+            this._hapticMonitor = new HapticAudioMonitor(this, settings, this._settingsStore.Save, htmlPath, this._profiles, System.IO.Path.GetDirectoryName(this.AssemblyFilePath));
             this._hapticMonitor.Start();
             this._settingsLauncherPath = System.IO.Path.Combine(this.GetPluginDataDirectory(), "Open Haptic Settings.html");
             try { this.StartBrowserSettings(); }
@@ -93,10 +93,12 @@ namespace Loupedeck.HapticAudioFeedback
         internal void SelectAudioProfile(string name) => this._hapticMonitor.UpdateSettings(settings =>
         {
             var enabled = settings.Enabled;
+            var deviceId = settings.CaptureDeviceId;
             var profile = this._profiles.Resolve(name);
             foreach (var property in typeof(AudioSettings).GetProperties().Where(p => p.CanWrite))
                 property.SetValue(settings, property.GetValue(profile));
             settings.Enabled = enabled;
+            settings.CaptureDeviceId = deviceId;
         });
         internal bool PreviewWaveform(string waveform) => HapticPatterns.Presets.TryGetValue(waveform, out var eventName)
             ? this._hapticMonitor.Preview(eventName) : throw new ArgumentException("Unknown waveform.");

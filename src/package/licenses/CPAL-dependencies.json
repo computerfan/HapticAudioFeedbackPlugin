@@ -1,0 +1,186 @@
+{
+  "targets": [
+    "x86_64-pc-windows-msvc",
+    "aarch64-pc-windows-msvc",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin"
+  ],
+  "binaryDependencies": [
+    {
+      "name": "bitflags",
+      "version": "2.13.1",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "block2",
+      "version": "0.6.2",
+      "declared": "MIT",
+      "selected": "MIT"
+    },
+    {
+      "name": "coreaudio-rs",
+      "version": "0.14.2",
+      "declared": "MIT/Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "cpal",
+      "version": "0.18.2",
+      "declared": "Apache-2.0",
+      "selected": "Apache-2.0"
+    },
+    {
+      "name": "dasp_sample",
+      "version": "0.11.0",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "dispatch2",
+      "version": "0.3.1",
+      "declared": "Zlib OR Apache-2.0 OR MIT",
+      "selected": "MIT"
+    },
+    {
+      "name": "libc",
+      "version": "0.2.189",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "mach2",
+      "version": "0.6.0",
+      "declared": "BSD-2-Clause OR MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "objc2",
+      "version": "0.6.4",
+      "declared": "MIT",
+      "selected": "MIT"
+    },
+    {
+      "name": "objc2-audio-toolbox",
+      "version": "0.3.2",
+      "declared": "Zlib OR Apache-2.0 OR MIT",
+      "selected": "MIT"
+    },
+    {
+      "name": "objc2-core-audio",
+      "version": "0.3.2",
+      "declared": "Zlib OR Apache-2.0 OR MIT",
+      "selected": "MIT"
+    },
+    {
+      "name": "objc2-core-audio-types",
+      "version": "0.3.2",
+      "declared": "Zlib OR Apache-2.0 OR MIT",
+      "selected": "MIT"
+    },
+    {
+      "name": "objc2-core-foundation",
+      "version": "0.3.2",
+      "declared": "Zlib OR Apache-2.0 OR MIT",
+      "selected": "MIT"
+    },
+    {
+      "name": "objc2-encode",
+      "version": "4.1.0",
+      "declared": "MIT",
+      "selected": "MIT"
+    },
+    {
+      "name": "objc2-foundation",
+      "version": "0.3.2",
+      "declared": "MIT",
+      "selected": "MIT"
+    },
+    {
+      "name": "windows",
+      "version": "0.62.2",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "windows-collections",
+      "version": "0.3.2",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "windows-core",
+      "version": "0.62.2",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "windows-future",
+      "version": "0.3.2",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "windows-link",
+      "version": "0.2.1",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "windows-numerics",
+      "version": "0.3.1",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "windows-result",
+      "version": "0.4.1",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "windows-strings",
+      "version": "0.5.1",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    },
+    {
+      "name": "windows-threading",
+      "version": "0.2.1",
+      "declared": "MIT OR Apache-2.0",
+      "selected": "MIT"
+    }
+  ],
+  "excludedBuildTools": [
+    {
+      "name": "windows-implement",
+      "version": "0.60.2",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "windows-interface",
+      "version": "0.59.3",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "proc-macro2",
+      "version": "1.0.107",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "quote",
+      "version": "1.0.47",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "syn",
+      "version": "2.0.119",
+      "license": "MIT OR Apache-2.0"
+    },
+    {
+      "name": "unicode-ident",
+      "version": "1.0.24",
+      "license": "(MIT OR Apache-2.0) AND Unicode-3.0"
+    }
+  ]
+}

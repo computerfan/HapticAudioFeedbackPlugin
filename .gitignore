@@ -398,5 +398,12 @@ FodyWeavers.xsd
 *.sln.iml
 
 .DS_Store
-/tools/windows-haptics-results.jsonl
+
 /tools/latency-settings-before.json
+
+/native/cpal-capture/target/
+/native/prebuilt/
+
+# Rust executable source is not a build output.
+!/native/cpal-capture/src/bin/
+!/native/cpal-capture/src/bin/*.rs

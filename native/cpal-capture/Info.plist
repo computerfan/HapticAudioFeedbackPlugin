@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><dict>
+<key>CFBundleIdentifier</key><string>com.computerfan.feeltherhythm.capture</string>
+<key>CFBundleName</key><string>Feel the Rhythm Audio Capture</string>
+<key>CFBundleExecutable</key><string>haptic-cpal-helper</string>
+<key>CFBundlePackageType</key><string>APPL</string>
+<key>CFBundleVersion</key><string>1</string>
+<key>LSMinimumSystemVersion</key><string>14.6</string>
+<key>LSUIElement</key><true/>
+<key>NSAudioCaptureUsageDescription</key><string>Feel the Rhythm uses system audio to create mouse haptics. Audio is processed locally and is not saved.</string>
+<key>NSMicrophoneUsageDescription</key><string>Feel the Rhythm uses your selected microphone or audio input to produce local haptic feedback. Audio is not saved or uploaded.</string>
+</dict></plist>

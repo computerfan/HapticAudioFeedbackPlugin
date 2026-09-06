@@ -11,7 +11,12 @@
 <body><main>
 <header><div><div class="eyebrow">MX Master 4 · Audio feedback</div><h1>Feel the Rhythm</h1></div><span class="badge" id="state">Connecting</span></header>
 <div class="card">
-<h2>Listening now</h2><p id="audioStatus">Waiting for the plugin…</p>
+<h2>Listening now</h2>
+<div class="field"><label for="captureDevice">Audio source</label>
+<select id="captureDevice" disabled><option value="">System default playback device</option></select>
+<small>Playback captures music from speakers or headphones. Input captures a microphone, line-in, or virtual audio device only when you select it and press Use device. Audio stays local.</small></div>
+<div class="preview"><button id="useDevice" disabled>Use device</button><button id="refreshDevices" disabled>Refresh devices</button></div>
+<p class="hint" id="deviceStatus" role="status">Loading available devices…</p><button id="restartCapture">Retry audio capture</button><p id="audioStatus">Waiting for the plugin…</p>
 <div class="stats"><div class="stat"><strong id="sent">0</strong><span>Events sent</span></div><div class="stat"><strong id="dropped">0</strong><span>Candidates skipped</span></div><div class="stat"><strong id="last" style="font-size:16px;padding-top:7px">—</strong><span>Last texture</span></div></div>
 <canvas id="chart" aria-label="Recent bass and detail audio levels with detection thresholds"></canvas>
 <div class="legend"><span class="bass">● Bass energy</span><span class="detail">● Detail energy</span><span>Dashed: onset threshold · dBFS</span></div>
@@ -83,6 +88,37 @@ const sustain=[
  ['SustainSlowIntervalMilliseconds','Quiet bass spacing',100,1500,10,' ms','Must be at least the loud-bass spacing.'],
  ['SustainFastIntervalMilliseconds','Loud bass spacing',100,1000,10,' ms','The shared pulse spacing still applies.']
 ];
+let audioDevices=[];
+function renderDevices(){
+ const select=byId('captureDevice');select.replaceChildren();
+ function option(parent,id,name){const item=document.createElement('option');item.value=id;item.textContent=name;parent.append(item);}
+ option(select,'','System default playback device');
+ option(select,'input:default','System default input device (microphone / line-in)');
+ for(const kind of ['output','input']){
+  const group=document.createElement('optgroup');group.label=kind==='output'?'Playback devices — capture what you hear':'Input devices — microphone / line-in';
+  for(const device of audioDevices.filter(d=>d.Kind===kind))option(group,device.Id,device.Name);
+  if(group.children.length)select.append(group);
+ }
+ const saved=settings.CaptureDeviceId||'';
+ if(saved&&saved!=='input:default'&&!audioDevices.some(d=>d.Id===saved))option(select,saved,'Saved device — unavailable (reconnect or choose another)');
+ select.value=saved;select.disabled=false;byId('useDevice').disabled=false;
+}
+async function refreshDevices(){
+ const button=byId('refreshDevices');button.disabled=true;
+ try{
+  const response=await fetch('/devices',{headers:authHeaders});const data=await response.json();
+  if(!response.ok)throw new Error(data.Error||'Could not list devices');
+  audioDevices=data.Devices;renderDevices();
+  byId('deviceStatus').textContent='Device changes apply with Use device. Haptic profiles keep this selection.';
+ }catch(error){renderDevices();byId('deviceStatus').textContent=error.message+' You can still choose a system default or retry Refresh devices.';}
+ finally{button.disabled=false;}
+}
+byId('refreshDevices').onclick=refreshDevices;
+byId('useDevice').onclick=()=>{
+ if(!settings||saving||dirty){byId('deviceStatus').textContent='Wait for settings to finish saving, then use the device.';return;}
+ settings.CaptureDeviceId=byId('captureDevice').value;
+ byId('deviceStatus').textContent='Applying audio source…';queueSave();
+};
 function range(container,[key,label,min,max,step,unit,hint]){
  const field=document.createElement('div');field.className='field';
  const l=document.createElement('label');l.htmlFor=key;l.append(document.createTextNode(label));
@@ -104,6 +140,7 @@ function checkbox(container,key,label){
  input.addEventListener('change',()=>{settings[key]=input.checked;queueSave();});l.append(input,document.createTextNode(label));container.append(l);
 }
 function sync(){
+ if(settings)renderDevices();
  for(const [key,value] of Object.entries(settings)){
   const el=byId(key);if(!el)continue;if(el.type==='checkbox')el.checked=value;else el.value=value;
   const out=byId(key+'Value');if(out)out.textContent=value+(el.dataset.unit||'');
@@ -117,8 +154,8 @@ function message(text,error=false){byId('saveStatus').textContent=text;byId('sav
 function queueSave(){dirty=true;message('Applying…');clearTimeout(saveTimer);saveTimer=setTimeout(save,200);}
 async function save(){
  if(saving||!dirty)return;saving=true;dirty=false;const snapshot=structuredClone(settings);
- try{const result=await request('/settings',snapshot);revision=result.Revision;if(!dirty){settings=result.Settings;sync();message('Saved · live settings updated');}}
- catch(error){message('Not applied: '+error.message+' Use Reload saved settings to discard this draft.',true);}
+ try{const result=await request('/settings',snapshot);revision=result.Revision;if(!dirty){settings=result.Settings;sync();message('Saved · live settings updated');byId('deviceStatus').textContent='Saved audio source: '+byId('captureDevice').selectedOptions[0].textContent+'.';}}
+ catch(error){byId('deviceStatus').textContent='Settings were not applied. Reload saved settings to see the active source.';message('Not applied: '+error.message+' Use Reload saved settings to discard this draft.',true);}
  finally{saving=false;if(dirty)save();}
 }
 byId('reloadSettings').addEventListener('click',async()=>{
@@ -194,7 +231,7 @@ async function init(){
   byId('customProfileName').addEventListener('input',profileSelection);
   byId('applyProfile').addEventListener('click',()=>{
    const profile=profiles[byId('sceneProfile').value];if(!profile)return;
-   settings={...profile,Enabled:settings.Enabled};sync();queueSave();
+   settings={...profile,Enabled:settings.Enabled,CaptureDeviceId:settings.CaptureDeviceId};sync();queueSave();
   });
   byId('duplicateProfile').addEventListener('click',()=>saveProfile('duplicate'));
   byId('saveNewProfile').addEventListener('click',()=>saveProfile('new'));
@@ -203,7 +240,7 @@ async function init(){
    b.disabled=true;try{const r=await request('/preview',preset);byId('previewStatus').textContent=r.Sent?names[preset]+' event sent. Did you feel it?':'Skipped: another event used the shared playback slot. Try again.';}
    catch(error){byId('previewStatus').textContent=error.message;}finally{b.disabled=false;}
   });byId('preview').append(b);}
-  sync();message('Live controls ready');
+  sync();message('Live controls ready');await refreshDevices();
  }catch(error){message(error.message+' — refresh to retry.',true);}
 }
 function chart(){
@@ -221,18 +258,25 @@ async function poll(){
  try{
   const response=await fetch('/metrics',{headers:authHeaders});if(!response.ok)throw new Error('Monitor unavailable');const m=await response.json();
   const age=m.AudioReceived?Date.now()-Date.parse(m.Timestamp):Infinity;
-  byId('state').textContent=!m.Enabled?'Paused':m.Settling?'Settling':!m.AudioReceived?'Waiting for audio':age>1000?'Quiet':'Listening';
-  byId('audioStatus').textContent=!m.Enabled?'Audio-triggered haptics are paused. Preset previews remain available.':m.Settling?'Settings applied. Waiting briefly for the detector to settle.':!m.AudioReceived?'Play music through your default audio output.':age>1000?'No recent audio packets. Last sample '+new Date(m.Timestamp).toLocaleTimeString()+'.':'Audio is arriving. Feel for pulses around the attacks.';
+  byId('state').textContent=m.CaptureError?'Capture unavailable':!m.Enabled?'Paused':m.Settling?'Settling':!m.AudioReceived?'Waiting for audio':age>1000?'Quiet':'Listening';
+  byId('audioStatus').textContent=m.CaptureError?m.CaptureError:!m.Enabled?'Audio-triggered haptics are paused. Preset previews remain available.':m.Settling?'Settings applied. Waiting briefly for the detector to settle.':!m.AudioReceived?'Play audio through the selected source.':age>1000?'No recent audio packets. Last sample '+new Date(m.Timestamp).toLocaleTimeString()+'.':'Audio is arriving. Feel for pulses around the attacks.';
   byId('sent').textContent=m.SentCount;byId('dropped').textContent=m.DroppedCount;byId('last').textContent=m.LastEvent||'—';
   const ms=n=>Number.isFinite(n)?n.toFixed(1):'—';
-  byId('captureTiming').textContent='Capture: '+m.CaptureMode+' · requested buffer '+ms(m.RequestedCaptureBufferMs)+' ms';
+  byId('captureTiming').textContent='Capture: '+m.CaptureMode+' · requested buffer '+ms(m.RequestedCaptureBufferMs)+' ms'+(m.CaptureWarning?' · '+m.CaptureWarning:'');
   byId('batchTiming').textContent=ms(m.CaptureBatchMs)+' / '+ms(m.MaxCaptureBatchMs);
   byId('processingTiming').textContent=ms(m.ProcessingMs)+' / '+ms(m.MaxProcessingMs);
   byId('backendTiming').textContent=ms(m.BackendCallMs)+' / '+ms(m.MaxBackendCallMs);
-  byId('waitTiming').textContent='Callback lock wait: '+ms(m.LockWaitMs)+' / '+ms(m.MaxLockWaitMs)+' max. Last event age within its delivered batch: '+ms(m.LastEventAgeWithinCallbackMs)+'.';
+  byId('waitTiming').textContent='Callback lock wait: '+ms(m.LockWaitMs)+' / '+ms(m.MaxLockWaitMs)+' max. Last event age within its delivered batch: '+ms(m.LastEventAgeWithinCallbackMs)+'. Newest sample age: '+ms(m.NewestSampleAgeMs)+' ms. Capture frames discarded: '+(m.CaptureDroppedFrames||0)+'.';
   if(m.AudioReceived&&m.Timestamp!==lastSample){history.push(m);if(history.length>120)history.shift();lastSample=m.Timestamp;chart();}
  }catch(error){byId('state').textContent='Disconnected';byId('audioStatus').textContent='Plugin unavailable. Reopen the settings launcher or use Open haptic settings in Options+. The port changes after reload.';}
  setTimeout(poll,100);
 }
+byId('restartCapture').onclick=async()=>{
+ const button=byId('restartCapture');button.disabled=true;
+ try {const response=await fetch('/capture/restart',{method:'POST',headers:{...authHeaders,'Content-Type':'application/json'},body:'{}'});
+ const result=await response.json();if(!response.ok)throw new Error(result.Error||'Could not restart capture');
+ byId('audioStatus').textContent=result.CaptureError||'Capture restarted. Play audio through the selected source.';
+ }catch(error){byId('audioStatus').textContent=error.message;}finally{button.disabled=false;}
+};
 window.addEventListener('resize',chart);chart();init();poll();
 </script></body></html>

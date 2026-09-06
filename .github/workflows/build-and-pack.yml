@@ -7,13 +7,62 @@ on:
   workflow_dispatch:
 
 jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+          - os: macos-14
+            target: aarch64-apple-darwin
+          - os: macos-14
+            target: x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Install pinned Rust toolchain and target
+        run: rustup toolchain install 1.90.0 --profile minimal --target ${{ matrix.target }}
+      - name: Native buffer regression checks
+        run: cargo +1.90.0 test --manifest-path native/cpal-capture/Cargo.toml --locked
+      - name: Managed capture protocol checks
+        run: dotnet run --project tests/CaptureBridge -c Release
+      - name: Build CPAL capture assets
+        run: python tools/build_cpal.py --target ${{ matrix.target }} --output native/prebuilt
+      - name: Archive native assets preserving Mac permissions
+        run: tar -cf native-assets.tar -C native/prebuilt .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: native-${{ matrix.target }}
+          path: native-assets.tar
   build:
+    needs: native
     runs-on: windows-latest
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+      - name: Install pinned Rust toolchain
+        run: rustup toolchain install 1.90.0 --profile minimal
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: native-*
+          path: native-downloads
+      - name: Merge native assets
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path native/prebuilt -Force | Out-Null
+          Get-ChildItem native-downloads -Recurse -Filter native-assets.tar | ForEach-Object { tar -xf $_.FullName -C native/prebuilt }
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
@@ -48,7 +97,7 @@ jobs:
         run: dotnet restore src/HapticAudioFeedbackPlugin.csproj
 
       - name: Build
-        run: dotnet build src/HapticAudioFeedbackPlugin.csproj --configuration Release --no-restore -p:DeployPlugin=false
+        run: dotnet build src/HapticAudioFeedbackPlugin.csproj --configuration Release --no-restore -p:DeployPlugin=false -p:BuildCpalNative=false -p:RequireAllCpalAssets=true
 
       - name: Audio regression checks
         run: dotnet run --project tests/AudioRegression --configuration Release
@@ -59,9 +108,12 @@ jobs:
       - name: Browser settings integration checks
         run: dotnet run --project tests/BrowserSettings --configuration Release
 
+      - name: Browser device selector checks
+        run: node tests/BrowserSettings/device-ui.test.cjs
+
       - name: Pack plugin
         shell: pwsh
-        run: logiplugintool pack ./bin/Release/ ./HapticAudioFeedbackPlugin.lplug4
+        run: python tools/pack_plugin.py ./bin/Release/ ./HapticAudioFeedbackPlugin.lplug4
 
       - name: Verify package
         shell: pwsh

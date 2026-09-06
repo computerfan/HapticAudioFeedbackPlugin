@@ -18,7 +18,7 @@ description: "Audio onset haptics with damped/strong bass and subtle high-band f
 pluginFileName: HapticAudioFeedbackPlugin.dll
 
 # Plugin version.
-version: 0.4.2
+version: 0.5.0
 
 # Author of the plugin. The author can be a company or an individual developer.
 author: computerfan
@@ -37,7 +37,7 @@ pluginFolderWin: bin
 
 # Location of plugin files on macOS (relative to the plugin base directory).
 # This parameter is required to support Mac.
-#pluginFolderMac: bin
+#pluginFolderMac: bin-mac
 
 # List of devices the plugin is optimized for.
 supportedDevices:

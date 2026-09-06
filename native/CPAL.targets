@@ -1,0 +1,40 @@
+<Project>
+  <PropertyGroup>
+    <BuildCpalNative Condition="'$(BuildCpalNative)' == ''">true</BuildCpalNative>
+    <CpalRoot>$(MSBuildThisFileDirectory)</CpalRoot>
+    <PythonCommand Condition="'$(PythonCommand)' == '' and '$(OS)' == 'Windows_NT'">python</PythonCommand>
+    <PythonCommand Condition="'$(PythonCommand)' == ''">python3</PythonCommand>
+    <CpalTarget Condition="'$(CpalTarget)' == '' and '$(OS)' == 'Windows_NT'">x86_64-pc-windows-msvc</CpalTarget>
+    <CpalTarget Condition="'$(CpalTarget)' == '' and $([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture) == 'Arm64'">aarch64-apple-darwin</CpalTarget>
+    <CpalTarget Condition="'$(CpalTarget)' == ''">x86_64-apple-darwin</CpalTarget>
+    <CpalAssets>$(CpalRoot)prebuilt/</CpalAssets>
+  </PropertyGroup>
+  <Target Name="BuildCpal" BeforeTargets="CoreCompile" Condition="'$(BuildCpalNative)' == 'true'">
+    <Exec Command="$(PythonCommand) &quot;$(CpalRoot)../tools/build_cpal.py&quot; --target $(CpalTarget) --output &quot;$(CpalAssets)&quot;" />
+  </Target>
+  <Target Name="PackageCpal" AfterTargets="CopyPackage">
+    <Exec Command="$(PythonCommand) &quot;$(CpalRoot)../tools/audit_cpal_licenses.py&quot; --output &quot;$(OutputPath)../licenses&quot;" />
+    <ItemGroup>
+      <CpalWindows Include="$(CpalAssets)**/*" Exclude="$(CpalAssets)osx-*/**/*" />
+      <CpalMac Include="$(CpalAssets)**/*" Exclude="$(CpalAssets)win-*/**/*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(CpalWindows)" DestinationFiles="@(CpalWindows->'$(OutputPath)runtimes/%(RecursiveDir)%(Filename)%(Extension)')" />
+    <Error Condition="'@(CpalWindows)' == '' and '@(CpalMac)' == ''" Text="CPAL native assets are missing. Build CPAL first or leave BuildCpalNative enabled." />
+    <Error Condition="'$(RequireAllCpalAssets)' == 'true' and (!Exists('$(CpalAssets)win-x64/native/haptic_cpal.dll') or !Exists('$(CpalAssets)osx-x64/native/Feel the Rhythm Capture.app/Contents/MacOS/haptic-cpal-helper') or !Exists('$(CpalAssets)osx-arm64/native/Feel the Rhythm Capture.app/Contents/MacOS/haptic-cpal-helper'))" Text="Combined release requires Windows x64 and both macOS capture helpers." />
+    <PropertyGroup>
+      <MacCaptureAvailable Condition="Exists('$(CpalAssets)osx-x64/native/Feel the Rhythm Capture.app/Contents/MacOS/haptic-cpal-helper') or Exists('$(CpalAssets)osx-arm64/native/Feel the Rhythm Capture.app/Contents/MacOS/haptic-cpal-helper')">true</MacCaptureAvailable>
+      <PackageMetadata>$(OutputPath)../metadata/LoupedeckPackage.yaml</PackageMetadata>
+    </PropertyGroup>
+    <ItemGroup Condition="'$(MacCaptureAvailable)' == 'true'">
+      <ManagedForMac Include="$(OutputPath)*.dll;$(OutputPath)*.deps.json" />
+    </ItemGroup>
+    <Copy Condition="'$(MacCaptureAvailable)' == 'true'" SourceFiles="@(ManagedForMac)" DestinationFolder="$(OutputPath)../bin-mac/" />
+    <Copy Condition="'$(MacCaptureAvailable)' == 'true'" SourceFiles="$(NuGetPackageRoot)naudio.core/2.2.1/lib/netstandard2.0/NAudio.Core.dll" DestinationFolder="$(OutputPath)../bin-mac/" />
+    <Copy Condition="'$(MacCaptureAvailable)' == 'true'" SourceFiles="@(CpalMac)" DestinationFiles="@(CpalMac->'$(OutputPath)../bin-mac/runtimes/%(RecursiveDir)%(Filename)%(Extension)')" />
+    <PropertyGroup Condition="'$(MacCaptureAvailable)' == 'true'">
+      <MacMetadata>$([System.IO.File]::ReadAllText('$(PackageMetadata)').Replace('#pluginFolderMac: bin-mac', 'pluginFolderMac: bin-mac'))</MacMetadata>
+    </PropertyGroup>
+    <WriteLinesToFile Condition="'$(MacCaptureAvailable)' == 'true'" File="$(PackageMetadata)" Lines="$(MacMetadata)" Overwrite="true" Encoding="UTF-8" />
+    <Exec Condition="'$(OS)' != 'Windows_NT' and '$(MacCaptureAvailable)' == 'true'" Command="find &quot;$(OutputPath)../bin-mac/runtimes&quot; -name haptic-cpal-helper -exec chmod +x {} +" />
+  </Target>
+</Project>

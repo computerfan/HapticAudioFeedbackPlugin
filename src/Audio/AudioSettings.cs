@@ -14,6 +14,8 @@ internal sealed class AudioSettings
     public double StrongBassAboveThresholdDb { get; set; } = 12;
     public bool EnableDebugServer { get; set; } = false;
 
+    // Empty keeps the original default playback loopback. Direction is explicit for other choices.
+    public string CaptureDeviceId { get; set; } = "";
     public bool Enabled { get; set; } = true;
     public double Sensitivity { get; set; } = 50;
     public double BassGainDb { get; set; } = 0;
@@ -72,6 +74,10 @@ internal sealed class AudioSettings
             if (!double.IsFinite(value) || value < min || value > max)
                 throw new ArgumentOutOfRangeException(name, $"Must be between {min} and {max}.");
         }
+        if (CaptureDeviceId == null || System.Text.Encoding.UTF8.GetByteCount(CaptureDeviceId) > 4096 || CaptureDeviceId.Any(char.IsControl) ||
+            (CaptureDeviceId.Length != 0 && !((CaptureDeviceId.StartsWith("input:", StringComparison.Ordinal) && CaptureDeviceId.Length > 6) ||
+                (CaptureDeviceId.StartsWith("output:", StringComparison.Ordinal) && CaptureDeviceId.Length > 7))))
+            throw new ArgumentException("Invalid audio device ID.");
         Range(Sensitivity, 0, 100, nameof(Sensitivity));
         Range(BassGainDb, -12, 12, nameof(BassGainDb));
         Range(HighGainDb, -12, 12, nameof(HighGainDb));

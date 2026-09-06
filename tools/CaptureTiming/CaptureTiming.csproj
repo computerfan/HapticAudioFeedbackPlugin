@@ -7,6 +7,6 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="NAudio.Wasapi" Version="2.2.1" />
-    <Compile Include="../../src/Helpers/ResponsiveLoopbackCapture.cs" Link="ResponsiveLoopbackCapture.cs" />
+    <ProjectReference Include="../../src/Capture/HapticAudioCapture.csproj" />
   </ItemGroup>
 </Project>

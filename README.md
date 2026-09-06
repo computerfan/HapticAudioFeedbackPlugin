@@ -2,7 +2,7 @@
 
 The display name is **Feel the Rhythm**. The internal plugin ID, assembly names, action IDs, saved settings keys, and existing launcher filename remain unchanged, so existing settings and assignments continue to use the same identity.
 
-Version 0.4.2 uses a browser settings panel on a random high port and stores preferences through the Logitech SDK. Audio capture currently supports Windows (WASAPI). macOS audio capture is deferred; Options+ being cross-platform does not make this capture backend portable.
+Version 0.5.0 uses CPAL 0.18.2 for system audio capture, with the existing NAudio path as a Windows fallback. The macOS adapter uses a bundled CPAL helper app and requires macOS 14.6+. Windows capture has been exercised locally; macOS builds, permissions and hardware behavior still need validation on a Mac. Browser settings and SDK persistence remain shared.
 
 ## Open settings
 
@@ -64,7 +64,7 @@ The endpoint accepts only loopback clients using its exact `127.0.0.1:port` auth
 
 Each audio channel has independent band-pass filters centered at 100 Hz and 2 kHz by default. Channel energies are combined after filtering, so opposite-phase stereo retains its bass. The high center is capped at 40% of the input sample rate. These are overlapping bands, not instrument recognition.
 
-Loopback capture requests a 20 ms shared-mode buffer and uses audio-ready events. If event-driven initialization fails, it tries 20 ms polling and logs the fallback. Event-driven loopback requires Windows 10 version 1703 or later. The requested buffer is not a guarantee of end-to-end latency.
+CPAL captures the default output device through WASAPI on Windows and CoreAudio taps on macOS. It targets a 20 ms buffer (clamped to the device-supported range), falling back to the device default only when that configuration is unsupported. A native condition variable wakes the consumer on audio arrival. At most 40 ms of PCM is retained; overflow drops the oldest whole frames and resets detector continuity. Audio age includes the backend timestamp estimate and time spent waiting for the consumer. These estimates are not measurements of physical mouse latency. If CPAL initialization fails on Windows, the existing NAudio event-driven and then polling adapters are tried; the panel shows the fallback reason.
 
 RMS is measured in approximately 5 ms windows. An onset can be detected by either a fast envelope crossing the adaptive background threshold, or a sufficiently large rise over approximately 20 ms. The second route helps detect a beat over an already-playing bass note. Hysteresis and a per-band refractory interval prevent repeated detection of one attack.
 
@@ -86,13 +86,13 @@ Logitech events do not expose per-event motor frequency, amplitude, playback com
 - `SentCount` counts successful calls to the event API, not confirmed physical vibrations.
 - `DroppedCount` counts candidates skipped by age, priority or spacing (including backend exceptions).
 - `AudioReceived` distinguishes initial placeholders from actual audio. `Timestamp` is the most recent audio sample; it stops advancing during a packet gap. `LastSentUtc` includes manual previews.
-- The detector resets after a packet gap over 250 ms because WASAPI may omit packets during silence. Changing the default output device or recovering from a capture error currently requires a plugin reload.
+- The detector resets after a packet gap over 250 ms or a capture discontinuity. After changing output devices, a capture failure or granting Mac permission, use **Retry audio capture**. Saved settings and manual previews remain available when capture is unavailable.
 
 The control server binds only localhost/127.0.0.1. Writes require its page token, same origin when an Origin header is supplied, validated JSON, and a bounded request body. Controls do not expose file paths to the browser or save audio recordings.
 
 ### Investigating delayed pulses
 
-Expand **Response timing** to see capture mode, audio batch size, detector execution time, callback lock wait, and Logitech API call duration. Latest/maximum values reset on reload. The last event's age within its delivered batch includes processing and lock wait; it cannot account for audio buffered before the callback. The API call duration ends when `RaiseEvent` returns and excludes subsequent Logitech service, transport, or motor playback. No metric here measures physical end-to-end latency.
+Expand **Response timing** to see capture mode, audio batch size, detector execution time, callback lock wait, and Logitech API call duration. Latest/maximum values reset on reload. CPAL event-age checks include its estimated capture age plus processing and lock wait; the NAudio fallback has no upstream capture timestamp. The panel also reports the newest sample age and discarded capture frames. The API call duration ends when `RaiseEvent` returns and excludes subsequent Logitech service, transport, or motor playback. No metric here measures physical end-to-end latency.
 
 If the event counter increases before a vibration is felt, compare isolated preview taps with music. A useful sparse comparison is bass-only, both bass textures set to Soft tap, sustain off, and 160 ms spacing. This is an experiment, not a documented device throughput limit. The plugin drops cooldown-blocked candidates immediately; increasing spacing does not put them in a delayed queue. Logitech playback after dispatch remains unobservable through this interface.
 
@@ -102,18 +102,20 @@ To compare original NAudio capture batching against the new implementation on yo
 dotnet run --project tools/CaptureTiming -c Release
 ```
 
-This Windows-only diagnostic runs for six seconds, keeps the endpoint active with a silent output stream, and prints batch and callback-gap percentiles without storing audio. It does not send haptics itself; an already-running plugin can still respond to other audio. A local run on 2026-09-06 measured median batches of 60 ms for the original polling capture versus 10 ms for event-driven capture (95th percentiles 70 ms versus 10 ms). This establishes reduced batching on that endpoint, not a measured change in physical haptic latency.
+This Windows-only diagnostic compares original NAudio, responsive NAudio and the packaged CPAL bridge for six seconds, keeps the endpoint active with a silent output stream, and prints timing percentiles without storing audio. An optional argument supplies a different plugin binary directory. It does not send haptics itself; an already-running plugin can still respond to other audio. A local run on 2026-09-06 measured median batches of 60 ms for the original polling capture versus 10 ms for event-driven capture (95th percentiles 70 ms versus 10 ms). The CPAL bridge was subsequently measured on the same machine at 10 ms median and 95th percentile batches, with no capture errors or discarded frames during the six-second comparison. This establishes capture delivery timing on that machine, not physical haptic latency.
 
 ## Build, test, and package
 
-Install .NET 8 SDK or newer and Logi Options+ / Logi Plugin Service. `PluginApi.dll` is referenced from the installed host. NAudio remains at 2.2.1 to match the host-supplied runtime assemblies. The capture subclass is built into HapticAudioCapture.dll so package inspection can validate the plugin while runtime reuses the host NAudio assemblies. Do not bundle private copies of NAudio.Core.dll or NAudio.Wasapi.dll: duplicate COM interop types caused an InvalidCastException during live reload.
+Install .NET 8 SDK or newer, Python 3, Rust (the build uses the pinned 1.90.0 toolchain), a native linker (Visual Studio C++ build tools on Windows or Xcode tools on Mac), and Logi Options+ / Logi Plugin Service. `PluginApi.dll` is referenced from the installed host. NAudio remains at 2.2.1 to match the host-supplied runtime assemblies. The capture subclass is built into HapticAudioCapture.dll so package inspection can validate the plugin while runtime reuses the host NAudio assemblies. The Mac package uses a separate `bin-mac` directory with the portable NAudio.Core DSP assembly. Do not bundle private Windows copies of NAudio.Core.dll or NAudio.Wasapi.dll: duplicate COM interop types caused an InvalidCastException during live reload.
 
 ```powershell
+cargo +1.90.0 test --manifest-path native/cpal-capture/Cargo.toml --locked
+dotnet run --project tests/CaptureBridge -c Release
 dotnet run --project tests/AudioRegression -c Release
 dotnet run --project tests/NativeControls -c Release
 dotnet run --project tests/BrowserSettings -c Release
 dotnet build HapticAudioFeedbackPlugin.sln -c Release -p:DeployPlugin=false
-logiplugintool pack ./bin/Release/ ./bin/HapticAudioFeedbackPlugin.lplug4
+python tools/pack_plugin.py ./bin/Release/ ./bin/HapticAudioFeedbackPlugin.lplug4
 logiplugintool verify ./bin/HapticAudioFeedbackPlugin.lplug4
 ```
 
@@ -121,18 +123,32 @@ Omit `-p:DeployPlugin=false` for the existing development workflow that writes t
 
 The host can load assembly bytes, leaving `Assembly.Location` empty. Settings and UI paths therefore use the SDK's `AssemblyFilePath`. This update does not install a new SDK/Options+ version or update mouse firmware.
 
-## Native Windows probe
+## macOS capture and packaging
 
-Use Windows PowerShell 5.1 (`powershell.exe`), whose WinRT projection accesses the installed API without retargeting the plugin.
+The .NET adapter starts `Feel the Rhythm Capture.app` directly, without a shell or another HTTP endpoint. Its `Info.plist` (also embedded in the executable) contains the system-audio usage description. PCM passes through a private parent/child pipe and is never saved. Framed timestamps allow the parent to discard stale pipe backlog. Closing the plugin terminates its helper; crashes and permission errors are reported in the settings panel. macOS may attribute the permission to the responsible parent application; confirm the actual prompt on the target Mac.
 
-```powershell
-# Capability check: no UI or playback
-powershell.exe -NoProfile -STA -File tools/Test-WindowsHaptics.ps1 -CheckOnly
-# Interactive focus/intensity experiment
-powershell.exe -NoProfile -STA -File tools/Test-WindowsHaptics.ps1
+Grant the system audio recording permission in macOS Privacy & Security, then use **Retry audio capture**. No microphone or virtual audio driver is used. CPAL 0.18.2 treats combined CoreAudio input/output devices as capture inputs, so this adapter rejects them to avoid recording a microphone. Choose a separate output device, such as built-in speakers. Automatic output switching is not promised; retry after changing devices.
+
+On a Mac, install the relevant targets and build the helper assets:
+
+```sh
+rustup toolchain install 1.90.0 --profile minimal
+rustup target add --toolchain 1.90.0 aarch64-apple-darwin x86_64-apple-darwin
+python3 tools/build_cpal.py --target aarch64-apple-darwin --output native/prebuilt
+python3 tools/build_cpal.py --target x86_64-apple-darwin --output native/prebuilt
 ```
 
-Click using the MX Master 4, then compare immediate playback with the delayed test after switching applications. Both execute on the probe UI thread. Each request uses one 40 ms Click effect with fallback. API result, focus and intensity are logged to the ignored `tools/windows-haptics-results.jsonl`. Record whether you actually felt each effect separately. This does not establish that the Logitech host's background audio thread can use native haptics.
+Ordinary plugin builds generate native assets for the build host. `-p:BuildCpalNative=false` consumes existing `native/prebuilt` assets; `-p:RequireAllCpalAssets=true` requires Windows x64 and both Mac architectures. Mac support is enabled in the generated manifest only when Mac helper assets are present. A local Windows-only package therefore does not advertise Mac support. CI builds the three targets separately and merges them before packing. The packaging wrapper preserves the Mac helper executable bits in the archive; verify installation and helper launch on Mac.
+
+The build script applies an ad-hoc development signature. Public Mac distribution still requires a stable Developer ID signing/notarization workflow and testing of permission persistence across upgrades. Never modify the installed Logitech application bundle to supply our permission string.
+
+The host can watch the development output even with `DeployPlugin=false`. For isolated validation while the plugin is loaded, build with `-p:BaseOutputPath=E:/HapticAudioFeedbackPlugin/bin/validation/` on this Windows checkout. Native DLLs stay locked while loaded; install the new package or stop the development plugin before overwriting its native binary.
+
+## Third-party licenses
+
+The capture dependency is pinned to CPAL 0.18.2 with optional backends disabled. `Cargo.lock` is checked in. `tools/audit_cpal_licenses.py` checks the resolved Windows/macOS binary dependency closures against MIT/Apache-2.0 choices and generates the shipped notices under `licenses/`. Rust procedural macros and build-only dependencies are classified separately because they are not bundled; this is not a license audit of the compiler, OS frameworks or proprietary Logitech SDK.
+
+Some crates omit license text from their registry archive. `native/licenses` preserves the declaration from their exact upstream source revision; the objc2 MIT text is supplemented from upstream's published license, with package authors retained. The upstream objc2 declaration also records its Apple SDK licensing caveat, which is preserved in the notices. NAudio 2.2.1's MIT notice is included separately. No GPL component is added.
 
 ## Verification
 
@@ -147,6 +163,14 @@ Official references:
 - [Logitech event/waveform interface](https://logitech.github.io/actions-sdk-docs/csharp/haptics/haptics-getting-started/)
 - [Logitech haptics best practices](https://logitech.github.io/actions-sdk-docs/csharp/haptics/haptics-best-practices/)
 - [Windows haptics and focus requirements](https://learn.microsoft.com/en-us/windows/apps/develop/input/haptics)
-- [InputHapticsManager reference](https://learn.microsoft.com/en-us/uwp/api/windows.devices.haptics.inputhapticsmanager?view=winrt-28000)
+- [CPAL 0.18.2 capture backends](https://github.com/RustAudio/cpal/tree/v0.18.2)
 - [NAudio 2.2.1 capture defaults and polling loop](https://github.com/naudio/NAudio/blob/v2.2.1/NAudio.Wasapi/WasapiCapture.cs)
 - [Windows loopback recording and event support](https://learn.microsoft.com/en-us/windows/win32/coreaudio/loopback-recording)
+
+### Choose an audio source
+
+In browser settings, select **Audio source**, then **Use device**. Playback devices capture the sound sent to speakers/headphones; input devices capture a microphone, line-in, or virtual input. **System default playback device** retains the original behavior. The system default is resolved when capture starts; use **Retry audio capture** after changing the OS default. **Refresh devices** rescans connected devices without opening a recording stream.
+
+The choice is saved with SDK settings using CPAL's stable device ID (not a list index or display name), and remains unchanged when applying or saving haptic profiles. A missing or unsupported explicitly selected device produces a capture error; it never falls back to another source. Microphone/input capture is opt-in and subject to OS recording permissions. Audio is processed in memory and is not recorded or uploaded.
+
+macOS uses the same selector through its CPAL helper. CPAL 0.18.2 cannot safely loop back combined input/output CoreAudio devices, so those are omitted from playback choices; their input can be chosen explicitly. Real Mac device/permission testing remains required.

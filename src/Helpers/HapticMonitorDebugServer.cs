@@ -12,6 +12,10 @@ internal sealed class HapticMonitorSample
     public bool Enabled { get; set; }
     public bool Settling { get; set; }
     public string CaptureMode { get; set; }
+    public string CaptureError { get; set; }
+    public string CaptureWarning { get; set; }
+    public double NewestSampleAgeMs { get; set; }
+    public ulong CaptureDroppedFrames { get; set; }
     public int RequestedCaptureBufferMs { get; set; }
     public double CaptureBatchMs { get; set; }
     public double MaxCaptureBatchMs { get; set; }
@@ -46,6 +50,8 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private readonly Func<(AudioSettings Settings, int Revision)> _settings;
     private readonly Action<AudioSettings, int?> _apply;
     private readonly Func<string, bool> _preview;
+    private readonly Action _restartCapture;
+    private readonly Func<object> _devices;
     private readonly string _html;
     private readonly CustomProfileStore _profiles;
     private readonly string _token = Convert.ToHexString(System.Security.Cryptography.RandomNumberGenerator.GetBytes(32));
@@ -55,7 +61,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private volatile bool _running;
 
     public HapticMonitorDebugServer(string htmlPath, Func<HapticMonitorSample> metrics,
-        Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null)
+        Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null, Action restartCapture = null, Func<object> devices = null)
     {
         _html = File.ReadAllText(htmlPath);
         _profiles = profiles ?? new CustomProfileStore(() => null, _ => throw new InvalidOperationException("Profile storage unavailable."), _ => { });
@@ -63,6 +69,8 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         _settings = settings;
         _apply = apply;
         _preview = preview;
+        _restartCapture = restartCapture;
+        _devices = devices;
         _nextPort = nextPort ?? (() => System.Security.Cryptography.RandomNumberGenerator.GetInt32(49152, 65536));
         _thread = new Thread(Loop) { IsBackground = true, Name = "HapticMonitorControlServer" };
     }
@@ -143,6 +151,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         {
             switch (path)
             {
+                case "/devices": Json(context, _devices?.Invoke() ?? throw new InvalidOperationException("Device enumeration unavailable.")); return;
                 case "/metrics": Json(context, _metrics()); return;
                 case "/settings":
                     var snapshot = _settings();
@@ -178,6 +187,12 @@ internal sealed class HapticMonitorDebugServer : IDisposable
             var profile = JsonSerializer.Deserialize<ProfileRequest>(buffer, new JsonSerializerOptions
                 { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow }) ?? throw new ArgumentException("Profile request required.");
             Json(context, _profiles.Save(profile));
+        }
+        else if (path == "/capture/restart")
+        {
+            if (_restartCapture == null) throw new InvalidOperationException("Capture restart unavailable.");
+            _restartCapture();
+            Json(context, _metrics());
         }
         else if (path == "/preview")
         {

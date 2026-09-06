@@ -1,9 +1,6 @@
 namespace Loupedeck.HapticAudioFeedback;
 
 using System.Diagnostics;
-using System.Runtime.InteropServices;
-using NAudio.Wave;
-using NAudio.CoreAudioApi;
 
 internal sealed class HapticAudioMonitor : IDisposable
 {
@@ -21,16 +18,18 @@ internal sealed class HapticAudioMonitor : IDisposable
     private readonly object _gate = new();
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly List<HapticOnset> _candidates = new();
-    private WasapiCapture _capture;
+    private ISystemAudioCapture _capture;
     private AudioOnsetDetector _detector;
     private HapticScheduler _scheduler;
     private HapticMonitorDebugServer _debugServer;
     private double _lastAudioMs;
     private string _captureMode = "starting";
+    private string _captureError, _captureWarning;
+    private readonly string _binaryDirectory;
     private double _backendCallMs, _maxBackendCallMs, _maxBufferMs, _maxProcessingMs, _maxLockWaitMs;
     private double _lastWarningMs = double.NegativeInfinity;
 
-    public HapticAudioMonitor(Plugin plugin, AudioSettings settings, Action<AudioSettings> saveSettings, string htmlPath, CustomProfileStore profiles)
+    public HapticAudioMonitor(Plugin plugin, AudioSettings settings, Action<AudioSettings> saveSettings, string htmlPath, CustomProfileStore profiles, string binaryDirectory)
     {
         _plugin = plugin ?? throw new ArgumentNullException(nameof(plugin));
         settings.Validate();
@@ -38,85 +37,98 @@ internal sealed class HapticAudioMonitor : IDisposable
         _saveSettings = saveSettings;
         _htmlPath = htmlPath;
         _profiles = profiles;
+        _binaryDirectory = binaryDirectory;
+        _scheduler = new HapticScheduler(_settings);
     }
 
     public void Start()
     {
-        if (_capture != null) return;
-        try
+        lock (_settingsGate)
         {
-            _scheduler = new HapticScheduler(_settings);
-            try { StartCapture(true); }
+            if (_capture != null) return;
+            _captureError = _captureWarning = null;
+            try { StartCapture(OperatingSystem.IsMacOS() ? new MacAudioCapture(_binaryDirectory, _settings.CaptureDeviceId) : new CpalAudioCapture(_binaryDirectory, _settings.CaptureDeviceId)); }
             catch (Exception ex)
             {
-                PluginLog.Warning(ex, "Event-driven loopback failed; trying 20 ms polling capture.");
-                Stop();
-                StartCapture(false);
+                StopCapture();
+                if (OperatingSystem.IsWindows() && _settings.CaptureDeviceId.Length == 0)
+                {
+                    _captureWarning = "CPAL unavailable; using Windows fallback. " + ex.Message;
+                    PluginLog.Warning(ex, _captureWarning);
+                    try { StartWindowsFallback(true); }
+                    catch (Exception fallback)
+                    {
+                        StopCapture();
+                        PluginLog.Warning(fallback, "Event-driven fallback failed; trying polling capture.");
+                        try { StartWindowsFallback(false); }
+                        catch (Exception last) { StopCapture(); _captureError = last.Message; }
+                    }
+                }
+                else _captureError = ex.Message + (OperatingSystem.IsMacOS() ? " Check audio recording permission for Feel the Rhythm Audio Capture (or the responsible host shown by macOS), then retry capture." : " Select an available audio device, then retry capture.");
             }
-            // Browser settings startup is independent of audio capture initialization.
-            PluginLog.Info($"Audio onset monitor started: {_capture.WaveFormat}; capture {_captureMode}, requested buffer {ResponsiveLoopbackCapture.RequestedBufferMilliseconds} ms; global spacing {_settings.MinimumSpacingMilliseconds} ms.");
-        }
-        catch (Exception ex)
-        {
-            PluginLog.Error(ex, "Failed to start haptic audio monitor.");
-            Stop();
+            if (_captureError != null) { _captureMode = "unavailable"; PluginLog.Warning(_captureError); }
         }
     }
-
-    private void StartCapture(bool useEvents)
+    // Keep the Windows-only type out of the cross-platform startup method's JIT dependencies.
+    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
+    private void StartWindowsFallback(bool useEvents) => StartCapture(new WindowsAudioCapture(useEvents));
+    private void StartCapture(ISystemAudioCapture capture)
     {
-        _capture = ResponsiveLoopbackCapture.Create(useEvents);
-        var format = _capture.WaveFormat;
-        var floatFormat = format.Encoding == WaveFormatEncoding.IeeeFloat ||
-            (format is WaveFormatExtensible extended &&
-             extended.SubFormat == new Guid("00000003-0000-0010-8000-00aa00389b71"));
-        if (!floatFormat || format.BitsPerSample != 32 || format.BlockAlign != format.Channels * sizeof(float))
-            throw new NotSupportedException($"Expected 32-bit float loopback audio; received {format}.");
+        _capture = capture;
         ResetDetector();
-        _capture.DataAvailable += OnDataAvailable;
-        _capture.RecordingStopped += OnRecordingStopped;
-        _capture.StartRecording();
-        _captureMode = useEvents ? "event-driven" : "polling fallback";
+        _captureMode = capture.Mode;
+        capture.DataAvailable += OnDataAvailable;
+        capture.RecordingStopped += OnRecordingStopped;
+        capture.StartRecording();
+        PluginLog.Info($"Audio capture started: {_captureMode}, {capture.SampleRate} Hz, {capture.Channels} channels.");
+    }
+    internal object ListDevices() => new { Devices = OperatingSystem.IsMacOS()
+        ? MacAudioCapture.ListDevices(_binaryDirectory) : CpalAudioCapture.ListDevices(_binaryDirectory) };
+    internal void RestartCapture()
+    {
+        lock (_settingsGate) { StopCapture(); lock (_gate) { _latest = new(); _maxBufferMs = 0; } Start(); }
     }
     private void ResetDetector()
     {
-        _detector = new AudioOnsetDetector(_capture.WaveFormat.SampleRate, _capture.WaveFormat.Channels, _settings);
+        _detector = new AudioOnsetDetector(_capture.SampleRate, _capture.Channels, _settings);
         _lastAudioMs = _clock.Elapsed.TotalMilliseconds;
     }
 
-    private void OnDataAvailable(object sender, WaveInEventArgs e)
+    private void OnDataAvailable(object sender, AudioCaptureData e)
     {
         var callbackEntryMs = _clock.Elapsed.TotalMilliseconds;
         lock (_gate)
         {
-            if (_capture == null || !ReferenceEquals(sender, _capture) || e.BytesRecorded == 0) return;
+            if (_capture == null || !ReferenceEquals(sender, _capture) || e.Samples.Length == 0) return;
             try
             {
-                if (e.BytesRecorded % _capture.WaveFormat.BlockAlign != 0)
+                if (e.Samples.Length % _capture.Channels != 0)
                     throw new InvalidOperationException("Loopback buffer contains an incomplete audio frame.");
                 var now = _clock.Elapsed.TotalMilliseconds;
                 var lockWaitMs = now - callbackEntryMs;
                 var callbackGapMs = callbackEntryMs - _lastAudioMs;
-                var bufferMs = e.BytesRecorded * 1000.0 / _capture.WaveFormat.AverageBytesPerSecond;
+                var bufferMs = e.Samples.Length * 1000.0 / (_capture.SampleRate * _capture.Channels);
                 _maxBufferMs = Math.Max(_maxBufferMs, bufferMs);
                 _maxLockWaitMs = Math.Max(_maxLockWaitMs, lockWaitMs);
                 // WASAPI may send no packets during silence. Clear old envelopes after that gap.
-                if (now - _lastAudioMs > 250) ResetDetector();
+                if (e.Discontinuity || now - _lastAudioMs > 250) ResetDetector();
                 _lastAudioMs = callbackEntryMs;
                 _candidates.Clear();
                 var processingStartMs = _clock.Elapsed.TotalMilliseconds;
-                _detector.Process(MemoryMarshal.Cast<byte, float>(e.Buffer.AsSpan(0, e.BytesRecorded)), _candidates.Add);
+                _detector.Process(e.Samples.Span, _candidates.Add);
                 var dispatchNow = _clock.Elapsed.TotalMilliseconds;
                 var processingMs = dispatchNow - processingStartMs;
                 _maxProcessingMs = Math.Max(_maxProcessingMs, processingMs);
                 if (dispatchNow < _suppressUntilMs) _candidates.Clear();
-                var sent = _scheduler.Dispatch(_candidates, _detector.AudioMilliseconds + dispatchNow - callbackEntryMs, dispatchNow,
+                var sent = _scheduler.Dispatch(_candidates, _detector.AudioMilliseconds + e.NewestSampleAgeMs + dispatchNow - callbackEntryMs, dispatchNow,
                     Send);
                 _latest = new HapticMonitorSample
                 {
                     Timestamp = DateTime.UtcNow,
                     AudioReceived = true,
                     CaptureBatchMs = bufferMs,
+                    NewestSampleAgeMs = e.NewestSampleAgeMs,
+                    CaptureDroppedFrames = e.DroppedFrames,
                     CallbackGapMs = callbackGapMs,
                     ProcessingMs = processingMs,
                     LockWaitMs = lockWaitMs,
@@ -155,7 +167,9 @@ internal sealed class HapticAudioMonitor : IDisposable
             sample.Enabled = _settings.Enabled;
             sample.Settling = _clock.Elapsed.TotalMilliseconds < _suppressUntilMs;
             sample.CaptureMode = _captureMode;
-            sample.RequestedCaptureBufferMs = ResponsiveLoopbackCapture.RequestedBufferMilliseconds;
+            sample.CaptureError = _captureError;
+            sample.CaptureWarning = _captureWarning;
+            sample.RequestedCaptureBufferMs = _capture?.RequestedBufferMilliseconds ?? 20;
             sample.BackendCallMs = _backendCallMs;
             sample.MaxBackendCallMs = _maxBackendCallMs;
             sample.MaxCaptureBatchMs = _maxBufferMs;
@@ -198,11 +212,12 @@ internal sealed class HapticAudioMonitor : IDisposable
         settings.Validate();
         var copy = settings.Copy();
         copy.EnableDebugServer = false;
+        bool deviceChanged;
         AudioOnsetDetector detector;
         lock (_gate)
         {
-            if (_capture == null) throw new InvalidOperationException("Audio capture is not running.");
-            detector = new AudioOnsetDetector(_capture.WaveFormat.SampleRate, _capture.WaveFormat.Channels, copy);
+            deviceChanged = copy.CaptureDeviceId != _settings.CaptureDeviceId;
+            detector = _capture == null ? null : new AudioOnsetDetector(_capture.SampleRate, _capture.Channels, copy);
         }
         // SDK persistence can block. Keep it outside the audio callback lock.
         _saveSettings(copy);
@@ -215,6 +230,7 @@ internal sealed class HapticAudioMonitor : IDisposable
             _candidates.Clear();
             _suppressUntilMs = _clock.Elapsed.TotalMilliseconds + 400;
         }
+        if (deviceChanged) RestartCapture();
         PluginLog.Info("Audio controls applied and saved through SDK settings.");
     }
 
@@ -223,7 +239,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         lock (_diagnosticsGate)
         {
             if (_debugServer != null) return _debugServer.LaunchUrl;
-            var server = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettingsSnapshot, ApplySettingsIfCurrent, Preview, profiles: _profiles);
+            var server = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettingsSnapshot, ApplySettingsIfCurrent, Preview, profiles: _profiles, restartCapture: RestartCapture, devices: ListDevices);
             try { server.Start(); lock (_gate) _debugServer = server; }
             catch { server.Dispose(); throw; }
             return server.LaunchUrl;
@@ -234,7 +250,6 @@ internal sealed class HapticAudioMonitor : IDisposable
     {
         lock (_gate)
         {
-            if (_capture == null) throw new InvalidOperationException("Audio capture is not running.");
             return _scheduler.Dispatch(new[] { new HapticOnset(eventName, 0, 0) }, 0,
                 _clock.Elapsed.TotalMilliseconds, Send).HasValue;
         }
@@ -252,38 +267,44 @@ internal sealed class HapticAudioMonitor : IDisposable
         _lastEvent = eventName;
         _lastSentUtc = DateTime.UtcNow;
     }
-    private void OnRecordingStopped(object sender, StoppedEventArgs e)
+    private void OnRecordingStopped(object sender, Exception error)
     {
-        if (e.Exception != null)
-            PluginLog.Error(e.Exception, "Audio capture stopped. Reload the plugin after checking the output device.");
+        lock (_gate)
+        {
+            if (!ReferenceEquals(sender, _capture)) return;
+            _captureError = error.Message;
+            _captureMode = "stopped";
+            PluginLog.Error(error, "Audio capture stopped. Check the output device or permission, then retry capture.");
+        }
     }
-
-    public void Stop()
+    private void StopCapture()
     {
-        WasapiCapture capture;
-        HapticMonitorDebugServer debug;
-        lock (_diagnosticsGate)
+        ISystemAudioCapture capture;
         lock (_gate)
         {
             capture = _capture;
             _capture = null;
-            debug = _debugServer;
-            _debugServer = null;
+            _latest = new HapticMonitorSample();
             if (capture != null)
             {
                 capture.DataAvailable -= OnDataAvailable;
                 capture.RecordingStopped -= OnRecordingStopped;
             }
         }
-        // Never hold the callback lock while waiting for the capture thread to stop.
+        // Never hold the callback lock while joining the consumer or releasing native capture.
         try { capture?.StopRecording(); }
         catch (Exception ex) { PluginLog.Warning(ex, "Error stopping audio capture."); }
-        finally
+        finally { capture?.Dispose(); }
+    }
+    public void Stop()
+    {
+        lock (_settingsGate) StopCapture();
+        lock (_diagnosticsGate)
         {
-            try { capture?.Dispose(); }
-            finally { debug?.Dispose(); }
+            var server = _debugServer;
+            _debugServer = null;
+            server?.Dispose();
         }
     }
-
     public void Dispose() => Stop();
 }

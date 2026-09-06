@@ -134,7 +134,7 @@ internal sealed class CustomProfileStore
     {
         if (settings == null) throw new ArgumentException("Profile settings are required.");
         settings.Validate();
-        var copy = settings.Copy(); copy.Enabled = true; copy.EnableDebugServer = false;
+        var copy = settings.Copy(); copy.Enabled = true; copy.EnableDebugServer = false; copy.CaptureDeviceId = "";
         return copy;
     }
 }
