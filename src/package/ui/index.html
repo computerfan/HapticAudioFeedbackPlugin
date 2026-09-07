@@ -106,6 +106,8 @@ const basic=[
  ['HighGainDb','Detail sensitivity',-12,12,1,' dB','Reduce if vocals and bright instruments create too many taps.']
 ];
 const advanced=[
+ ['BassVibratoSuppressionBins','Bass vibrato suppression',0,3,1,'','Spectral mode only. 0 is off; larger values tolerate wider pitch movement but may miss nearby new notes.'],
+ ['HighVibratoSuppressionBins','Detail vibrato suppression',0,3,1,'','Spectral mode only. 0 is off; larger values tolerate wider pitch movement but may miss nearby new notes.'],
  ['BassSpectralThreshold','Bass spectral threshold',.01,1,.01,'','Minimum relative positive spectral change. Lower detects smaller changes; applies only to spectral mode.'],
  ['HighSpectralThreshold','Detail spectral threshold',.01,1,.01,'','Minimum relative positive spectral change. Lower detects smaller changes; applies only to spectral mode.'],
  ["BassFilterQ", "Bass band width (Q)", 0.5, 4, 0.1, "", "Lower Q covers more frequencies; higher Q isolates a narrower band. Center gain is preserved."],
@@ -229,7 +231,7 @@ function sync(){
   const enabled=settings[band==='Bass'?'BassEnabled':'HighEnabled'];
   for(const suffix of ['TriggerMode','FilterQ','AttackMilliseconds','ReleaseMilliseconds','TransientSeparationMilliseconds'])byId(band+suffix).disabled=!enabled;
   const spectral=settings[band+'DetectionMethod']==='spectral';
-  byId(band+'DetectionMethod').disabled=!enabled;byId(band+'SpectralThreshold').disabled=!enabled||!spectral;
+  byId(band+'DetectionMethod').disabled=!enabled;byId(band+'SpectralThreshold').disabled=!enabled||!spectral;byId(band+'VibratoSuppressionBins').disabled=!enabled||!spectral;
   byId(band+'TriggerMode').disabled=!enabled||spectral;
   byId(band+'OnsetRiseWindowMilliseconds').disabled=!enabled||spectral||settings[band+'TriggerMode']==='level';
  }
@@ -314,7 +316,7 @@ async function init(){
  if(!controlsBuilt){
   const destinations={BassGainDb:'bassControls',LowCenterHz:'bassControls',LowThresholdDb:'bassControls',HighGainDb:'detailControls',HighCenterHz:'detailControls',HighThresholdDb:'detailControls',OnsetMarginDb:'thresholdControls',OnsetRiseDb:'riseControls',OnsetRiseWindowMilliseconds:'riseControls',StrongBassAboveThresholdDb:'textures'};
   for(const [band,group] of [['Bass','bass'],['High','detail']]){
-   for(const suffix of ['FilterQ','AttackMilliseconds','ReleaseMilliseconds','TransientSeparationMilliseconds','SpectralThreshold'])destinations[band+suffix]=group+'Advanced';
+   for(const suffix of ['FilterQ','AttackMilliseconds','ReleaseMilliseconds','TransientSeparationMilliseconds','SpectralThreshold','VibratoSuppressionBins'])destinations[band+suffix]=group+'Advanced';
    destinations[band+'OnsetRiseWindowMilliseconds']='riseControls';
    select(byId(group+'Advanced'),band+'DetectionMethod',(band==='Bass'?'Bass':'Detail')+' detection method',['envelope','spectral'],{envelope:'Envelope',spectral:'Spectral flux (experimental)'});
    select(byId(group+'Advanced'),band+'TriggerMode',(band==='Bass'?'Bass':'Detail')+' trigger mode',['both','level','rise'],{both:'Level + rapid rise',level:'Level only',rise:'Rapid rise only'});

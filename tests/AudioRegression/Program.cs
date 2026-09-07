@@ -127,6 +127,15 @@ Test("spectral mode detects pitch changes without opposite-phase cancellation", 
         Check(result.Events.SequenceEqual(other.Events), "Spectral detection depends on capture chunking.");
     }
 });
+Test("spectral neighborhood suppression reduces vibrato and retains a new attack", () =>
+{
+    List<HapticOnset> Events(int radius) => Analyze(48000, 1,
+        (t, _) => .15 * (t >= 2 ? 2 : 1) * Math.Sin(2 * Math.PI * 2000 * t - 12 * Math.Cos(2 * Math.PI * 5 * t)), 3,
+        options: new AudioSettings { BassEnabled = false, HighDetectionMethod = "spectral", HighSpectralThreshold = .02, HighVibratoSuppressionBins = radius }).Events;
+    var plain = Events(0); var suppressed = Events(2);
+    Check(plain.Count(e => e.AudioMilliseconds > 200 && e.AudioMilliseconds < 1900) > suppressed.Count(e => e.AudioMilliseconds > 200 && e.AudioMilliseconds < 1900), "Vibrato suppression did not reduce repeated events.");
+    Check(suppressed.Any(e => e.AudioMilliseconds >= 2000 && e.AudioMilliseconds < 2100), "New attack lost with suppression.");
+});
 Test("silence produces no feedback", () =>
     Check(Analyze(48000, 2, (_, _) => 0).Events.Count == 0, "Silence triggered."));
 Test("steady bass stops producing candidates after its initial attack", () =>

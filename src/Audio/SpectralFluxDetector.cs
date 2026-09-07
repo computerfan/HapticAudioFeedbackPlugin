@@ -12,6 +12,7 @@ internal sealed class SpectralFluxDetector
     private readonly double[] _power, _previous, _current;
     private readonly int _size, _exponent, _hop;
     private readonly (int First, int Last) _bass, _high;
+    private readonly int _bassRadius, _highRadius;
     private int _position, _filled, _since;
     public double Bass { get; private set; }
     public double High { get; private set; }
@@ -19,6 +20,7 @@ internal sealed class SpectralFluxDetector
 
     public SpectralFluxDetector(int rate, int channels, AudioSettings settings)
     {
+        _bassRadius = settings.BassVibratoSuppressionBins; _highRadius = settings.HighVibratoSuppressionBins;
         _size = 256; _exponent = 8;
         while (_size < rate * .021 && _size < 8192) { _size *= 2; _exponent++; }
         _hop = Math.Max(1, (int)Math.Round(rate * .005)) * 2;
@@ -55,14 +57,20 @@ internal sealed class SpectralFluxDetector
             for (int i = 1; i < _power.Length; i++) _power[i] += (double)_fft[i].X * _fft[i].X + (double)_fft[i].Y * _fft[i].Y;
         }
         for (int i = 1; i < _power.Length; i++) _current[i] = Math.Log(1 + 1000 * Math.Sqrt(_power[i] / _samples.Length));
-        Bass = Flux(_bass); High = Flux(_high);
+        Bass = Flux(_bass, _bassRadius); High = Flux(_high, _highRadius);
         Array.Copy(_current, _previous, _current.Length);
         Ready = true;
     }
-    private double Flux((int First, int Last) band)
+    private double Flux((int First, int Last) band, int radius)
     {
         double rise = 0, total = 0;
-        for (int i = band.First; i <= band.Last; i++) { rise += Math.Max(0, _current[i] - _previous[i]); total += _current[i]; }
+        for (int i = band.First; i <= band.Last; i++)
+        {
+            double reference = _previous[i];
+            for (int neighbor = Math.Max(1, i - radius); neighbor <= Math.Min(_previous.Length - 1, i + radius); neighbor++)
+                reference = Math.Max(reference, _previous[neighbor]);
+            rise += Math.Max(0, _current[i] - reference); total += _current[i];
+        }
         return total > 1e-6 ? Math.Clamp(rise / total, 0, 1) : 0;
     }
 }

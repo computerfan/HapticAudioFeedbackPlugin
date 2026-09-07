@@ -60,6 +60,8 @@ internal sealed class AudioSettings
     public string HighDetectionMethod { get; set; } = "envelope";
     public double BassSpectralThreshold { get; set; } = 0.12;
     public double HighSpectralThreshold { get; set; } = 0.12;
+    public int BassVibratoSuppressionBins { get; set; } = 0;
+    public int HighVibratoSuppressionBins { get; set; } = 0;
     public AudioSettings Copy() => (AudioSettings)MemberwiseClone();
 
     [System.Text.Json.Serialization.JsonIgnore]
@@ -120,6 +122,8 @@ internal sealed class AudioSettings
             if (method is not ("envelope" or "spectral")) throw new ArgumentException("Unsupported detection method.");
         Range(BassSpectralThreshold, .01, 1, nameof(BassSpectralThreshold));
         Range(HighSpectralThreshold, .01, 1, nameof(HighSpectralThreshold));
+        Range(BassVibratoSuppressionBins, 0, 3, nameof(BassVibratoSuppressionBins));
+        Range(HighVibratoSuppressionBins, 0, 3, nameof(HighVibratoSuppressionBins));
         Range(Sensitivity, 0, 100, nameof(Sensitivity));
         Range(BassGainDb, -12, 12, nameof(BassGainDb));
         Range(HighGainDb, -12, 12, nameof(HighGainDb));

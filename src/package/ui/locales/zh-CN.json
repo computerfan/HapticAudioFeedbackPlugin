@@ -326,5 +326,8 @@
   "Spectral flux (experimental)": "频谱通量（实验性）",
   "Square: spectral trigger. Dashed lines show envelope thresholds, not spectral thresholds.": "方形：频谱触发。虚线表示包络阈值，而非频谱阈值。",
   "Spectral / experimental": "频谱 / 实验性",
-  "Experimental frequency-change detection for detail, with envelope bass and no confirmation delay.": "对细节使用实验性频率变化检测，低音使用包络检测，不增加确认延迟。"
+  "Experimental frequency-change detection for detail, with envelope bass and no confirmation delay.": "对细节使用实验性频率变化检测，低音使用包络检测，不增加确认延迟。",
+  "Bass vibrato suppression": "低音颤音抑制",
+  "Detail vibrato suppression": "细节颤音抑制",
+  "Spectral mode only. 0 is off; larger values tolerate wider pitch movement but may miss nearby new notes.": "仅频谱模式。0 为关闭；值越大，可容忍越大的音高波动，但可能漏掉相邻音高的新音符。"
 }

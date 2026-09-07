@@ -7,7 +7,7 @@ internal static class AudioProfiles
     public static readonly IReadOnlyList<Definition> All = Array.AsReadOnly(new Definition[]
     {
         new("spectral", "Spectral / experimental", "Experimental frequency-change detection for detail, with envelope bass and no confirmation delay.",
-            () => new AudioSettings { HighDetectionMethod = "spectral", HighSpectralThreshold = .12,
+            () => new AudioSettings { HighDetectionMethod = "spectral", HighSpectralThreshold = .12, HighVibratoSuppressionBins = 1,
                 HighGainDb = -3, MinimumSpacingMilliseconds = 100, HighTransientSeparationMilliseconds = 100 }),
         new("music", "Music", "Balanced rhythm with rounded bass and quieter detail taps.",
             () => new AudioSettings {
