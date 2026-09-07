@@ -1,4 +1,4 @@
-# Marketplace submission draft — v0.5.2
+# Marketplace submission draft — v0.5.3
 
 | Field | Value |
 | --- | --- |
@@ -7,7 +7,7 @@
 | Operating systems | Windows; macOS (experimental) |
 | Support | https://github.com/computerfan/HapticAudioFeedbackPlugin/issues |
 | Homepage | https://github.com/computerfan/HapticAudioFeedbackPlugin |
-| Version | v0.5.2 |
+| Version | v0.5.3 |
 | Content licence | MIT |
 | Licence URL | https://opensource.org/licenses/MIT |
 | Copyright | Copyright © 2026 computerfan. All rights reserved. |
@@ -34,14 +34,14 @@ Windows x64; macOS experimental.
 [Setup](https://github.com/computerfan/HapticAudioFeedbackPlugin) · [Support](https://github.com/computerfan/HapticAudioFeedbackPlugin/issues)
 ```
 
-## Release Notes (361/1000)
+## Release Notes (360/1000)
 
 ```text
-Version 0.5.2
-- Added advanced per-band onset detection, spectral flux, vibrato suppression and peak confirmation.
-- Simplified settings tabs and made controls more compact.
-- Improved capture recovery, live updates, logging and long-running reliability.
-- Updated CI actions for Node.js 24.
+Version 0.5.3
+- Turning haptics off now stops audio capture and analysis; turning it on resumes capture.
+- Reduced live-update traffic while paused.
+- Added plugin version and build commit to the browser footer and startup log.
+- Expanded macOS setup guidance and added feature screenshots.
 
 Windows x64 supported; macOS experimental (Intel and Apple Silicon).
 ```
