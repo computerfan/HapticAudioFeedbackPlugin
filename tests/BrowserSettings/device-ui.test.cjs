@@ -45,7 +45,7 @@ function harness(){
     if(state.hold){state.hold=false;await new Promise(resolve=>state.release=resolve);}
     if(state.failSave){ok=false;body={Error:'Settings changed elsewhere'};}
     else{assert.equal(options.headers['If-Match'],'"'+state.revision+'"');state.current=JSON.parse(options.body);state.revision++;state.saves++;body={Settings:state.current,Revision:state.revision};}
-   }else if(path==='/capture/permissions'){state.permissionOpens=(state.permissionOpens||0)+1;ok=!state.failPermissions;body=ok?{Opened:true}:{Error:'Settings unavailable'};}else if(path==='/capture/restart'){state.restarts=(state.restarts||0)+1;body={};}else throw new Error('Unexpected test route '+path);
+   }else if(path==='/preview'){body={Accepted:!state.previewBusy};}else if(path==='/capture/permissions'){state.permissionOpens=(state.permissionOpens||0)+1;ok=!state.failPermissions;body=ok?{Opened:true}:{Error:'Settings unavailable'};}else if(path==='/capture/restart'){state.restarts=(state.restarts||0)+1;body={};}else throw new Error('Unexpected test route '+path);
   }else{ok=!state.failLoad;body=ok?{Settings:state.current,Revision:state.revision,...catalog()}:{Error:'Unavailable'};}
   return{ok,json:async()=>structuredClone(body),blob:async()=>({text:"report"})};
  }});
@@ -59,6 +59,10 @@ function harness(){
 }
 (async()=>{
  const h=harness();await h.run('init()');const {el,run,state,devices}=h;
+ await el('preview').children[0].events.click();assert.match(el('previewStatus').textContent,/requested/);
+ state.previewBusy=true;await el('preview').children[0].events.click();assert.match(el('previewStatus').textContent,/playback slot/);
+ console.log('PASS previews distinguish accepted requests from busy playback without claiming completion');
+
  assert.equal(el('tuningControls').disabled,false);assert.equal(el('sceneProfile').value,'music');assert.equal(el('Sensitivity').value,'50');assert.equal(el('Sensitivity').style['--range-progress'],'50%');
  assert.equal(el('SustainThresholdDb').disabled,true);
  el('captureDevice').value=devices[1].Id;el('captureDevice').events.change();assert.equal(state.saves,0);assert.equal(el('useDevice').disabled,false);

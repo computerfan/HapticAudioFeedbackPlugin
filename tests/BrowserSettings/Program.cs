@@ -155,7 +155,10 @@ Check(!(await Send("settings", token, body: next, rev: 0)).IsSuccessStatusCode &
 next.Sensitivity = 101;
 Check(!(await Send("settings", token, body: next, rev: 1)).IsSuccessStatusCode && settings.Sensitivity == 61, "invalid settings preserve current state");
 Check((await Send("settings", token, body: new { Unknown = true }, rev: 1)).StatusCode == HttpStatusCode.BadRequest, "unknown settings fields are rejected");
-Check((await Send("preview", token, body: "subtle_collision")).IsSuccessStatusCode && previews == 1, "authenticated preview dispatches one preset");
+using (var response = await Send("preview", token, body: "subtle_collision"))
+using (var result = JsonDocument.Parse(await response.Content.ReadAsStringAsync()))
+    Check(response.IsSuccessStatusCode && previews == 1 && result.RootElement.GetProperty("Accepted").GetBoolean()
+        && !result.RootElement.TryGetProperty("Sent", out _), "preview reports acceptance without claiming completed playback");
 Check(!(await Send("preview", token, body: "invalid")).IsSuccessStatusCode && previews == 1, "invalid preview cannot dispatch");
 Check((await Send("preview", body: "subtle_collision")).StatusCode == HttpStatusCode.Forbidden && previews == 1, "unauthenticated preview cannot dispatch");
 Check((int)(await Send("settings", token, body: new string('x', 33000), rev: 1)).StatusCode == 413, "oversized request bodies are rejected");

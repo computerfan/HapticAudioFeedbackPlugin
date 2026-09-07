@@ -302,7 +302,7 @@ async function init(){
   byId('sceneProfile').addEventListener('change',chooseProfile);byId('customProfileName').addEventListener('input',profileSelection);
   byId('duplicateProfile').addEventListener('click',()=>saveProfile('duplicate'));byId('saveNewProfile').addEventListener('click',()=>saveProfile('new'));byId('updateProfile').addEventListener('click',()=>saveProfile('update'));
   for(const preset of presets){const b=document.createElement('button');b.className='secondary';b.dataset.preset=preset;b.textContent=t('Test ')+t(names[preset]);b.addEventListener('click',async()=>{b.disabled=true;
-   try{const r=await request('/preview',preset);byId('previewStatus').textContent=r.Sent?t(names[preset])+t(' sent.'): t('Another pulse is still using the playback slot. Try again.');}
+   try{const r=await request('/preview',preset);byId('previewStatus').textContent=r.Accepted?t(names[preset])+t(' requested.'): t('Another pulse is still using the playback slot. Try again.');}
    catch(error){byId('previewStatus').textContent=t(error.message);}finally{b.disabled=false;}
   });byId('preview').append(b);}
   controlsBuilt=true;

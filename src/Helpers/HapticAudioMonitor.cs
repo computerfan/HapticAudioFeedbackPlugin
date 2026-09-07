@@ -26,6 +26,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     private bool _stopped, _permissionDenied;
     private AudioOnsetDetector _detector;
     private HapticScheduler _scheduler;
+    private readonly HapticDispatchWorker _dispatch;
     private HapticMonitorDebugServer _debugServer;
     private double _lastAudioMs;
     private string _captureMode = "starting";
@@ -45,6 +46,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         _binaryDirectory = binaryDirectory;
         _scheduler = new HapticScheduler(_settings);
         _captureStartup = new CaptureStartup(_settingsGate);
+        _dispatch = new HapticDispatchWorker(ex => PluginLog.Warning(ex, "Haptic dispatch worker failed."));
     }
 
     public void Start()
@@ -132,16 +134,8 @@ internal sealed class HapticAudioMonitor : IDisposable
                 var processingMs = dispatchNow - processingStartMs;
                 _maxProcessingMs = Math.Max(_maxProcessingMs, processingMs);
                 if (dispatchNow < _suppressUntilMs) _candidates.Clear();
-                var sent = _scheduler.Dispatch(_candidates, _detector.AudioMilliseconds + e.NewestSampleAgeMs + dispatchNow - callbackEntryMs, dispatchNow,
-                    Send);
-                if (sent.HasValue) _processingError = null;
-                // Preserve dispatched attacks between browser polls; previews and sustain pulses are excluded.
-                if (sent is { IsSustain: false, LevelDb: { } level } onset)
-                {
-                    var onsetTimestamp = audioTimestamp.AddMilliseconds(onset.AudioMilliseconds - _detector.AudioMilliseconds);
-                    _onsetHistory.Add(onsetTimestamp, onset.Band, level, level - onset.StrengthDb);
-                    _traceHistory.MarkSent(onset.AudioMilliseconds, onset.Band, onset.TriggerReason);
-                }
+                SubmitHaptics(_candidates, _detector.AudioMilliseconds + e.NewestSampleAgeMs + dispatchNow - callbackEntryMs,
+                    dispatchNow, audioTimestamp, _detector);
                 _latest = new HapticMonitorSample
                 {
                     Timestamp = audioTimestamp.AddMilliseconds(_detector.ReadingAudioMilliseconds - _detector.AudioMilliseconds),
@@ -158,8 +152,8 @@ internal sealed class HapticAudioMonitor : IDisposable
                     HighNoiseDb = _detector.High.BackgroundDb,
                     LowThresholdDb = _detector.Low.ThresholdDb,
                     HighThresholdDb = _detector.High.ThresholdDb,
-                    LowTriggered = sent?.Band == "bass",
-                    HighTriggered = sent?.Band == "high",
+                    LowTriggered = false,
+                    HighTriggered = false,
                     SentCount = _scheduler.SentCount,
                     DroppedCount = _scheduler.DroppedCount,
                     LastEvent = _lastEvent
@@ -305,23 +299,64 @@ internal sealed class HapticAudioMonitor : IDisposable
     internal bool Preview(string eventName)
     {
         lock (_gate)
-        {
-            return _scheduler.Dispatch(new[] { new HapticOnset(eventName, 0, 0) }, 0,
-                _clock.Elapsed.TotalMilliseconds, Send).HasValue;
-        }
+            return SubmitHaptics(new[] { new HapticOnset(eventName, 0, 0) }, 0,
+                _clock.Elapsed.TotalMilliseconds, DateTime.UtcNow, null);
     }
 
-    private void Send(string eventName)
+    // Called under _gate. Only reservation/telemetry touch that lock; the SDK runs on the worker.
+    private bool SubmitHaptics(IReadOnlyList<HapticOnset> candidates, double audioNow, double now,
+        DateTime audioTimestamp, AudioOnsetDetector detector)
     {
-        var started = _clock.Elapsed.TotalMilliseconds;
-        try { _plugin.PluginEvents.RaiseEvent(eventName); }
-        finally
+        if (_stopped) return false;
+        var selected = _scheduler.Reserve(candidates, audioNow, now);
+        if (!selected.HasValue) return false;
+        var onset = selected.Value;
+        var revision = _settingsRevision;
+        var deadline = now + _settings.MaximumEventAgeMilliseconds - (audioNow - onset.AudioMilliseconds);
+        var onsetTimestamp = detector == null ? audioTimestamp :
+            audioTimestamp.AddMilliseconds(onset.AudioMilliseconds - detector.AudioMilliseconds);
+        if (_dispatch.TrySubmit(() =>
         {
-            _backendCallMs = _clock.Elapsed.TotalMilliseconds - started;
-            _maxBackendCallMs = Math.Max(_maxBackendCallMs, _backendCallMs);
-        }
-        _lastEvent = eventName;
-        _lastSentUtc = DateTime.UtcNow;
+            lock (_gate)
+            {
+                if (_stopped || revision != _settingsRevision || _clock.Elapsed.TotalMilliseconds > deadline ||
+                    (detector != null && (!ReferenceEquals(detector, _detector) || _capture == null || !_settings.Enabled)))
+                {
+                    _scheduler.Complete(false);
+                    return;
+                }
+            }
+            var started = _clock.Elapsed.TotalMilliseconds;
+            Exception failure = null;
+            try { _plugin.PluginEvents.RaiseEvent(onset.EventName); }
+            catch (Exception ex) { failure = ex; }
+            var completed = _clock.Elapsed.TotalMilliseconds;
+            lock (_gate)
+            {
+                _backendCallMs = completed - started;
+                _maxBackendCallMs = Math.Max(_maxBackendCallMs, _backendCallMs);
+                _scheduler.Complete(failure == null, completed);
+                if (_stopped) return;
+                if (failure == null)
+                {
+                    _latest.LowTriggered = onset.Band == "bass";
+                    _latest.HighTriggered = onset.Band == "high";
+                    _lastEvent = onset.EventName;
+                    _lastSentUtc = DateTime.UtcNow;
+                    _processingError = null;
+                    if (detector != null && ReferenceEquals(detector, _detector) &&
+                        revision == _settingsRevision && onset is { IsSustain: false, LevelDb: { } level })
+                    {
+                        _onsetHistory.Add(onsetTimestamp, onset.Band, level, level - onset.StrengthDb);
+                        _traceHistory.MarkSent(onset.AudioMilliseconds, onset.Band, onset.TriggerReason);
+                    }
+                }
+                else _processingError = "Haptic feedback failed. " + BoundedPluginLogger.SafeText(failure.Message, 512);
+            }
+            if (failure != null) PluginLog.Warning(failure, "Haptic feedback failed.");
+        })) return true;
+        _scheduler.Complete(false);
+        return false;
     }
     private void OnRecordingStopped(object sender, Exception error)
     {
@@ -356,7 +391,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     }
     public void Stop()
     {
-        lock (_settingsGate) { _stopped = true; _captureStartup.Cancel(); StopCapture(); }
+        lock (_settingsGate) { lock (_gate) _stopped = true; _dispatch.Dispose(); _captureStartup.Cancel(); StopCapture(); }
         lock (_diagnosticsGate)
         {
             var server = _debugServer;

@@ -488,4 +488,47 @@ Test("trace history bounds polling payloads, retains flags and breaks on reset",
     Check(snapshot[^1].SentBand == "bass", "Snapshot changed after reset.");
     Check(trace.Snapshot(now.AddSeconds(13)).Length == 0, "Stale telemetry returned.");
 });
+
+Test("dispatch worker drops concurrent pulses without blocking callers or shutdown", () =>
+{
+    using var entered = new ManualResetEventSlim();
+    using var release = new ManualResetEventSlim();
+    using var finished = new ManualResetEventSlim();
+    using var worker = new HapticDispatchWorker(_ => { });
+    var calls = 0;
+    try
+    {
+        Check(worker.TrySubmit(() => { Interlocked.Increment(ref calls); entered.Set(); release.Wait(); finished.Set(); }), "First call rejected.");
+        Check(entered.Wait(2000), "Worker did not start.");
+        var watch = System.Diagnostics.Stopwatch.StartNew();
+        for (var i = 0; i < 10000; i++) Check(!worker.TrySubmit(() => Interlocked.Increment(ref calls)), "Busy worker queued a pulse.");
+        worker.Dispose();
+        Check(watch.ElapsedMilliseconds < 1000, "Blocked backend held submission or disposal.");
+        Check(!worker.TrySubmit(() => { }), "Stopped worker accepted more work.");
+    }
+    finally { release.Set(); finished.Wait(2000); }
+    Check(calls == 1, "Backlogged pulse was played.");
+});
+Test("dispatch worker recovers after a backend exception", () =>
+{
+    using var failed = new ManualResetEventSlim();
+    using var recovered = new ManualResetEventSlim();
+    using var worker = new HapticDispatchWorker(_ => failed.Set());
+    Check(worker.TrySubmit(() => throw new IOException("SDK failure")), "Call rejected.");
+    Check(failed.Wait(2000), "Failure not reported.");
+    Check(SpinWait.SpinUntil(() => worker.TrySubmit(() => recovered.Set()), 2000), "Worker did not recover.");
+    Check(recovered.Wait(2000), "Recovery call missing.");
+});
+Test("reserved pulses count only on completion and slow calls retain cooldown", () =>
+{
+    var scheduler = new HapticScheduler(new AudioSettings { MinimumSpacingMilliseconds = 90 });
+    var pulse = new[] { new HapticOnset("bass", 1, 0) };
+    Check(scheduler.Reserve(pulse, 0, 0).HasValue && scheduler.SentCount == 0, "Reservation counted as sent.");
+    scheduler.Complete(true, 500);
+    Check(scheduler.SentCount == 1, "Successful completion not counted.");
+    Check(!scheduler.Reserve(pulse, 0, 510).HasValue, "Slow completion allowed an immediate following pulse.");
+    Check(scheduler.Reserve(pulse, 0, 600).HasValue, "Cooldown never recovered.");
+    scheduler.Complete(false);
+    Check(scheduler.SentCount == 1 && scheduler.DroppedCount == 2, "Rejected/failed pulses counted as sent.");
+});
 Console.WriteLine($"{passed} audio regression checks passed. No capture or haptic device was used.");

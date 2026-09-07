@@ -15,6 +15,17 @@ internal sealed class HapticScheduler
     public HapticOnset? Dispatch(IReadOnlyList<HapticOnset> candidates, double audioNowMs,
         double monotonicNowMs, Action<string> send)
     {
+        var best = Reserve(candidates, audioNowMs, monotonicNowMs);
+        if (!best.HasValue) return null;
+        try { send(best.Value.EventName); }
+        catch { Complete(false); throw; }
+        Complete(true);
+        return best;
+    }
+
+    // Caller serializes reservations/completions; the backend call must run outside that lock.
+    public HapticOnset? Reserve(IReadOnlyList<HapticOnset> candidates, double audioNowMs, double monotonicNowMs)
+    {
         HapticOnset? best = null;
         foreach (var onset in candidates)
         {
@@ -30,10 +41,13 @@ internal sealed class HapticScheduler
         // Reserve the slot even if the backend throws, avoiding a tight retry loop.
         _lastSentMs = monotonicNowMs;
         LastEventAgeMilliseconds = audioNowMs - best.Value.AudioMilliseconds;
-        try { send(best.Value.EventName); }
-        catch { DroppedCount = SaturatingCounter.Add(DroppedCount, candidates.Count); throw; }
-        SentCount = SaturatingCounter.Add(SentCount, 1);
         DroppedCount = SaturatingCounter.Add(DroppedCount, candidates.Count - 1);
         return best;
+    }
+    public void Complete(bool sent, double? completedMilliseconds = null)
+    {
+        if (sent) SentCount = SaturatingCounter.Add(SentCount, 1);
+        else DroppedCount = SaturatingCounter.Add(DroppedCount, 1);
+        if (completedMilliseconds.HasValue) _lastSentMs = Math.Max(_lastSentMs, completedMilliseconds.Value);
     }
 }

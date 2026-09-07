@@ -285,7 +285,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
             var waveform = JsonSerializer.Deserialize<string>(buffer);
             if (waveform == null || !HapticPatterns.Presets.ContainsKey(waveform))
                 throw new ArgumentException("Unknown waveform.");
-            Json(context, new { Sent = _preview(HapticPatterns.Presets[waveform]) });
+            Json(context, new { Accepted = _preview(HapticPatterns.Presets[waveform]) });
         }
         else Json(context, new { Error = "Not found" }, 404);
     }
