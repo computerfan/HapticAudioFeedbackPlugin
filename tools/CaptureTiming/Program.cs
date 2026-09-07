@@ -21,7 +21,7 @@ render.Play();
 await Task.Delay(6000);
 original.StopRecording();
 responsive.StopRecording();
-// Dispose joins the capture threads before reading the result lists.
+// NAudio disposal joins its threads. The CPAL statistics freeze their own snapshot.
 original.Dispose();
 responsive.Dispose();
 render.Stop();
@@ -71,23 +71,42 @@ sealed class CaptureStats
 
 sealed class CpalStats
 {
+    readonly object _gate = new();
     readonly List<double> _batches = new(), _ages = new();
     readonly Stopwatch _clock = Stopwatch.StartNew();
     ulong _dropped;
-    public string? Error { get; private set; }
-    public int Count => _batches.Count;
+    string? _error;
+    bool _frozen;
+    public string? Error { get { lock (_gate) return _error; } }
+    public int Count { get { lock (_gate) return _batches.Count; } }
     public CpalStats(ISystemAudioCapture capture)
     {
         capture.DataAvailable += (_, e) => {
-            if (_clock.Elapsed.TotalMilliseconds < 1000) return;
-            _batches.Add(e.Samples.Length * 1000.0 / capture.SampleRate / capture.Channels);
-            _ages.Add(e.NewestSampleAgeMs);
-            _dropped = e.DroppedFrames;
+            lock (_gate)
+            {
+                if (_frozen || _clock.Elapsed.TotalMilliseconds < 1000) return;
+                _batches.Add(e.Samples.Length * 1000.0 / capture.SampleRate / capture.Channels);
+                _ages.Add(e.NewestSampleAgeMs);
+                _dropped = e.DroppedFrames;
+            }
         };
-        capture.RecordingStopped += (_, e) => Error = e.ToString();
+        capture.RecordingStopped += (_, e) => { lock (_gate) { if (!_frozen) _error = e.ToString(); } };
     }
-    static double? P(List<double> items, double q) => items.Count == 0 ? null : Math.Round(items.Order().ElementAt((int)Math.Ceiling((items.Count-1)*q)), 2);
-    public object Result() => new { Mode = "CPAL managed bridge", Callbacks = Count, Error,
-        BatchMedianMs = P(_batches,.5), BatchP95Ms = P(_batches,.95), NewestSampleAgeMedianMs = P(_ages,.5),
-        NewestSampleAgeP95Ms = P(_ages,.95), DroppedCaptureFrames = _dropped };
+    static double? P(double[] sorted, double q) => sorted.Length == 0 ? null : Math.Round(sorted[(int)Math.Ceiling((sorted.Length-1)*q)], 2);
+    public object Result()
+    {
+        double[] batches, ages;
+        ulong dropped;
+        string? error;
+        lock (_gate)
+        {
+            // StopRecording need not wait for callbacks. Late callbacks must not mutate the report.
+            _frozen = true;
+            batches = _batches.ToArray(); ages = _ages.ToArray(); dropped = _dropped; error = _error;
+        }
+        Array.Sort(batches); Array.Sort(ages);
+        return new { Mode = "CPAL managed bridge", Callbacks = batches.Length, Error = error,
+            BatchMedianMs = P(batches,.5), BatchP95Ms = P(batches,.95), NewestSampleAgeMedianMs = P(ages,.5),
+            NewestSampleAgeP95Ms = P(ages,.95), DroppedCaptureFrames = dropped };
+    }
 }

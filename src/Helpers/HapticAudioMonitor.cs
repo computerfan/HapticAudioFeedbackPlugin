@@ -23,6 +23,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     private readonly List<HapticOnset> _candidates = new();
     private ISystemAudioCapture _capture;
     private readonly CaptureStartup _captureStartup;
+    private readonly CaptureRecovery _recovery;
     private bool _stopped, _permissionDenied;
     private AudioOnsetDetector _detector;
     private HapticScheduler _scheduler;
@@ -46,6 +47,12 @@ internal sealed class HapticAudioMonitor : IDisposable
         _binaryDirectory = binaryDirectory;
         _scheduler = new HapticScheduler(_settings);
         _captureStartup = new CaptureStartup(_settingsGate);
+        _recovery = new CaptureRecovery(_settingsGate, () =>
+        {
+            if (_stopped || !CaptureRecovery.IsDefaultSource(_settings.CaptureDeviceId)) return;
+            PluginLog.Info("Reopening system-default audio capture after a device change or capture failure.");
+            RestartCapture(automatic: true);
+        }, ex => PluginLog.Warning(ex, "Automatic capture recovery failed."));
         _dispatch = new HapticDispatchWorker(ex => PluginLog.Warning(ex, "Haptic dispatch worker failed."));
     }
 
@@ -71,6 +78,7 @@ internal sealed class HapticAudioMonitor : IDisposable
                         _captureError = ex.Message + " Check the selected device and recording permission, then retry capture.";
                     }
                     PluginLog.Warning(ex, "Could not start audio capture.");
+                    RequestRecovery(null);
                 }, ex => PluginLog.Warning(ex, "Could not dispose a cancelled capture attempt."));
         }
     }
@@ -87,9 +95,10 @@ internal sealed class HapticAudioMonitor : IDisposable
     }
     internal object ListDevices() => new { Devices = OperatingSystem.IsMacOS()
         ? MacAudioCapture.ListDevices(_binaryDirectory) : CpalAudioCapture.ListDevices(_binaryDirectory) };
-    internal void RestartCapture()
+    internal void RestartCapture() => RestartCapture(automatic: false);
+    private void RestartCapture(bool automatic)
     {
-        lock (_settingsGate) { _captureStartup.Cancel(); StopCapture(); lock (_gate) { _latest = new(); _maxBufferMs = 0; } Start(); }
+        lock (_settingsGate) { _recovery.Cancel(resetBackoff: !automatic); _captureStartup.Cancel(); StopCapture(); lock (_gate) { _latest = new(); _maxBufferMs = 0; } Start(); }
     }
     private void ResetDetector()
     {
@@ -112,6 +121,7 @@ internal sealed class HapticAudioMonitor : IDisposable
                 if (e.Samples.Length % _capture.Channels != 0)
                     throw new InvalidOperationException("Loopback buffer contains an incomplete audio frame.");
                 _signal.Observe(e.Samples.Span, DateTime.UtcNow);
+                _recovery.ResetBackoff();
                 var now = _clock.Elapsed.TotalMilliseconds;
                 var lockWaitMs = now - callbackEntryMs;
                 var callbackGapMs = callbackEntryMs - _lastAudioMs;
@@ -243,17 +253,22 @@ internal sealed class HapticAudioMonitor : IDisposable
         var nextRevision = checked(_settingsRevision + 1);
         var copy = settings.Copy();
         copy.EnableDebugServer = false;
-        bool deviceChanged;
+        bool restartRequired;
         AudioOnsetDetector detector;
         lock (_gate)
         {
-            deviceChanged = copy.CaptureDeviceId != _settings.CaptureDeviceId;
             detector = _capture == null ? null : new AudioOnsetDetector(_capture.SampleRate, _capture.Channels, copy);
         }
         // SDK persistence can block. Keep it outside the audio callback lock.
         _saveSettings(copy);
         lock (_gate)
         {
+            // Recheck after persistence: capture may recover or fail while the save is pending.
+            // Silent PCM is still healthy capture; use packet arrival, not signal amplitude.
+            var receivingAudio = _capture != null && _captureError == null && _signal.Packets > 0 &&
+                _clock.Elapsed.TotalMilliseconds - _lastAudioMs <= 1000;
+            restartRequired = CaptureRecovery.NeedsRestart(_settings.CaptureDeviceId, copy.CaptureDeviceId,
+                _settings.Enabled, copy.Enabled, receivingAudio);
             _settings = copy;
             _settingsRevision = nextRevision;
             _detector = detector;
@@ -261,7 +276,7 @@ internal sealed class HapticAudioMonitor : IDisposable
             _candidates.Clear();
             _suppressUntilMs = _clock.Elapsed.TotalMilliseconds + 400;
         }
-        if (deviceChanged) RestartCapture();
+        if (restartRequired) RestartCapture();
         PluginLog.Info("Audio controls applied and saved through SDK settings.");
     }
 
@@ -358,6 +373,17 @@ internal sealed class HapticAudioMonitor : IDisposable
         _scheduler.Complete(false);
         return false;
     }
+    private void RequestRecovery(ISystemAudioCapture failedCapture)
+    {
+        lock (_settingsGate)
+        {
+            if (_stopped || !(OperatingSystem.IsWindows() || (OperatingSystem.IsMacOS() && failedCapture != null)) ||
+                !CaptureRecovery.IsDefaultSource(_settings.CaptureDeviceId)) return;
+            lock (_gate)
+                if (!ReferenceEquals(failedCapture, _capture) || _permissionDenied) return;
+            _recovery.Schedule();
+        }
+    }
     private void OnRecordingStopped(object sender, Exception error)
     {
         lock (_gate)
@@ -366,8 +392,9 @@ internal sealed class HapticAudioMonitor : IDisposable
             _captureError = error.Message;
             _permissionDenied = CapturePermissionException.IsDenied(error);
             _captureMode = "stopped";
-            PluginLog.Error(error, "Audio capture stopped. Check the output device or permission, then retry capture.");
+            PluginLog.Error(error, "Audio capture stopped. System-default sources recover automatically; selected devices can be retried in settings.");
         }
+        RequestRecovery(sender as ISystemAudioCapture);
     }
     private void StopCapture()
     {
@@ -391,7 +418,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     }
     public void Stop()
     {
-        lock (_settingsGate) { lock (_gate) _stopped = true; _dispatch.Dispose(); _captureStartup.Cancel(); StopCapture(); }
+        lock (_settingsGate) { lock (_gate) _stopped = true; _dispatch.Dispose(); _recovery.Dispose(); _captureStartup.Cancel(); StopCapture(); }
         lock (_diagnosticsGate)
         {
             var server = _debugServer;

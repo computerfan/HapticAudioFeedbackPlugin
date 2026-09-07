@@ -102,5 +102,6 @@ if (args.Length == 2 && args[0] == "--device-smoke") {
     using(var restored=new CpalAudioCapture(directory)) {restored.StartRecording();Check(restored.Channels>0,"default capture opens after selected-device shutdown");}
 }
 await CaptureStartupChecks.Run(Check);
+await CaptureRecoveryChecks.Run(Check);
 await ProcessCaptureChecks.Run(Check);
 Console.WriteLine($"{checks} capture bridge checks passed; no haptic events sent (live audio only with --device-smoke).");

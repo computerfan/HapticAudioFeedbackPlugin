@@ -2,6 +2,7 @@
 //! LaunchServices uses a private Unix socket; CLI mode uses stdout/stdin.
 //! The transport carries bounded startup errors or PCM; input EOF stops capture.
 use haptic_cpal::*;
+use cpal::traits::{DeviceTrait, HostTrait};
 use std::io::{self, Read, Write};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -22,10 +23,26 @@ fn watch_parent(mut input: impl Read + Send + 'static, stop: Arc<AtomicBool>) {
 fn run_capture(key: &str, mut output: impl Write, input: impl Read + Send + 'static) -> Result<(), String> {
     let stopped = Arc::new(AtomicBool::new(false));
     watch_parent(input, stopped.clone());
-    devices::selection(key)?;
+    let (_, selected) = devices::selection(key)?;
+    let follow_default = cfg!(target_os = "macos") && selected == "default";
+    // Pin the initial lookup to the exact device opened; compare the default later.
+    let capture_key = if follow_default {
+        match default_key(key) {
+            Ok(value) => value,
+            Err(error) => {
+                let error: String = error.chars().take(512).collect();
+                output.write_all(b"HCE1").map_err(|e| e.to_string())?;
+                output.write_all(&(error.len() as u32).to_le_bytes()).map_err(|e| e.to_string())?;
+                output.write_all(error.as_bytes()).map_err(|e| e.to_string())?;
+                output.flush().map_err(|e| e.to_string())?;
+                return Err(error);
+            }
+        }
+    } else { key.to_owned() };
+    let mut next_device_check = std::time::Instant::now() + std::time::Duration::from_millis(500);
     let mut format = Format::default();
     let mut error = [0u8; 2048];
-    let handle = unsafe { haptic_cpal_open_device(key.as_ptr(), key.len() as u32, &mut format, error.as_mut_ptr(), error.len() as u32) };
+    let handle = unsafe { haptic_cpal_open_device(capture_key.as_ptr(), capture_key.len() as u32, &mut format, error.as_mut_ptr(), error.len() as u32) };
     let message = |error: &[u8]| String::from_utf8_lossy(&error[..error.iter().position(|b| *b == 0).unwrap_or(error.len())]).into_owned();
     if handle.is_null() {
         let detail = message(&error);
@@ -48,6 +65,12 @@ fn run_capture(key: &str, mut output: impl Write, input: impl Read + Send + 'sta
     let mut samples = vec![0f32; format.capacity as usize];
     let mut bytes = Vec::with_capacity(samples.len() * 4 + 32);
     while !stopped.load(Ordering::Relaxed) {
+        if follow_default && std::time::Instant::now() >= next_device_check {
+            next_device_check = std::time::Instant::now() + std::time::Duration::from_millis(500);
+            if default_changed(&capture_key, default_key(key).ok().as_deref()) {
+                return Err("System default audio device changed; reopen capture.".into());
+            }
+        }
         let mut packet = Packet::default();
         let result = unsafe { haptic_cpal_read(handle, samples.as_mut_ptr(), samples.len() as u32, &mut packet, error.as_mut_ptr(), error.len() as u32) };
         if result < 0 { return Err(message(&error)); }
@@ -66,6 +89,16 @@ fn run_capture(key: &str, mut output: impl Write, input: impl Read + Send + 'sta
     }
     Ok(())
 }
+fn default_key(key: &str) -> Result<String, String> {
+    let (input, _) = devices::selection(key)?;
+    let host = cpal::default_host();
+    let device = if input { host.default_input_device() } else { host.default_output_device() }
+        .ok_or("System default audio device is unavailable.")?;
+    let id = device.id().map_err(|error| error.to_string())?;
+    Ok(format!("{}:{id}", if input { "input" } else { "output" }))
+}
+fn default_changed(opened: &str, current: Option<&str>) -> bool { current != Some(opened) }
+
 fn run() -> Result<(), String> {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args == ["--list-devices"] {
@@ -92,6 +125,13 @@ mod tests {
     use std::process::{Command, Stdio};
     use std::time::{Duration, Instant};
 
+    #[test]
+    fn default_tracking_handles_switch_disconnect_and_unchanged_device() {
+        assert!(!default_changed("output:CoreAudio:speakers", Some("output:CoreAudio:speakers")));
+        assert!(default_changed("output:CoreAudio:speakers", Some("output:CoreAudio:headphones")));
+        assert!(default_changed("output:CoreAudio:headphones", None));
+        assert!(default_changed("input:CoreAudio:built-in", Some("input:CoreAudio:headset")));
+    }
     #[test]
     fn watchdog_child() {
         let Ok(mode) = std::env::var("FTR_WATCHDOG_TEST") else { return };
