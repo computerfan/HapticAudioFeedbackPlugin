@@ -1,4 +1,4 @@
-# Marketplace submission draft — v0.5.3
+# Marketplace submission draft — v0.5.4
 
 | Field | Value |
 | --- | --- |
@@ -7,7 +7,7 @@
 | Operating systems | Windows; macOS (experimental) |
 | Support | https://github.com/computerfan/HapticAudioFeedbackPlugin/issues |
 | Homepage | https://github.com/computerfan/HapticAudioFeedbackPlugin |
-| Version | v0.5.3 |
+| Version | v0.5.4 |
 | Content licence | MIT |
 | Licence URL | https://opensource.org/licenses/MIT |
 | Copyright | Copyright © 2026 computerfan. All rights reserved. |
@@ -34,14 +34,13 @@ Windows x64; macOS experimental.
 [Setup](https://github.com/computerfan/HapticAudioFeedbackPlugin) · [Support](https://github.com/computerfan/HapticAudioFeedbackPlugin/issues)
 ```
 
-## Release Notes (360/1000)
+## Release Notes (358/1000)
 
 ```text
-Version 0.5.3
-- Turning haptics off now stops audio capture and analysis; turning it on resumes capture.
-- Reduced live-update traffic while paused.
-- Added plugin version and build commit to the browser footer and startup log.
-- Expanded macOS setup guidance and added feature screenshots.
+Version 0.5.4
+- Ordinary silence after receiving audio no longer shows the macOS permission banner.
+- Streams without detected audio show No signal; explicit permission errors remain visible.
+- Reduced padding around the macOS capture helper icon for better legibility in System Settings.
 
 Windows x64 supported; macOS experimental (Intel and Apple Silicon).
 ```

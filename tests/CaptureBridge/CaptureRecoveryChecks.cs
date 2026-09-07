@@ -18,14 +18,22 @@ internal static class CaptureRecoveryChecks
             "changing source while disabled never opens capture");
         var gate = new object();
         var calls = 0;
-        using (var recovery = new CaptureRecovery(gate, () => Interlocked.Increment(ref calls), _ => { }, new[] { 30 }))
+        var firstRecovery = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using (var recovery = new CaptureRecovery(gate, () => {
+            Interlocked.Increment(ref calls);
+            firstRecovery.TrySetResult();
+        }, ex => firstRecovery.TrySetException(ex), new[] { 30 }))
         {
-            for (var i=0;i<100;i++) recovery.Schedule();
-            await Task.Delay(150);
+            // A single burst must finish before its timer is allowed to fire.
+            // Slow runners can otherwise split this loop into multiple valid recoveries.
+            lock (gate) { for (var i=0;i<100;i++) recovery.Schedule(); }
+            await firstRecovery.Task.WaitAsync(TimeSpan.FromSeconds(5));
             check(calls == 1, "device-change burst schedules exactly one recovery");
-            recovery.Schedule(); recovery.Cancel(); await Task.Delay(100);
+            lock (gate) { recovery.Schedule(); recovery.Cancel(); }
+            await Task.Delay(100);
             check(calls == 1, "manual source change cancels pending recovery");
-            recovery.Schedule(); recovery.Dispose(); await Task.Delay(100);
+            lock (gate) { recovery.Schedule(); recovery.Dispose(); }
+            await Task.Delay(100);
             check(calls == 1, "plugin unload cancels pending recovery");
         }
         var attempts = new List<long>();
