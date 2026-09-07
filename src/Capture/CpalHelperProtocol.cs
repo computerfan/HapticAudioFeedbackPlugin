@@ -12,6 +12,23 @@ public sealed class CpalHelperProtocol
     private readonly byte[] _bytes;
     private readonly float[] _samples;
     private bool _skipped;
+    public static async Task<CpalHelperProtocol> ReadHandshakeAsync(Stream stream, CancellationToken cancellationToken)
+    {
+        var header = new byte[24];
+        await stream.ReadExactlyAsync(header.AsMemory(0, 4), cancellationToken).ConfigureAwait(false);
+        if (header.AsSpan(0, 4).SequenceEqual("HCE1"u8))
+        {
+            var lengthBytes = new byte[4];
+            await stream.ReadExactlyAsync(lengthBytes, cancellationToken).ConfigureAwait(false);
+            var length = BinaryPrimitives.ReadUInt32LittleEndian(lengthBytes);
+            if (length > 4096) throw new IOException("Invalid helper error length.");
+            var message = new byte[(int)length];
+            await stream.ReadExactlyAsync(message, cancellationToken).ConfigureAwait(false);
+            throw new IOException(System.Text.Encoding.UTF8.GetString(message));
+        }
+        await stream.ReadExactlyAsync(header.AsMemory(4), cancellationToken).ConfigureAwait(false);
+        return new CpalHelperProtocol(header);
+    }
     public CpalHelperProtocol(ReadOnlySpan<byte> header)
     {
         if (header.Length != 24 || !header[..4].SequenceEqual("HCP1"u8)) throw new IOException("Invalid CPAL helper protocol.");

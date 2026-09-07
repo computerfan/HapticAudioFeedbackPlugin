@@ -47,9 +47,11 @@ SDK action tests require the installed SDK and use a simulated controller. Brows
 
 The capture bridge has an optional `--device-smoke <plugin-bin-directory>` mode for live Windows device enumeration and playback capture checks. Real hardware testing must separately verify audio permissions, profile usability, and physical haptic response.
 
-## macOS assets
+## Experimental macOS assets (unsupported)
 
-The Mac adapter starts the bundled `Feel the Rhythm Capture.app` helper. Its embedded and bundled `Info.plist` declares system-audio and microphone usage. Audio passes through a private parent/child pipe, and plugin shutdown terminates the helper. macOS may attribute recording permission to the responsible parent application; verify the prompt on real hardware.
+Windows x64 is the only officially supported platform and the current development priority. CI continues building and testing both Mac architectures; Mac payloads remain available for experimental testing.
+
+The experimental adapter launches `Feel the Rhythm Capture.app` through LaunchServices and transfers PCM over a private Unix socket. Permission attribution and live capture remain unverified; see [the investigation](macos-capture-diagnostics.md).
 
 On a Mac:
 
@@ -60,7 +62,7 @@ python3 tools/build_cpal.py --target aarch64-apple-darwin --output native/prebui
 python3 tools/build_cpal.py --target x86_64-apple-darwin --output native/prebuilt
 ```
 
-Ordinary builds generate native assets for the build host. `-p:BuildCpalNative=false` uses existing assets from `native/prebuilt`; `-p:RequireAllCpalAssets=true` requires Windows x64 and both Mac architectures. The generated manifest advertises Mac support only when helper assets are present.
+Ordinary builds generate native assets for the build host. `-p:BuildCpalNative=false` uses existing assets from `native/prebuilt`; `-p:RequireAllCpalAssets=true` requires Windows x64 and both Mac architectures. The generated manifest includes Mac compatibility when helper assets are present; this enables experimental installation, not an official support guarantee.
 
 The helper uses an ad-hoc development signature. Public Mac distribution requires a Developer ID signing/notarization process and permission-persistence testing. Do not modify the installed Logitech application bundle.
 
@@ -92,7 +94,7 @@ Do not expose a haptic output selector until a supported targeting API is availa
 
 ## Settings and local browser
 
-See [Plugin data folder](../README.md#plugin-data-folder) for copyable Windows and macOS paths and instructions for opening them. The plugin obtains the actual directory from the SDK's [`GetPluginDataDirectory()`](https://logitech.github.io/actions-sdk-docs/csharp/plugin-features/storing-plugin-data/). It places `Open Haptic Settings.html` and the `logs` subfolder there. The Windows location has been verified locally; the expected Mac path combines the [documented service directory](https://logitech.github.io/actions-sdk-docs/csharp/plugin-development/introduction/) with the plugin-data layout and still needs Mac verification.
+See [Plugin data folder](../README.md#plugin-data-folder) for the Windows path and instructions for opening it. The plugin obtains the actual directory from the SDK's [`GetPluginDataDirectory()`](https://logitech.github.io/actions-sdk-docs/csharp/plugin-features/storing-plugin-data/). It places `Open Haptic Settings.html` and the `logs` subfolder there. The Windows location has been verified locally; the expected Mac path combines the [documented service directory](https://logitech.github.io/actions-sdk-docs/csharp/plugin-development/introduction/) with the plugin-data layout and still needs Mac verification.
 
 The SDK stores preferences under `AudioSettingsV1` and custom profiles under `CustomAudioProfilesV1`, with online backup disabled. Legacy preferences are imported once when SDK settings are absent. Save failures preserve live state; invalid or newer stored documents are retained. Paths use the SDK's `AssemblyFilePath`, because the host may load assemblies without an `Assembly.Location`.
 
@@ -123,7 +125,7 @@ This compares original NAudio, responsive NAudio, and the packaged CPAL bridge o
 
 Runtime diagnostic logs live in the plugin data directory's `logs` folder: `feel-the-rhythm.log` and two rotated archives. Each file is capped at 512 KiB (1.5 MiB total). Rotation touches only those three filenames. The writer uses a 64-entry queue, retains at most 2,048 characters per message, and accepts at most 30 entries per 60-second window. Duplicate messages are suppressed within that window; the next accepted entry summarizes suppressed messages. Audio callbacks never wait for disk I/O. There are no per-frame log writes.
 
-Storage failures do not interrupt capture or settings. The writer backs off for 60 seconds, and the browser's Diagnostics panel shows logging failures and suppressed counts. Mac helper stderr is continuously drained with only its first 4,096 characters retained. Logitech's own host logs have separate retention outside this plugin's control; the plugin sends one log-location entry to the SDK per load.
+Storage failures do not interrupt capture or settings. The writer backs off for 60 seconds, and the browser's Diagnostics panel shows logging failures and suppressed counts. Experimental Mac capture startup errors use a bounded socket response; enumeration stderr retains at most 4,096 characters. Logitech's own host logs have separate retention outside this plugin's control; the plugin sends one log-location entry to the SDK per load.
 
 Sent, dropped, and suppressed counters saturate at their 64-bit limits instead of wrapping. The metrics API sends counters as decimal strings so JavaScript does not lose precision above `2^53 - 1`. The browser uses `BigInt`, compact labels, and exact totals in tooltips; a `+` marks a saturated counter. The chart retains at most 2,560 detector frames and 256 onset markers. Settings and profile revisions reject further writes at their limit while preserving existing data.
 
@@ -145,12 +147,12 @@ dotnet run --project tests/Robustness -c Release
 | Build and validate package | Combine all three native archives; build with deployment disabled; SDK action tests; SDK package verification; native architecture, permission, and license checks |
 | CI | Aggregate result; fails if a required job failed, was cancelled, or was skipped |
 
-LogiPluginTool is pinned to 6.1.4.22672. A successful run uploads `Feel-the-Rhythm-<commit SHA>` with the combined `.lplug4` package for 14 days; native archives remain for seven days. Artifacts are development builds, not published or notarized releases. Select **CI** in branch protection when configuring required checks.
+LogiPluginTool is pinned to 6.1.4.22672. A successful run uploads `Feel-the-Rhythm-<commit SHA>` with the combined `.lplug4` test package for 14 days; native archives remain for seven days. Artifacts are development builds, not published or notarized releases. Select **CI** in branch protection when configuring required checks.
 
 Additional local checks:
 
 ```powershell
-# Combined package must include Windows x64 and both Mac architectures:
+# Combined test package must include Windows x64 and both Mac architectures:
 python tools/verify_package.py ./HapticAudioFeedbackPlugin.lplug4 --require-all
 # Requires Go 1.25+:
 go run github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
@@ -168,7 +170,7 @@ git tag -a v0.5.0 -m "Feel the Rhythm 0.5.0"
 git push origin v0.5.0
 ```
 
-The release reuses the full CI pipeline at the tagged commit. Only after all checks pass does it upload `Feel-the-Rhythm-0.5.0.lplug4` and publish a GitHub Release with generated notes. Windows x64 and both Mac architectures are combined in this one asset; macOS remains experimental. Native archives and other CI artifacts are not attached to the release. GitHub still supplies its automatic source-code ZIP and tarball links.
+The release reuses the full CI pipeline at the tagged commit. Only after all checks pass does it upload `Feel-the-Rhythm-0.5.0.lplug4` and publish a GitHub Release with generated notes. Windows x64 is officially supported. Mac payloads are included for experimental testing only, without official support. Native archives and other CI artifacts are not attached to the release. GitHub still supplies its automatic source-code ZIP and tarball links.
 
 No extra secret is needed: only the publishing job receives `contents: write` through `GITHUB_TOKEN`. Uploads happen while the release is a draft, and existing releases are never overwritten. If building fails, rerun the failed jobs. If publishing fails after creating a draft, delete that unpublished draft in GitHub (keep the tag), then rerun the failed publishing job. If the release is already published, leave it intact and use a new version for corrections. Do not move published version tags. Rerun the whole workflow if its package artifact has expired.
 

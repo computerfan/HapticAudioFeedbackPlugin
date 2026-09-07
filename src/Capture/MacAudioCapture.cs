@@ -2,6 +2,7 @@ namespace Loupedeck.HapticAudioFeedback;
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Net.Sockets;
 
 /// <summary>Uses the bundled CPAL helper app so audio permission belongs to its own bundle.</summary>
 public sealed class MacAudioCapture : ISystemAudioCapture
@@ -10,7 +11,8 @@ public sealed class MacAudioCapture : ISystemAudioCapture
     private readonly BinaryReader _reader;
     private readonly CancellationTokenSource _stop = new();
     private Thread _thread;
-    private Task<string> _stderr;
+    private Socket _connection;
+    private string _sessionDirectory;
     private bool _disposed;
     private readonly CpalHelperProtocol _protocol;
     public int SampleRate { get; }
@@ -21,31 +23,38 @@ public sealed class MacAudioCapture : ISystemAudioCapture
     public event EventHandler<Exception> RecordingStopped;
     public MacAudioCapture(string pluginBinaryDirectory, string deviceId = "")
     {
+        if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException("macOS capture is only available on macOS.");
         var executable = HelperPath(pluginBinaryDirectory);
-        _process = new Process { StartInfo = new ProcessStartInfo(executable) {
-            UseShellExecute = false, RedirectStandardInput = true, RedirectStandardOutput = true,
-            RedirectStandardError = true, CreateNoWindow = true } };
-        _process.StartInfo.ArgumentList.Add("--device");
-        _process.StartInfo.ArgumentList.Add(deviceId);
+        var bundle = Directory.GetParent(executable)!.Parent!.Parent!.FullName;
+        // LaunchServices gives the helper its own application identity for TCC.
+        // No TCP listener or PCM files: the socket lives in a private, short /tmp directory.
+        _process = new Process { StartInfo = new ProcessStartInfo("/usr/bin/open") {
+            UseShellExecute = false, CreateNoWindow = true } };
         try
         {
+            _sessionDirectory = "/tmp/ftr-" + Guid.NewGuid().ToString("N");
+            Directory.CreateDirectory(_sessionDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
+            var socketPath = Path.Combine(_sessionDirectory, "audio.sock");
+            using var listener = new Socket(AddressFamily.Unix, SocketType.Stream, ProtocolType.Unspecified);
+            listener.Bind(new UnixDomainSocketEndPoint(socketPath));
+            listener.Listen(1);
+            foreach (var argument in new[] { "-n", "-a", bundle, "--args", "--socket", socketPath, "--device", deviceId })
+                _process.StartInfo.ArgumentList.Add(argument);
             _process.Start();
-            _stderr = BoundedTextReader.DrainAsync(_process.StandardError, 4096, _stop.Token);
-            _reader = new BinaryReader(_process.StandardOutput.BaseStream);
-            var header = new byte[24];
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            _reader.BaseStream.ReadExactlyAsync(header, deadline.Token).AsTask().GetAwaiter().GetResult();
-            _protocol = new CpalHelperProtocol(header);
+            _process.WaitForExitAsync(deadline.Token).GetAwaiter().GetResult();
+            if (_process.ExitCode != 0) throw new IOException("macOS could not launch the capture app. Open Feel the Rhythm Capture.app once in Finder and check any launch message.");
+            _connection = listener.AcceptAsync(deadline.Token).AsTask().GetAwaiter().GetResult();
+            _reader = new BinaryReader(new NetworkStream(_connection, ownsSocket: false));
+            _protocol = CpalHelperProtocol.ReadHandshakeAsync(_reader.BaseStream, deadline.Token).GetAwaiter().GetResult();
             SampleRate = _protocol.SampleRate;
             Channels = _protocol.Channels;
-            Mode = "CPAL CoreAudio helper" + (_protocol.DefaultBuffer ? " (device-default buffer)" : " (20 ms target)");
+            Mode = "CPAL CoreAudio app via LaunchServices" + (_protocol.DefaultBuffer ? " (device-default buffer)" : " (20 ms target)");
         }
         catch (Exception ex)
         {
-            string detail = null;
-            if (HasExited()) detail = ErrorDetail();
             Dispose();
-            throw new IOException("Could not start system audio capture. " + (string.IsNullOrWhiteSpace(detail) ? ex.Message : detail.Trim()), ex);
+            throw new IOException("Could not start audio capture. " + ex.Message, ex);
         }
     }
     private static string HelperPath(string pluginBinaryDirectory)
@@ -79,8 +88,6 @@ public sealed class MacAudioCapture : ISystemAudioCapture
             if (!process.HasExited) { process.Kill(); process.WaitForExit(); }
         }
     }
-    private string ErrorDetail() { try { return _stderr?.GetAwaiter().GetResult()?.Trim(); } catch { return null; } }
-    private bool HasExited() { try { return _process.HasExited; } catch { return false; } }
     public void StartRecording()
     {
         ObjectDisposedException.ThrowIf(_disposed, this);
@@ -103,22 +110,25 @@ public sealed class MacAudioCapture : ISystemAudioCapture
         {
             if (!_stop.IsCancellationRequested)
             {
-                var detail = HasExited() ? ErrorDetail() : null;
-                RecordingStopped?.Invoke(this, new IOException(string.IsNullOrWhiteSpace(detail) ? ex.Message : detail, ex));
+                RecordingStopped?.Invoke(this, new IOException("Capture app disconnected: " + ex.Message, ex));
             }
         }
     }
     public void StopRecording()
     {
         _stop.Cancel();
-        try { _process.StandardInput.Close(); } catch (InvalidOperationException) { }
-        try
-        {
-            if (!_process.WaitForExit(1500)) { _process.Kill(); _process.WaitForExit(); }
-        }
-        catch (InvalidOperationException) { }
+        try { if (!_process.HasExited) _process.Kill(); } catch (InvalidOperationException) { }
+
+        // EOF stops the helper; closing also unblocks a pending PCM read.
+        try { _connection?.Shutdown(SocketShutdown.Both); } catch (SocketException) { } catch (ObjectDisposedException) { }
+        _connection?.Dispose();
         if (_thread?.IsAlive == true && Thread.CurrentThread != _thread) _thread.Join();
         _reader?.Dispose();
+        if (_sessionDirectory != null)
+        {
+            try { File.Delete(Path.Combine(_sessionDirectory, "audio.sock")); Directory.Delete(_sessionDirectory); }
+            catch (IOException) { } catch (UnauthorizedAccessException) { }
+        }
     }
     public void Dispose()
     {

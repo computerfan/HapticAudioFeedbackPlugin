@@ -1,6 +1,16 @@
 using Loupedeck.HapticAudioFeedback;
 var checks = 0;
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); checks++; Console.WriteLine("PASS " + message); }
+var signal = new CaptureSignalDiagnostics();
+var now = DateTime.UtcNow;
+signal.Observe(ReadOnlySpan<float>.Empty, now);
+Check(signal.Packets == 0 && signal.LastPacketUtc == null, "empty callback is not received audio");
+signal.Observe(new float[] { 0, 0, float.NaN, float.PositiveInfinity }, now);
+Check(signal.Packets == 1 && signal.Samples == 4 && signal.PeakDb == -180 && signal.LastSignalUtc == null, "silent and invalid samples do not claim a signal");
+signal.Observe(new float[] { -.5f, .25f }, now.AddSeconds(1));
+Check(Math.Abs(signal.PeakDb + 6.0206) < .001 && signal.LastSignalUtc == now.AddSeconds(1), "raw peak detects signal independently of onset thresholds");
+signal.Observe(new float[] { 0, 0 }, now.AddSeconds(2));
+Check(signal.LastPacketUtc == now.AddSeconds(2) && signal.LastSignalUtc == now.AddSeconds(1) && signal.Samples == 8, "silence advances packets but preserves last signal time");
 var root = Path.Combine(Path.GetTempPath(), "haptic-log-tests-" + Guid.NewGuid().ToString("N"));
 Directory.CreateDirectory(root);
 try {

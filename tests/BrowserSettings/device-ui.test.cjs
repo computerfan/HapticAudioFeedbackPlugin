@@ -30,7 +30,8 @@ function harness(){
  const context=vm.createContext({document,URLSearchParams,navigator:{languages:['en-US']},location:{hash:'',pathname:'/',search:''},sessionStorage:{getItem(){return 'test';}},window:{addEventListener(){},history:{replaceState(){}}},structuredClone,setTimeout(){return 1;},clearTimeout(){},console,
  fetch:async(path,options={})=>{
   let body,ok=true;
-  if(path==='/locales/zh-CN.json'){ok=!state.failLocale;body=chinese;}
+  if(path==='/metrics'){body=state.metrics||{};}
+  else if(path==='/locales/zh-CN.json'){ok=!state.failLocale;body=chinese;}
   else if(path==='/devices'){body=state.enumerationError?{Error:'Device service unavailable'}:{Devices:devices};ok=!state.enumerationError;}
   else if(options.method==='POST'){
    assert.equal(options.headers['X-Haptic-Token'],'test');
@@ -173,6 +174,18 @@ function harness(){
  for(let batch=0;batch<12;batch++){const points=Array.from({length:256},(_,i)=>frame(batch*256+i+1000,now-11000+batch*256+i,-30,'bass'));tabs.run(`acceptMetrics({RecentAudio:${JSON.stringify(points)}},${now})`);}
  assert.equal(tabs.run('history.length'),2560);assert.ok(tabs.run('onsetMarkers.size')<=256);
  tabs.run(`acceptMetrics({},${now+13000})`);assert.equal(tabs.run('history.length'),0);assert.equal(tabs.run('onsetMarkers.size'),0);
+ const monitor=harness();
+ const time=new Date().toISOString();
+ monitor.state.metrics={Enabled:true,AudioReceived:false,CapturePackets:'0',CaptureSamples:'0'};
+ await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'Waiting for audio');
+ monitor.state.metrics={Enabled:true,AudioReceived:true,Timestamp:time,LastPacketUtc:time,RawPeakDb:-180,CapturePackets:'9007199254740993',CaptureSamples:'9223372036854775807'};
+ await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'Silent audio');
+ assert.ok(monitor.el('captureSignal').textContent.includes('9223372036854775807'));
+ monitor.state.metrics.LastSignalUtc=time;
+ await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'Listening');
+ monitor.state.metrics.LastPacketUtc=new Date(Date.now()-5000).toISOString();
+ await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'No audio packets');
+ console.log('PASS monitor distinguishes missing packets, silent PCM and signal without losing counter precision');
  console.log('PASS accessible tabs preserve drafts, detector-frame deduplication/bounds, canvas dot-to-trace alignment, capture gaps and chart scaling');
 
 

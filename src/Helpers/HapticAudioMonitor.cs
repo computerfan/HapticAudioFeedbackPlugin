@@ -11,6 +11,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     private readonly Action<AudioSettings> _saveSettings;
     private readonly object _settingsGate = new(), _diagnosticsGate = new();
     private HapticMonitorSample _latest = new();
+    private CaptureSignalDiagnostics _signal = new();
     private readonly OnsetHistory _onsetHistory = new();
     private readonly AudioTraceHistory _traceHistory = new();
     private int _settingsRevision;
@@ -66,7 +67,7 @@ internal sealed class HapticAudioMonitor : IDisposable
                         catch (Exception last) { StopCapture(); _captureError = last.Message; }
                     }
                 }
-                else _captureError = ex.Message + (OperatingSystem.IsMacOS() ? " Check audio recording permission for Feel the Rhythm Audio Capture (or the responsible host shown by macOS), then retry capture." : " Select an available audio device, then retry capture.");
+                else _captureError = ex.Message + (OperatingSystem.IsMacOS() ? " Check the selected audio device and System Audio Recording Only permission for Feel the Rhythm Audio Capture, then retry. This error alone does not establish a permission denial." : " Select an available audio device, then retry capture.");
             }
             if (_captureError != null) { _captureMode = "unavailable"; PluginLog.Warning(_captureError); }
         }
@@ -77,12 +78,13 @@ internal sealed class HapticAudioMonitor : IDisposable
     private void StartCapture(ISystemAudioCapture capture)
     {
         _capture = capture;
+        lock (_gate) _signal = new();
         ResetDetector();
         _captureMode = capture.Mode;
         capture.DataAvailable += OnDataAvailable;
         capture.RecordingStopped += OnRecordingStopped;
         capture.StartRecording();
-        PluginLog.Info($"Audio capture started: {_captureMode}, {capture.SampleRate} Hz, {capture.Channels} channels.");
+        PluginLog.Info($"Audio stream opened (signal not yet verified): {_captureMode}, {capture.SampleRate} Hz, {capture.Channels} channels.");
     }
     internal object ListDevices() => new { Devices = OperatingSystem.IsMacOS()
         ? MacAudioCapture.ListDevices(_binaryDirectory) : CpalAudioCapture.ListDevices(_binaryDirectory) };
@@ -110,6 +112,7 @@ internal sealed class HapticAudioMonitor : IDisposable
             {
                 if (e.Samples.Length % _capture.Channels != 0)
                     throw new InvalidOperationException("Loopback buffer contains an incomplete audio frame.");
+                _signal.Observe(e.Samples.Span, DateTime.UtcNow);
                 var now = _clock.Elapsed.TotalMilliseconds;
                 var lockWaitMs = now - callbackEntryMs;
                 var callbackGapMs = callbackEntryMs - _lastAudioMs;
@@ -186,6 +189,11 @@ internal sealed class HapticAudioMonitor : IDisposable
         lock (_gate)
         {
             var sample = _latest.Copy();
+            sample.CapturePackets = _signal.Packets;
+            sample.CaptureSamples = _signal.Samples;
+            sample.LastPacketUtc = _signal.LastPacketUtc;
+            sample.LastSignalUtc = _signal.LastSignalUtc;
+            sample.RawPeakDb = _signal.PeakDb;
             sample.Enabled = _settings.Enabled;
             sample.LoggingError = PluginLog.LoggingError;
             sample.LogSuppressedCount = PluginLog.SuppressedCount;
@@ -315,6 +323,7 @@ internal sealed class HapticAudioMonitor : IDisposable
             capture = _capture;
             _capture = null;
             _latest = new HapticMonitorSample();
+            _signal = new();
             if (capture != null)
             {
                 capture.DataAvailable -= OnDataAvailable;

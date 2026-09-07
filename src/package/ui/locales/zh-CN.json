@@ -255,5 +255,12 @@
   "Diamonds mark sudden increases in audio level. Attack contrast sets the required rise over about 20 ms, so these can happen below the dashed line.": "菱形表示音频电平突然上升。起音对比设置约 20 毫秒内所需的上升幅度，因此可在虚线下方触发。",
   "Off": "已关闭",
   "Circle: level trigger. Diamond: rapid-rise trigger, which can happen below the dashed threshold. Color shows bass or detail. Select a legend to find its controls. Markers show sent attacks; not every crossing sends a pulse.": "圆点：电平触发。菱形：快速上升触发，可能发生在虚线下方。颜色区分低音与细节。点击图例可找到相应设置。标记表示已发送的起音；并非每次穿越阈值都会发送脉冲。",
-  "Shape the envelopes and timing limits. Band and trigger controls are in Tune; related limits adjust together to stay valid.": "调整包络形状与时间限制。频段和触发设置位于“常用调节”；关联参数会同步调整以保持有效。"
+  "Shape the envelopes and timing limits. Band and trigger controls are in Tune; related limits adjust together to stay valid.": "调整包络形状与时间限制。频段和触发设置位于“常用调节”；关联参数会同步调整以保持有效。",
+  "No audio packets": "没有音频数据包",
+  "Silent audio": "音频静音",
+  "Audio packets are arriving, but no signal is detected. Check playback routing and recording permission; silence alone does not prove permission was denied.": "已收到音频数据包，但未检测到信号。请检查播放设备和录音权限；仅凭静音不能确定权限被拒绝。",
+  "Audio signal detected. Feel for pulses around the attacks.": "已检测到音频信号，留意起音附近的触感脉冲。",
+  "Packets": "数据包",
+  "Samples": "样本",
+  "Raw peak": "原始峰值"
 }

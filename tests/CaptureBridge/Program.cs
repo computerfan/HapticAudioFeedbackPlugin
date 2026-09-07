@@ -16,6 +16,16 @@ MemoryStream Packet(double time, uint count = 4) {
     foreach(var sample in new[]{.25f,-.5f,1f,-1f}) writer.Write(sample);
     stream.Position=0; return stream;
 }
+using (var handshake = new MemoryStream(Header()))
+    Check((await CpalHelperProtocol.ReadHandshakeAsync(handshake, default)).SampleRate == 48000, "async socket handshake accepts PCM format");
+foreach (var length in new uint[] { 3, 4097, uint.MaxValue }) {
+    using var handshake = new MemoryStream();
+    handshake.Write("HCE1"u8);
+    var lengthBytes = new byte[4]; BinaryPrimitives.WriteUInt32LittleEndian(lengthBytes, length);
+    handshake.Write(lengthBytes); handshake.Write("bad"u8); handshake.Position = 0;
+    try { await CpalHelperProtocol.ReadHandshakeAsync(handshake, default); throw new Exception("Error handshake accepted"); }
+    catch (IOException ex) { Check(ex.Message == (length == 3 ? "bad" : "Invalid helper error length."), "bounded helper startup errors preserve details: " + length); }
+}
 var protocol = new CpalHelperProtocol(Header());
 using(var stream=Packet(995)) {
     var data=protocol.ReadPacket(stream,()=>1000);

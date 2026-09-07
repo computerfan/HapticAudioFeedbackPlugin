@@ -82,5 +82,5 @@ jobs:
           # Existing releases are never overwritten; see the developer guide for retry instructions.
           gh release create "$RELEASE_TAG" "$package" --verify-tag --draft \
             --title "Feel the Rhythm ${RELEASE_VERSION}" --generate-notes \
-            --notes 'Install the attached .lplug4 in Logi Options+. Includes Windows x64 and experimental macOS 14.6+ support for Apple Silicon and Intel. Mac hardware and recording permissions still need validation.'
+            --notes 'Install the attached .lplug4 in Logi Options+. Supports Windows x64. macOS builds are included for experimental testing only and are not officially supported.'
           gh release edit "$RELEASE_TAG" --draft=false

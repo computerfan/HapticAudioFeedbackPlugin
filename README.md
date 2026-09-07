@@ -16,16 +16,13 @@ Turn music and other audio into haptic feedback on compatible Logitech devices. 
 
 Requires Logi Options+ and a Logitech device with supported haptic mappings.
 
-| Platform | Status |
-| --- | --- |
-| Windows x64 | Tested locally |
-| macOS 14.6+ · Apple Silicon and Intel | Experimental; hardware and recording permissions still need validation |
+**Windows x64 is the only officially supported platform.** macOS builds remain available for experimental testing, but are not officially supported. Development currently prioritizes Windows.
 
 **Multiple haptic devices:** settings are shared, and the plugin cannot select an individual haptic output device. Logi Options+ controls event delivery; whether multiple connected devices vibrate together is unverified. The **Audio source** selector chooses the audio to analyze. See [SDK limitations](docs/development.md#haptic-device-targeting).
 
 ## Get started
 
-1. Install a plugin package built for your platform. To build one, see the [developer guide](docs/development.md).
+1. Install the Windows plugin package. To build one, see the [developer guide](docs/development.md).
 2. In Logi Options+, assign **Open haptic settings** to an Actions Ring slot and activate it.
 3. Choose an **Audio source** and press **Use this source**. Select a **Listening profile** and play some audio. Profile changes apply immediately; **Undo profile change** restores your previous tuning.
 
@@ -39,12 +36,6 @@ You can also open **Open Haptic Settings.html** from the [plugin data folder](#p
 
 ```text
 %LOCALAPPDATA%\Logi\LogiPluginService\PluginData\HapticAudioFeedback
-```
-
-**macOS:** in Finder, press **Cmd+Shift+G** and enter the expected location (not yet verified on a Mac):
-
-```text
-~/Library/Application Support/Logi/LogiPluginService/PluginData/HapticAudioFeedback
 ```
 
 Open `Open Haptic Settings.html` for settings. Diagnostic logs are in the `logs` subfolder, starting with `feel-the-rhythm.log`. The folder and launcher are created when the plugin loads successfully.

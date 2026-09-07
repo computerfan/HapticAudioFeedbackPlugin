@@ -9,6 +9,13 @@ internal sealed class HapticMonitorSample
 {
     public DateTime Timestamp { get; set; }
     public bool AudioReceived { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString)]
+    public long CapturePackets { get; set; }
+    [JsonNumberHandling(JsonNumberHandling.WriteAsString)]
+    public long CaptureSamples { get; set; }
+    public DateTime? LastPacketUtc { get; set; }
+    public DateTime? LastSignalUtc { get; set; }
+    public double RawPeakDb { get; set; } = -180;
     public bool Enabled { get; set; }
     public bool Settling { get; set; }
     public string CaptureMode { get; set; }
