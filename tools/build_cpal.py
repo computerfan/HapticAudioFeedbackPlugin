@@ -56,6 +56,7 @@ def main():
         subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(bundle)], check=True)
     else:
         shutil.copy2(source / "haptic_cpal.dll", destination / "haptic_cpal.dll")
+        shutil.copy2(source / "haptic-cpal-helper.exe", destination / "haptic-cpal-helper.exe")
     print(f"Packaged CPAL for {TARGETS[args.target]} at {destination}")
 
 if __name__ == "__main__":

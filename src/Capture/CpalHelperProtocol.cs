@@ -2,7 +2,7 @@ namespace Loupedeck.HapticAudioFeedback;
 
 using System.Buffers.Binary;
 
-/// <summary>Versioned little-endian helper framing, shared by the Mac adapter and protocol tests.</summary>
+/// <summary>Versioned little-endian helper framing, shared by the Windows and Mac adapters.</summary>
 public sealed class CpalHelperProtocol
 {
     public int SampleRate { get; }
@@ -41,22 +41,37 @@ public sealed class CpalHelperProtocol
         _bytes = new byte[checked(Capacity * 4)];
         _samples = new float[Capacity];
     }
+    private readonly byte[] _packetHeader = new byte[24];
     public AudioCaptureData ReadPacket(Stream stream, Func<double> nowUnixMilliseconds)
     {
-        Span<byte> header = stackalloc byte[24];
-        stream.ReadExactly(header);
+        stream.ReadExactly(_packetHeader);
+        var count = ValidatePacketHeader(_packetHeader);
+        stream.ReadExactly(_bytes.AsSpan(0, count * 4));
+        return DecodePacket(_packetHeader, count, nowUnixMilliseconds());
+    }
+    public async Task<AudioCaptureData> ReadPacketAsync(Stream stream, Func<double> nowUnixMilliseconds, CancellationToken cancellation)
+    {
+        await stream.ReadExactlyAsync(_packetHeader, cancellation).ConfigureAwait(false);
+        var count = ValidatePacketHeader(_packetHeader);
+        await stream.ReadExactlyAsync(_bytes.AsMemory(0, count * 4), cancellation).ConfigureAwait(false);
+        return DecodePacket(_packetHeader, count, nowUnixMilliseconds());
+    }
+    private int ValidatePacketHeader(ReadOnlySpan<byte> header)
+    {
         var count = BinaryPrimitives.ReadUInt32LittleEndian(header);
-        var discontinuity = BinaryPrimitives.ReadUInt32LittleEndian(header[4..]) != 0;
-        var dropped = BinaryPrimitives.ReadUInt64LittleEndian(header[8..]);
         var newestUnixMs = BinaryPrimitives.ReadDoubleLittleEndian(header[16..]);
         if (count == 0 || count > Capacity || count % Channels != 0 || !double.IsFinite(newestUnixMs))
             throw new IOException("Invalid CPAL helper packet.");
-        stream.ReadExactly(_bytes.AsSpan(0, checked((int)count * 4)));
-        var age = nowUnixMilliseconds() - newestUnixMs;
-        // Reject packets straddling a wall-clock change; never reinterpret stale/future PCM as fresh.
+        return (int)count;
+    }
+    private AudioCaptureData DecodePacket(ReadOnlySpan<byte> header, int count, double nowUnixMilliseconds)
+    {
+        var discontinuity = BinaryPrimitives.ReadUInt32LittleEndian(header[4..]) != 0;
+        var dropped = BinaryPrimitives.ReadUInt64LittleEndian(header[8..]);
+        var age = nowUnixMilliseconds - BinaryPrimitives.ReadDoubleLittleEndian(header[16..]);
         if (!double.IsFinite(age) || age < 0 || age > 1000) { _skipped = true; return null; }
         for (var i = 0; i < count; i++) _samples[i] = BinaryPrimitives.ReadSingleLittleEndian(_bytes.AsSpan(i * 4));
-        var result = new AudioCaptureData(_samples.AsMemory(0, (int)count), age, discontinuity || _skipped, dropped);
+        var result = new AudioCaptureData(_samples.AsMemory(0, count), age, discontinuity || _skipped, dropped);
         _skipped = false;
         return result;
     }

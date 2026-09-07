@@ -38,6 +38,7 @@ class PackageChecks(unittest.TestCase):
             "bin/HapticAudioFeedbackPlugin.dll": b"managed fixture",
             "bin/HapticAudioCapture.dll": b"managed fixture",
             "bin/runtimes/win-x64/native/haptic_cpal.dll": pe,
+            "bin/runtimes/win-x64/native/haptic-cpal-helper.exe": pe,
             "licenses/CPAL-NOTICES.txt": "notice fixture",
             "licenses/NAudio-MIT.txt": "notice fixture",
             "licenses/CPAL-dependencies.json": json.dumps({"binaryDependencies": [{"selected": "GPL-3.0" if bad_license else "MIT"}]}),
@@ -81,7 +82,7 @@ class PackageChecks(unittest.TestCase):
             verifier.verify_package(self.package(executable=False), True)
 
     def test_missing_files(self):
-        for missing in ["ui/localization.js", "ui/locales/zh-CN.json", "localization/HapticAudioFeedback_zh-CN.xliff", "LICENSE", "ui/index.html", "FRONTEND-NOTICES.txt", "FRONTEND-dependencies.json", "Pico-CSS-MIT.txt", "pico-2.1.1.min.css", "haptic_cpal.dll", "haptic-cpal-helper", "Info.plist", "FeelTheRhythm.icns", "CodeResources", "NAudio-MIT.txt", "NAudio.Core.dll"]:
+        for missing in ["ui/localization.js", "ui/locales/zh-CN.json", "localization/HapticAudioFeedback_zh-CN.xliff", "LICENSE", "ui/index.html", "FRONTEND-NOTICES.txt", "FRONTEND-dependencies.json", "Pico-CSS-MIT.txt", "pico-2.1.1.min.css", "haptic_cpal.dll", "haptic-cpal-helper.exe", "haptic-cpal-helper", "Info.plist", "FeelTheRhythm.icns", "CodeResources", "NAudio-MIT.txt", "NAudio.Core.dll"]:
             with self.subTest(missing=missing), self.assertRaisesRegex(ValueError, "Missing package entry"):
                 verifier.verify_package(self.package(missing=missing), True)
 

@@ -22,7 +22,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly List<HapticOnset> _candidates = new();
     private ISystemAudioCapture _capture;
-    private readonly CaptureStartup _macStartup;
+    private readonly CaptureStartup _captureStartup;
     private bool _stopped, _permissionDenied;
     private AudioOnsetDetector _detector;
     private HapticScheduler _scheduler;
@@ -44,63 +44,34 @@ internal sealed class HapticAudioMonitor : IDisposable
         _profiles = profiles;
         _binaryDirectory = binaryDirectory;
         _scheduler = new HapticScheduler(_settings);
-        _macStartup = new CaptureStartup(_settingsGate);
+        _captureStartup = new CaptureStartup(_settingsGate);
     }
 
     public void Start()
     {
         lock (_settingsGate)
         {
-            if (_stopped || _capture != null || _macStartup.IsPending) return;
+            if (_stopped || _capture != null || _captureStartup.IsPending) return;
             _captureError = _captureWarning = _processingError = null;
             lock (_gate) _permissionDenied = false;
-            if (OperatingSystem.IsMacOS())
-            {
-                var deviceId = _settings.CaptureDeviceId;
-                lock (_gate) _captureMode = "starting";
-                _ = _macStartup.Start(token => new MacAudioCapture(_binaryDirectory, deviceId, token),
-                    StartCapture, ex =>
-                    {
-                        lock (_settingsGate)
-                        {
-                            StopCapture();
-                            lock (_gate)
-                            {
-                                _captureMode = "unavailable";
-                                _permissionDenied = CapturePermissionException.IsDenied(ex);
-                                _captureError = ex.Message + " Check the selected device and system audio recording permission, then retry capture.";
-                            }
-                            PluginLog.Warning(ex, "Could not start macOS audio capture.");
-                        }
-                    }, ex => PluginLog.Warning(ex, "Could not dispose a cancelled capture attempt."));
-                return;
-            }
-            try { StartCapture(new CpalAudioCapture(_binaryDirectory, _settings.CaptureDeviceId)); }
-            catch (Exception ex)
-            {
-                _permissionDenied = CapturePermissionException.IsDenied(ex);
-                StopCapture();
-                if (OperatingSystem.IsWindows() && _settings.CaptureDeviceId.Length == 0)
+            var deviceId = _settings.CaptureDeviceId;
+            lock (_gate) _captureMode = "starting";
+            _ = _captureStartup.Start(token => OperatingSystem.IsMacOS()
+                    ? new MacAudioCapture(_binaryDirectory, deviceId, token)
+                    : new CpalAudioCapture(_binaryDirectory, deviceId, token),
+                StartCapture, ex =>
                 {
-                    _captureWarning = "CPAL unavailable; using Windows fallback. " + ex.Message;
-                    PluginLog.Warning(ex, _captureWarning);
-                    try { StartWindowsFallback(true); }
-                    catch (Exception fallback)
+                    StopCapture();
+                    lock (_gate)
                     {
-                        StopCapture();
-                        PluginLog.Warning(fallback, "Event-driven fallback failed; trying polling capture.");
-                        try { StartWindowsFallback(false); }
-                        catch (Exception last) { StopCapture(); _captureError = last.Message; _permissionDenied = CapturePermissionException.IsDenied(last); }
+                        _captureMode = "unavailable";
+                        _permissionDenied = CapturePermissionException.IsDenied(ex);
+                        _captureError = ex.Message + " Check the selected device and recording permission, then retry capture.";
                     }
-                }
-                else _captureError = ex.Message + (OperatingSystem.IsMacOS() ? " Check the selected audio device and System Audio Recording Only permission for Feel the Rhythm Audio Capture, then retry. This error alone does not establish a permission denial." : " Select an available audio device, then retry capture.");
-            }
-            if (_captureError != null) { _captureMode = "unavailable"; PluginLog.Warning(_captureError); }
+                    PluginLog.Warning(ex, "Could not start audio capture.");
+                }, ex => PluginLog.Warning(ex, "Could not dispose a cancelled capture attempt."));
         }
     }
-    // Keep the Windows-only type out of the cross-platform startup method's JIT dependencies.
-    [System.Runtime.CompilerServices.MethodImpl(System.Runtime.CompilerServices.MethodImplOptions.NoInlining)]
-    private void StartWindowsFallback(bool useEvents) => StartCapture(new WindowsAudioCapture(useEvents));
     private void StartCapture(ISystemAudioCapture capture)
     {
         _capture = capture;
@@ -116,7 +87,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         ? MacAudioCapture.ListDevices(_binaryDirectory) : CpalAudioCapture.ListDevices(_binaryDirectory) };
     internal void RestartCapture()
     {
-        lock (_settingsGate) { _macStartup.Cancel(); StopCapture(); lock (_gate) { _latest = new(); _maxBufferMs = 0; } Start(); }
+        lock (_settingsGate) { _captureStartup.Cancel(); StopCapture(); lock (_gate) { _latest = new(); _maxBufferMs = 0; } Start(); }
     }
     private void ResetDetector()
     {
@@ -385,7 +356,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     }
     public void Stop()
     {
-        lock (_settingsGate) { _stopped = true; _macStartup.Cancel(); StopCapture(); }
+        lock (_settingsGate) { _stopped = true; _captureStartup.Cancel(); StopCapture(); }
         lock (_diagnosticsGate)
         {
             var server = _debugServer;

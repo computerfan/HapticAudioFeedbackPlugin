@@ -48,12 +48,13 @@ def verify_package(path, require_all=False):
             raise ValueError("Windows plugin directory is not bin")
         for name in ["HapticAudioFeedbackPlugin.dll", "HapticAudioCapture.dll"]:
             require("bin/" + name)
-        dll = require("bin/runtimes/win-x64/native/haptic_cpal.dll")
-        if len(dll) < 64 or dll[:2] != b"MZ":
-            raise ValueError("CPAL Windows library is not PE")
-        offset = struct.unpack_from("<I", dll, 60)[0]
-        if offset + 6 > len(dll) or dll[offset:offset + 4] != b"PE\0\0" or struct.unpack_from("<H", dll, offset + 4)[0] != 0x8664:
-            raise ValueError("CPAL Windows library is not x64")
+        for windows_binary in ["haptic_cpal.dll", "haptic-cpal-helper.exe"]:
+            dll = require("bin/runtimes/win-x64/native/" + windows_binary)
+            if len(dll) < 64 or dll[:2] != b"MZ":
+                raise ValueError("CPAL Windows library is not PE")
+            offset = struct.unpack_from("<I", dll, 60)[0]
+            if offset + 6 > len(dll) or dll[offset:offset + 4] != b"PE\0\0" or struct.unpack_from("<H", dll, offset + 4)[0] != 0x8664:
+                raise ValueError("CPAL Windows library is not x64")
         if "bin/NAudio.Core.dll" in names or "bin/NAudio.Wasapi.dll" in names:
             raise ValueError("Windows package must use the host's NAudio assemblies")
         for name in ["CPAL-NOTICES.txt", "NAudio-MIT.txt", "FRONTEND-NOTICES.txt"]:

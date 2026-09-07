@@ -1,5 +1,6 @@
 using Loupedeck.HapticAudioFeedback;
 using System.Buffers.Binary;
+if (args.Length > 0 && args[0] == "--test-helper") { await ProcessCaptureChecks.RunHelper(args); return; }
 var checks = 0;
 void Check(bool ok, string text) { if (!ok) throw new Exception(text); checks++; Console.WriteLine("PASS " + text); }
 byte[] Header() {
@@ -89,7 +90,7 @@ using (var cancelled = new CancellationTokenSource()) {
 if (args.Length == 2 && args[0] == "--device-smoke") {
     var directory=Path.GetFullPath(args[1]);
     var live=CpalAudioCapture.ListDevices(directory);
-    Check(live.Length>0,"CPAL enumerates live devices through native ABI");
+    Check(live.Length>0,"CPAL helper enumerates live devices");
     foreach(var item in live) Console.WriteLine($"{item.Kind}: {item.Name}");
     var playback=live.First(d=>d.Kind=="output");
     using(var capture=new CpalAudioCapture(directory,playback.Id)) {
@@ -101,4 +102,5 @@ if (args.Length == 2 && args[0] == "--device-smoke") {
     using(var restored=new CpalAudioCapture(directory)) {restored.StartRecording();Check(restored.Channels>0,"default capture opens after selected-device shutdown");}
 }
 await CaptureStartupChecks.Run(Check);
+await ProcessCaptureChecks.Run(Check);
 Console.WriteLine($"{checks} capture bridge checks passed; no haptic events sent (live audio only with --device-smoke).");

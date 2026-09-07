@@ -70,9 +70,9 @@ CPAL 0.18.2 uses the real input on combined CoreAudio input/output devices. The 
 
 ## Capture and detection
 
-CPAL 0.18.2 provides WASAPI capture on Windows and CoreAudio capture on macOS. Device choices use stable, direction-qualified IDs. The system default is resolved when capture starts. An unavailable explicitly selected device fails without switching sources. Windows default-playback capture can fall back to NAudio event-driven capture, then polling, if CPAL cannot initialize.
+CPAL 0.18.2 provides WASAPI capture on Windows and CoreAudio capture on macOS. Device choices use stable, direction-qualified IDs. The system default is resolved when capture starts. An unavailable explicitly selected device fails without switching sources.
 
-The native engine requests a 20 ms buffer, adjusted to supported limits, and retries with the device default only for unsupported configurations. Its bounded queue retains at most 40 ms of PCM; overflow discards old frames and marks a discontinuity. Audio callbacks do not call managed code or wait for consumers. A dedicated owner thread controls the Windows native stream's lifetime.
+The native engine requests a 20 ms buffer, adjusted to supported limits, and retries with the device default only for unsupported configurations. Its bounded queue retains at most 40 ms of PCM; overflow discards old frames and marks a discontinuity. Audio callbacks do not call managed code or wait for consumers. Windows capture and device enumeration run in an owned helper process. Startup and enumeration have 10-second deadlines; shutdown allows 250 ms for normal exit, then terminates a stalled helper and waits at most one further second. Startup runs outside the plugin lifecycle thread. Failures are shown in settings for retry; there is no automatic in-process fallback that could block the host on a stalled driver.
 
 The detector filters each channel independently into bass and detail bands, then combines their energies. Defaults are 100 Hz and 2 kHz; the detail center is capped at 40% of the sample rate. Approximately 5 ms RMS windows feed fast envelopes and slower background tracking. Threshold crossings or a rapid rise can trigger an onset; hysteresis and per-band re-arm intervals suppress repeated triggers.
 
