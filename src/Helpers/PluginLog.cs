@@ -18,6 +18,7 @@ internal static class PluginLog
             try { _sdk?.Info("Feel the Rhythm diagnostic logs: " + _writer.DirectoryPath + " (three files, 512 KiB each)."); } catch { }
         } catch { _startupError = "Plugin logging could not start."; }
     }
+    public static PluginLogSnapshot ReadSnapshot() => _writer?.ReadSnapshot() ?? throw new InvalidOperationException("Plugin logs are unavailable.");
     public static void Stop() { try { _writer?.Dispose(); } catch { } }
     public static void Verbose(string text) => _writer?.Write("Verbose", text);
     public static void Verbose(Exception ex, string text) => _writer?.Write("Verbose", text, ex);

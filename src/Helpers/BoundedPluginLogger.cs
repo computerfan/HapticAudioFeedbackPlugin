@@ -5,6 +5,8 @@ using System.Diagnostics;
 using System.Text;
 using System.Text.RegularExpressions;
 
+internal sealed record PluginLogSnapshot(string Directory, string Text, string RecentText, string[] Warnings);
+
 /// <summary>Bounded producer queue and rotating files. Never performs disk I/O on callers.</summary>
 internal sealed class BoundedPluginLogger : IDisposable
 {
@@ -68,6 +70,42 @@ internal sealed class BoundedPluginLogger : IDisposable
         } catch { /* Logging failure must never break the plugin. */ }
     }
     private string FileName(int index) => Path.Combine(DirectoryPath, index == 0 ? "feel-the-rhythm.log" : $"feel-the-rhythm.{index}.log");
+    public PluginLogSnapshot ReadSnapshot()
+    {
+        // Read only our allowlisted files, with a hard bound even if another process enlarges one.
+        // Do not lock or flush the audio-facing producer queue to prepare a support report.
+        var text = new StringBuilder();
+        var warnings = new List<string>();
+        for (var index = FileCount - 1; index >= 0; index--)
+        {
+            var path = FileName(index);
+            try
+            {
+                if (!File.Exists(path)) continue;
+                if ((File.GetAttributes(path) & FileAttributes.ReparsePoint) != 0)
+                { warnings.Add("Skipped a linked log file."); continue; }
+                using var stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete);
+                var length = (int)Math.Min(stream.Length, FileLimitBytes);
+                var skipped = stream.Length > length;
+                if (skipped) { stream.Seek(-length, SeekOrigin.End); warnings.Add("An oversized log was truncated."); }
+                var bytes = new byte[length];
+                var read = 0;
+                while (read < length) { var count = stream.Read(bytes, read, length - read); if (count == 0) break; read += count; }
+                var content = Encoding.UTF8.GetString(bytes, 0, read);
+                if (skipped) { var newline = content.IndexOf('\n'); content = newline < 0 ? "" : content[(newline + 1)..]; }
+                // Also redact older files written before the current logger's token filter.
+                content = Regex.Replace(content, "[A-Fa-f0-9]{64}", "[redacted]", RegexOptions.CultureInvariant, TimeSpan.FromMilliseconds(100));
+                text.AppendLine("--- " + Path.GetFileName(path) + " ---").AppendLine(content);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or RegexMatchTimeoutException)
+            { warnings.Add("Could not read " + Path.GetFileName(path) + ". Retry after log rotation, or check folder permissions."); }
+        }
+        var full = text.ToString();
+        var recent = full.Length > 32768 ? full[^32768..] : full;
+        if (recent.Length < full.Length) { var newline = recent.IndexOf('\n'); recent = newline < 0 ? "" : recent[(newline + 1)..]; }
+        return new PluginLogSnapshot(DirectoryPath, full, recent, warnings.ToArray());
+    }
+
     private void Consume()
     {
         try {

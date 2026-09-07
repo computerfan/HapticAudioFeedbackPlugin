@@ -13,6 +13,7 @@ function harness(){
   setAttribute(key,value){this.attributes[key]=String(value);}
   append(...children){for(const child of children)child.parentElement=this;this.children.push(...children);}replaceChildren(){this.children=[];}
   addEventListener(name,callback){this.events[name]=callback;}
+  click(){this.clicked=true;}remove(){if(this.parentElement)this.parentElement.children=this.parentElement.children.filter(c=>c!==this);}
   focus(){this.focused=true;}
   scrollIntoView(options){this.scrolled=options;}
   contains(target){while(target){if(target===this)return true;target=target.parentElement;}return false;}
@@ -27,11 +28,12 @@ function harness(){
  const state={current:{...defaults},revision:0,enumerationError:false,failSave:false,failLoad:false,failLocale:false,saves:0,release:null,hold:false,catalogWrites:0};
  const devices=[{Id:'output:WASAPI:speaker',Name:'Speakers',Kind:'output'},{Id:'input:CoreAudio:mic',Name:'麦克风 <b>USB</b>',Kind:'input'}];
  const catalog=()=>({Profiles:profiles,ProfileInfo:info,ProfilesRevision:state.catalogWrites,Presets:['subtle_collision','damp_collision','sharp_collision','damp_state_change','sharp_state_change','wave']});
- const context=vm.createContext({document,URLSearchParams,navigator:{languages:['en-US']},location:{hash:'',pathname:'/',search:''},sessionStorage:{getItem(){return 'test';}},window:{addEventListener(){},history:{replaceState(){}}},structuredClone,setTimeout(){return 1;},clearTimeout(){},console,
+ const context=vm.createContext({document,URL:{createObjectURL(){state.downloaded=true;return "blob:test";},revokeObjectURL(){}},URLSearchParams,navigator:{languages:['en-US']},location:{hash:'',pathname:'/',search:''},sessionStorage:{getItem(){return 'test';}},window:{addEventListener(){},history:{replaceState(){}}},structuredClone,setTimeout(){return 1;},clearTimeout(){},console,
  fetch:async(path,options={})=>{
   let body,ok=true;
   if(path==='/metrics'){body=state.metrics||{};}
   else if(path==='/locales/zh-CN.json'){ok=!state.failLocale;body=chinese;}
+  else if(path==='/logs'||path==='/logs/download'){assert.equal(options.headers['X-Haptic-Token'],'test');state.logReads=(state.logReads||0)+1;ok=!state.failLogs;body=ok?{Directory:'/test/logs',RecentText:'<script>not executable</script> 日志',Warnings:[]}:{Error:'Logs unavailable'};}
   else if(path==='/devices'){body=state.enumerationError?{Error:'Device service unavailable'}:{Devices:devices};ok=!state.enumerationError;}
   else if(options.method==='POST'){
    assert.equal(options.headers['X-Haptic-Token'],'test');
@@ -45,7 +47,7 @@ function harness(){
     else{assert.equal(options.headers['If-Match'],'"'+state.revision+'"');state.current=JSON.parse(options.body);state.revision++;state.saves++;body={Settings:state.current,Revision:state.revision};}
    }else if(path==='/capture/permissions'){state.permissionOpens=(state.permissionOpens||0)+1;ok=!state.failPermissions;body=ok?{Opened:true}:{Error:'Settings unavailable'};}else if(path==='/capture/restart'){state.restarts=(state.restarts||0)+1;body={};}else throw new Error('Unexpected test route '+path);
   }else{ok=!state.failLoad;body=ok?{Settings:state.current,Revision:state.revision,...catalog()}:{Error:'Unavailable'};}
-  return{ok,json:async()=>structuredClone(body)};
+  return{ok,json:async()=>structuredClone(body),blob:async()=>({text:"report"})};
  }});
  vm.runInContext(script,context);
  const run=code=>vm.runInContext(code,context);
@@ -203,6 +205,14 @@ function harness(){
  permission.state.metrics.LastSignalUtc=new Date().toISOString();await permission.run('poll()');assert.equal(permission.el('permissionHelp').hidden,true);
  permission.state.metrics={CapturePlatform:'windows',CaptureSourceKind:'output',Enabled:true};await permission.run('poll()');assert.equal(permission.el('permissionHelp').hidden,true);
  console.log('PASS permission guidance distinguishes denial, pending and unknown; recovery actions and platform/source routing work');
+ const logs=harness();await logs.run('init()');assert.equal(logs.state.logReads,undefined);
+ await logs.el('refreshLogs').onclick();assert.equal(logs.state.logReads,1);
+ assert.ok(logs.el('logPreview').value.includes('<script>not executable</script>'));
+ assert.equal(logs.el('logFolder').textContent,'Log folder: /test/logs');
+ await logs.el('downloadLogs').onclick();assert.equal(logs.state.downloaded,true);
+ logs.state.failLogs=true;await logs.el('refreshLogs').onclick();
+ assert.ok(logs.el('logActionStatus').textContent.includes('Could not load logs'));assert.equal(logs.el('refreshLogs').disabled,false);
+ console.log('PASS logs load on demand, display as text, download with authentication and recover from errors');
  console.log('PASS monitor distinguishes missing packets, silent PCM and signal');
  console.log('PASS accessible tabs preserve drafts, detector-frame deduplication/bounds, canvas dot-to-trace alignment, capture gaps and chart scaling');
 

@@ -71,6 +71,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private readonly Func<string, bool> _preview;
     private readonly Action _restartCapture;
     private readonly Action _openPermissions;
+    private readonly Func<PluginLogSnapshot> _logs;
     private readonly Func<object> _devices;
     private readonly string _html, _picoCss, _localizationJs, _chineseJson;
     private readonly byte[] _logoPng;
@@ -85,7 +86,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     public bool IsRunning => _running;
 
     public HapticMonitorDebugServer(string htmlPath, Func<HapticMonitorSample> metrics,
-        Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null, Action restartCapture = null, Func<object> devices = null, Action openPermissions = null)
+        Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null, Action restartCapture = null, Func<object> devices = null, Action openPermissions = null, Func<PluginLogSnapshot> logs = null)
     {
         _html = File.ReadAllText(htmlPath);
         _localizationJs = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "localization.js"));
@@ -127,6 +128,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         _restartCapture = restartCapture;
         _devices = devices;
         _openPermissions = openPermissions;
+        _logs = logs;
         _nextPort = nextPort ?? (() => System.Security.Cryptography.RandomNumberGenerator.GetInt32(49152, 65536));
         _thread = new Thread(Loop) { IsBackground = true, Name = "HapticMonitorControlServer" };
     }
@@ -218,6 +220,13 @@ internal sealed class HapticMonitorDebugServer : IDisposable
             switch (path)
             {
                 case "/devices": Json(context, _devices?.Invoke() ?? throw new InvalidOperationException("Device enumeration unavailable.")); return;
+                case "/logs":
+                    var logs = _logs?.Invoke() ?? throw new InvalidOperationException("Plugin logs are unavailable.");
+                    Json(context, new { logs.Directory, logs.RecentText, logs.Warnings }); return;
+                case "/logs/download":
+                    var download = _logs?.Invoke() ?? throw new InvalidOperationException("Plugin logs are unavailable.");
+                    context.Response.Headers["Content-Disposition"] = "attachment; filename=feel-the-rhythm-diagnostics.txt";
+                    Write(context, "Feel the Rhythm diagnostic logs\n" + string.Join("\n", download.Warnings) + "\n" + download.Text, "text/plain; charset=utf-8"); return;
                 case "/metrics": Json(context, _metrics()); return;
                 case "/settings":
                     var snapshot = _settings();

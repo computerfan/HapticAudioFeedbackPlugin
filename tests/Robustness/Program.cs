@@ -36,6 +36,21 @@ try {
     var line=File.ReadAllText(Path.Combine(rotation,"feel-the-rhythm.log"));
     Check(!line.Contains(token)&&line.Contains("[redacted]")&&line.Length<2300&&File.ReadAllLines(Path.Combine(rotation,"feel-the-rhythm.log")).Length==1,"large multiline entries are bounded and session tokens are redacted");
     Check(File.ReadAllText(Path.Combine(rotation,"unrelated.log"))=="retain this","rotation leaves other logs untouched");
+    var snapshotDirectory = Path.Combine(root, "snapshots"); Directory.CreateDirectory(snapshotDirectory);
+    File.WriteAllText(Path.Combine(snapshotDirectory, "feel-the-rhythm.2.log"), "oldest entry\n");
+    File.WriteAllText(Path.Combine(snapshotDirectory, "feel-the-rhythm.1.log"), "middle entry\n");
+    var oversized = string.Concat(Enumerable.Repeat("Unicode 日志 entry\n", 60000)) + "newest token=" + token + "\n";
+    File.WriteAllText(Path.Combine(snapshotDirectory, "feel-the-rhythm.log"), oversized);
+    File.WriteAllText(Path.Combine(snapshotDirectory, "unrelated.log"), "never expose this");
+    using (var log = new BoundedPluginLogger(snapshotDirectory)) {
+        var snapshot = log.ReadSnapshot();
+        Check(snapshot.Text.IndexOf("oldest entry") < snapshot.Text.IndexOf("middle entry") && snapshot.Text.Contains("newest token="), "support snapshot orders retained logs oldest to newest");
+        Check(!snapshot.Text.Contains(token) && snapshot.Text.Contains("[redacted]") && !snapshot.Text.Contains("never expose"), "support snapshot redacts legacy tokens and excludes unrelated files");
+        Check(snapshot.RecentText.Length <= 32768 && snapshot.Text.Length < 3 * BoundedPluginLogger.FileLimitBytes + 200 && snapshot.Warnings.Length == 1, "support snapshot bounds oversized files and the preview");
+        Check(File.ReadAllText(Path.Combine(snapshotDirectory, "feel-the-rhythm.log")) == oversized, "reading support logs does not rotate or modify files");
+    }
+    using (var log = new BoundedPluginLogger(Path.Combine(root, "empty-snapshot")))
+        Check(log.ReadSnapshot().Text == "", "empty log directory yields an empty preview");
     var blocked=Path.Combine(root,"not-a-directory");File.WriteAllText(blocked,"block");
     using(var log=new BoundedPluginLogger(blocked)) {
         log.Write("Info","Write will fail");

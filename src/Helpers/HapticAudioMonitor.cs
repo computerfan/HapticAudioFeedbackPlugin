@@ -306,7 +306,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         {
             if (_debugServer?.IsRunning == true) return _debugServer.LaunchUrl;
             _debugServer?.Dispose();
-            var server = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettingsSnapshot, ApplySettingsIfCurrent, Preview, profiles: _profiles, restartCapture: RestartCapture, devices: ListDevices, openPermissions: OpenPermissionSettings);
+            var server = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettingsSnapshot, ApplySettingsIfCurrent, Preview, profiles: _profiles, restartCapture: RestartCapture, devices: ListDevices, openPermissions: OpenPermissionSettings, logs: PluginLog.ReadSnapshot);
             try { server.Start(); lock (_gate) _debugServer = server; }
             catch { server.Dispose(); throw; }
             return server.LaunchUrl;

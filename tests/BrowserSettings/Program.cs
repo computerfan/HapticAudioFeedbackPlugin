@@ -21,7 +21,7 @@ HapticMonitorDebugServer Create(Func<int> port = null) => new(Path.Combine(AppCo
         settings = next.Copy(); revision++;
     }, _ => { previews++; return true; }, port, customProfiles, () => captureRestarts++, () => { enumerations++; return new { Devices = new[] {
         new { Id = "output:WASAPI:stable-speaker", Name = "Speakers", Kind = "output" },
-        new { Id = "input:WASAPI:stable-mic", Name = "Microphone", Kind = "input" } } }; }, () => permissionOpens++);
+        new { Id = "input:WASAPI:stable-mic", Name = "Microphone", Kind = "input" } } }; }, () => permissionOpens++, () => new PluginLogSnapshot("/test/logs", "older entry\nrecent entry", "recent entry", Array.Empty<string>()));
 if (args.Contains("--preview")) {
     using var previewServer = Create(); previewServer.Start();
     Console.WriteLine("Simulated UI preview. No audio capture or haptic events. " + previewServer.LaunchUrl);
@@ -163,6 +163,15 @@ Check((await Send("capture/permissions", body: new { })).StatusCode == HttpStatu
 Check((await Send("capture/permissions", token, "https://example.invalid", new { })).StatusCode == HttpStatusCode.Forbidden && permissionOpens == 0, "foreign origins cannot open system permissions");
 Check((await Send("capture/permissions", token)).StatusCode == HttpStatusCode.NotFound && permissionOpens == 0, "GET cannot open system permissions");
 Check((await Send("capture/permissions", token, body: new { })).IsSuccessStatusCode && permissionOpens == 1, "authenticated permission action reaches fixed controller");
+foreach (var route in new[] { "logs", "logs/download" }) {
+    Check((await Send(route)).StatusCode == HttpStatusCode.Forbidden, route + " requires authentication");
+    Check((await Send(route, token, "https://example.invalid")).StatusCode == HttpStatusCode.Forbidden, route + " rejects foreign origins");
+}
+using (var preview = JsonDocument.Parse(await (await Send("logs", token)).Content.ReadAsStringAsync()))
+    Check(preview.RootElement.GetProperty("RecentText").GetString() == "recent entry" && !preview.RootElement.TryGetProperty("Text", out _), "log preview exposes recent text without the full report");
+var report = await Send("logs/download", token);
+Check(report.IsSuccessStatusCode && report.Content.Headers.ContentDisposition?.DispositionType == "attachment" && (await report.Content.ReadAsStringAsync()).Contains("older entry"), "authenticated download contains retained log text with attachment headers");
+Check((await Send("logs/unrelated.log", token)).StatusCode == HttpStatusCode.NotFound, "logs endpoint does not accept arbitrary file names");
 Check((await Send("capture/restart", body: new { })).StatusCode == HttpStatusCode.Forbidden && captureRestarts == 0, "capture restart requires authentication");
 Check((await Send("capture/restart", token, "https://example.invalid", new { })).StatusCode == HttpStatusCode.Forbidden && captureRestarts == 0, "foreign origins cannot restart capture");
 Check((await Send("capture/restart", token, body: new { })).IsSuccessStatusCode && captureRestarts == 1, "authenticated capture restart reaches the controller");
