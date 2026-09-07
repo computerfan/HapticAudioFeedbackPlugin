@@ -1,6 +1,8 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings></PropertyGroup>
   <ItemGroup>
+    <EmbeddedResource Include="../../src/package/metadata/LoupedeckPackage.yaml" LogicalName="HapticPackageMetadata" />
+    <Compile Include="../../src/Helpers/PluginVersion.cs" Link="PluginVersion.cs" />
     <ProjectReference Include="../../src/Capture/HapticAudioCapture.csproj" />
     <PackageReference Include="NAudio.Core" Version="2.2.1" />
     <Compile Include="../../src/Helpers/CaptureSignalDiagnostics.cs" Link="CaptureSignalDiagnostics.cs" />

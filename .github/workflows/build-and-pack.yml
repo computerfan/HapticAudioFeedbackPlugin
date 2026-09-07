@@ -167,7 +167,7 @@ jobs:
       - name: Restore plugin
         run: dotnet restore src/HapticAudioFeedbackPlugin.csproj
       - name: Build with every native platform required
-        run: dotnet build src/HapticAudioFeedbackPlugin.csproj --configuration Release --no-restore -p:DeployPlugin=false -p:BuildCpalNative=false -p:RequireAllCpalAssets=true
+        run: dotnet build src/HapticAudioFeedbackPlugin.csproj --configuration Release --no-restore -p:DeployPlugin=false -p:BuildCpalNative=false -p:RequireAllCpalAssets=true -p:SourceRevisionId=$env:GITHUB_SHA
       - name: Native SDK control checks
         run: dotnet run --project tests/NativeControls --configuration Release
       - name: Pack and verify with the SDK

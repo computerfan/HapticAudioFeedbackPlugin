@@ -33,6 +33,7 @@ namespace Loupedeck.HapticAudioFeedback
         public override void Load()
         {
             PluginLog.Start(this.GetPluginDataDirectory());
+            PluginLog.Info($"Feel the Rhythm v{PluginVersion.Current} starting. Commit: {PluginVersion.Commit}.");
             this.PluginEvents.AddEvent("subtleAudioFeedback", "High-band onset", "Subtle feedback for a mid/high-frequency onset");
             this.PluginEvents.AddEvent("sharpAudioFeedback", "Strong bass onset", "Sharp feedback for a stronger bass onset");
             this.PluginEvents.AddEvent("bassAudioFeedback", "Bass onset", "Damped feedback for a bass onset");

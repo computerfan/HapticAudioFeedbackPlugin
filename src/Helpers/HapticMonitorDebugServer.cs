@@ -90,7 +90,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     public HapticMonitorDebugServer(string htmlPath, Func<HapticMonitorSample> metrics,
         Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null, Action restartCapture = null, Func<object> devices = null, Action openPermissions = null, Func<PluginLogSnapshot> logs = null)
     {
-        _html = File.ReadAllText(htmlPath);
+        _html = File.ReadAllText(htmlPath).Replace("{{PLUGIN_VERSION}}", WebUtility.HtmlEncode(PluginVersion.Display));
         _localizationJs = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "localization.js"));
         _chineseJson = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "locales", "zh-CN.json"));
         _logoPng = File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(htmlPath), "logo.png"));

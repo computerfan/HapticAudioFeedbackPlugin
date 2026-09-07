@@ -241,6 +241,7 @@ using (var broken = Create()) {
     listener.Close();
     Check(SpinWait.SpinUntil(() => !broken.IsRunning, 2000), "failed listener stops instead of spinning on errors");
 }
+Check((await client.GetStringAsync("/")).Contains("Feel the Rhythm v" + PluginVersion.Display) && PluginVersion.Current != "unknown", "footer shows embedded package version");
 await MonitorLifecycleChecks.Run(Check);
 Console.WriteLine($"{count} browser settings integration checks passed; no audio or hardware used.");
 
