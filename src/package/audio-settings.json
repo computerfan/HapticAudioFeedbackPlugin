@@ -1,4 +1,17 @@
 {
+  "BassTriggerMode": "both",
+  "BassFilterQ": 1.2,
+  "BassAttackMilliseconds": 5,
+  "BassReleaseMilliseconds": 60,
+  "BassOnsetRiseWindowMilliseconds": 20,
+  "BassTransientSeparationMilliseconds": 80,
+  "HighTriggerMode": "both",
+  "HighFilterQ": 1.6,
+  "HighAttackMilliseconds": 5,
+  "HighReleaseMilliseconds": 60,
+  "HighOnsetRiseWindowMilliseconds": 20,
+  "HighTransientSeparationMilliseconds": 80,
+
   "LowThresholdDb": -38,
   "HighThresholdDb": -42,
   "AttackMilliseconds": 5,

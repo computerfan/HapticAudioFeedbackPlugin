@@ -63,6 +63,57 @@ Test("trace stores the sent texture for aliases and every preset", () =>
         }
     Check(HapticPatterns.WaveformForEvent("unknown") == null, "Unknown texture guessed.");
 });
+Test("legacy band timing inherits shared settings regardless of JSON order", () =>
+{
+    var legacy = System.Text.Json.JsonSerializer.Deserialize<AudioSettings>("{\"AttackMilliseconds\":12,\"ReleaseMilliseconds\":150,\"OnsetRiseWindowMilliseconds\":45,\"TransientSeparationMilliseconds\":170}")!;
+    Check(legacy.BassAttackMilliseconds == 12 && legacy.HighReleaseMilliseconds == 150 && legacy.BassOnsetRiseWindowMilliseconds == 45 && legacy.HighTransientSeparationMilliseconds == 170, "Legacy tuning lost.");
+    foreach (var json in new[] { "{\"BassAttackMilliseconds\":3,\"AttackMilliseconds\":12}", "{\"AttackMilliseconds\":12,\"BassAttackMilliseconds\":3}" })
+    {
+        var value = System.Text.Json.JsonSerializer.Deserialize<AudioSettings>(json)!;
+        var restored = System.Text.Json.JsonSerializer.Deserialize<AudioSettings>(System.Text.Json.JsonSerializer.Serialize(value))!;
+        Check(restored.BassAttackMilliseconds == 3 && restored.HighAttackMilliseconds == 12, "Band override lost on round-trip.");
+    }
+});
+Test("trigger modes restrict reasons in each band", () =>
+{
+    foreach (var bass in new[] { true, false })
+        foreach (var mode in new[] { "level", "rise" })
+        {
+            var settings = new AudioSettings { BassEnabled = bass, HighEnabled = !bass, BassTriggerMode = mode, HighTriggerMode = mode };
+            var result = Analyze(48000, 1, (t, _) => t < .2 ? 0 : Tone(t, bass ? 100 : 2000), options: settings);
+            Check(result.Events.Count > 0 && result.Events.All(e => e.TriggerReason == (mode == "level" ? "threshold" : "rise")), "Disabled rule fired or enabled rule lost.");
+        }
+});
+Test("band width preserves center gain and narrows off-center response", () =>
+{
+    foreach (var bass in new[] { true, false })
+    {
+        double Level(double q, double frequency)
+        {
+            var result = Analyze(48000, 1, (t, _) => Tone(t, frequency), options: new AudioSettings { BassFilterQ = q, HighFilterQ = q });
+            return bass ? result.Detector.Low.EnvelopeDb : result.Detector.High.EnvelopeDb;
+        }
+        var center = bass ? 100 : 2000;
+        Check(Math.Abs(Level(.5, center) - Level(4, center)) < .15, "Width changed center gain.");
+        Check(Level(.5, center * 2) - Level(4, center * 2) > 8, "Narrow band failed to reject off-center sound.");
+    }
+});
+Test("bass timing overrides do not alter the detail envelope", () =>
+{
+    double Signal(double t, int _) => t < .2 ? 0 : Tone(t, 2000);
+    var baseline = Analyze(48000, 1, Signal, .3);
+    var changed = Analyze(48000, 1, Signal, .3, options: new AudioSettings { BassAttackMilliseconds = 90, BassReleaseMilliseconds = 200, BassOnsetRiseWindowMilliseconds = 100, BassTransientSeparationMilliseconds = 500 });
+    Check(Math.Abs(baseline.Detector.High.EnvelopeDb - changed.Detector.High.EnvelopeDb) < 1e-9, "Bass timing changed detail envelope.");
+});
+Test("new band settings reject invalid modes, non-finite values and incompatible background", () =>
+{
+    foreach (var value in new[] { new AudioSettings { BassTriggerMode = "unknown" }, new AudioSettings { HighFilterQ = double.NaN }, new AudioSettings { BassFilterQ = 0 }, new AudioSettings { HighOnsetRiseWindowMilliseconds = 101 }, new AudioSettings { HighReleaseMilliseconds = 500 } })
+    {
+        bool rejected = false;
+        try { value.Validate(); } catch (ArgumentException) { rejected = true; }
+        Check(rejected, "Invalid band setting accepted.");
+    }
+});
 Test("silence produces no feedback", () =>
     Check(Analyze(48000, 2, (_, _) => 0).Events.Count == 0, "Silence triggered."));
 Test("steady bass stops producing candidates after its initial attack", () =>

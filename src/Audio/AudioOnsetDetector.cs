@@ -15,6 +15,7 @@ internal sealed class AudioOnsetDetector
     private readonly BandEnvelope _low, _high;
     private readonly AudioSettings _settings;
     private readonly int _sampleRate, _windowFrames;
+    private readonly double _lowFilterGain, _highFilterGain;
     private int _framesInWindow;
     private long _frames;
     private double _lowEnergy, _highEnergy;
@@ -32,18 +33,21 @@ internal sealed class AudioOnsetDetector
         if (sampleRate < 8000 || channels < 1 || channels > 32)
             throw new ArgumentOutOfRangeException(nameof(sampleRate), "Unsupported sample rate or channel count.");
         _sampleRate = sampleRate;
+        // Constant-skirt filters have peak gain Q; retain the legacy center gain as width changes.
+        _lowFilterGain = 1.2 / settings.BassFilterQ;
+        _highFilterGain = 1.6 / settings.HighFilterQ;
         _settings = settings;
         _windowFrames = Math.Max(1, (int)Math.Round(sampleRate * 0.005));
         _lowFilters = new BiQuadFilter[channels];
         _highFilters = new BiQuadFilter[channels];
         for (var c = 0; c < channels; c++)
         {
-            _lowFilters[c] = BiQuadFilter.BandPassFilterConstantSkirtGain(sampleRate, (float)settings.LowCenterHz, 1.2f);
-            _highFilters[c] = BiQuadFilter.BandPassFilterConstantSkirtGain(sampleRate, (float)Math.Min(settings.HighCenterHz, sampleRate * 0.4), 1.6f);
+            _lowFilters[c] = BiQuadFilter.BandPassFilterConstantSkirtGain(sampleRate, (float)settings.LowCenterHz, (float)settings.BassFilterQ);
+            _highFilters[c] = BiQuadFilter.BandPassFilterConstantSkirtGain(sampleRate, (float)Math.Min(settings.HighCenterHz, sampleRate * 0.4), (float)settings.HighFilterQ);
         }
         var windowMs = _windowFrames * 1000.0 / sampleRate;
-        _low = new BandEnvelope(windowMs, settings.EffectiveLowThresholdDb, settings);
-        _high = new BandEnvelope(windowMs, settings.EffectiveHighThresholdDb, settings);
+        _low = new BandEnvelope(windowMs, settings.EffectiveLowThresholdDb, settings, true);
+        _high = new BandEnvelope(windowMs, settings.EffectiveHighThresholdDb, settings, false);
     }
 
     public void Process(ReadOnlySpan<float> interleaved, Action<HapticOnset> onOnset, Action<DetectorReading>? onReading = null)
@@ -55,8 +59,8 @@ internal sealed class AudioOnsetDetector
             for (var c = 0; c < Channels; c++)
             {
                 var input = float.IsFinite(interleaved[i + c]) ? Math.Clamp(interleaved[i + c], -1f, 1f) : 0f;
-                var low = _lowFilters[c].Transform(input);
-                var high = _highFilters[c].Transform(input);
+                var low = _lowFilters[c].Transform(input) * _lowFilterGain;
+                var high = _highFilters[c].Transform(input) * _highFilterGain;
                 _lowEnergy += (double)low * low;
                 _highEnergy += (double)high * high;
             }
@@ -110,15 +114,19 @@ internal sealed class AudioOnsetDetector
         private readonly double _windowMs;
         private readonly double[] _history;
         private int _historyIndex;
+        private readonly string _triggerMode;
+        private readonly double _separationMs;
         private bool _armed = true;
-        public BandEnvelope(double windowMs, double floorDb, AudioSettings settings)
+        public BandEnvelope(double windowMs, double floorDb, AudioSettings settings, bool bass)
         {
             _settings = settings;
             _windowMs = windowMs;
-            _history = Enumerable.Repeat(-180.0, Math.Max(1, (int)Math.Round(settings.OnsetRiseWindowMilliseconds / windowMs))).ToArray();
+            _triggerMode = bass ? settings.BassTriggerMode : settings.HighTriggerMode;
+            _separationMs = bass ? settings.BassTransientSeparationMilliseconds : settings.HighTransientSeparationMilliseconds;
+            _history = Enumerable.Repeat(-180.0, Math.Max(1, (int)Math.Round((bass ? settings.BassOnsetRiseWindowMilliseconds : settings.HighOnsetRiseWindowMilliseconds) / windowMs))).ToArray();
             _floorDb = floorDb;
-            _attack = 1 - Math.Exp(-windowMs / settings.AttackMilliseconds);
-            _release = 1 - Math.Exp(-windowMs / settings.ReleaseMilliseconds);
+            _attack = 1 - Math.Exp(-windowMs / (bass ? settings.BassAttackMilliseconds : settings.HighAttackMilliseconds));
+            _release = 1 - Math.Exp(-windowMs / (bass ? settings.BassReleaseMilliseconds : settings.HighReleaseMilliseconds));
             _backgroundFollow = 1 - Math.Exp(-windowMs / settings.BackgroundMilliseconds);
         }
         public BandReading Update(double rms)
@@ -134,11 +142,11 @@ internal sealed class AudioOnsetDetector
             _historyIndex = (_historyIndex + 1) % _history.Length;
             _elapsedMs += _windowMs;
             // A new attack can emerge above sustained music before the slow threshold is crossed.
-            var newAttack = riseDb >= _settings.OnsetRiseDb &&
+            var newAttack = _triggerMode != "level" && riseDb >= _settings.OnsetRiseDb &&
                 envDb >= Math.Max(_floorDb, backgroundDb + _settings.RearmMarginDb);
-            var levelTrigger = _armed && envDb >= thresholdDb;
+            var levelTrigger = _triggerMode != "rise" && _armed && envDb >= thresholdDb;
             var onset = (levelTrigger || newAttack) &&
-                _elapsedMs - _lastOnsetMs >= _settings.TransientSeparationMilliseconds;
+                _elapsedMs - _lastOnsetMs >= _separationMs;
             if (onset) { _armed = false; _lastOnsetMs = _elapsedMs; }
             // If both rules qualify, report the level rule; rapid rise means it was needed.
             return new BandReading(envDb, backgroundDb, thresholdDb, onset,

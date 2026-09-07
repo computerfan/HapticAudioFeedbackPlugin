@@ -35,6 +35,27 @@ internal sealed class AudioSettings
     public double SustainThresholdDb { get; set; } = -30;
     public double SustainSlowIntervalMilliseconds { get; set; } = 260;
     public double SustainFastIntervalMilliseconds { get; set; } = 140;
+    // Missing band overrides inherit legacy shared values, including old custom profiles.
+    private double? _bassAttackMilliseconds;
+    public double BassAttackMilliseconds { get => _bassAttackMilliseconds ?? AttackMilliseconds; set => _bassAttackMilliseconds = value; }
+    private double? _bassReleaseMilliseconds;
+    public double BassReleaseMilliseconds { get => _bassReleaseMilliseconds ?? ReleaseMilliseconds; set => _bassReleaseMilliseconds = value; }
+    private double? _bassOnsetRiseWindowMilliseconds;
+    public double BassOnsetRiseWindowMilliseconds { get => _bassOnsetRiseWindowMilliseconds ?? OnsetRiseWindowMilliseconds; set => _bassOnsetRiseWindowMilliseconds = value; }
+    private double? _bassTransientSeparationMilliseconds;
+    public double BassTransientSeparationMilliseconds { get => _bassTransientSeparationMilliseconds ?? TransientSeparationMilliseconds; set => _bassTransientSeparationMilliseconds = value; }
+    public string BassTriggerMode { get; set; } = "both";
+    private double? _highAttackMilliseconds;
+    public double HighAttackMilliseconds { get => _highAttackMilliseconds ?? AttackMilliseconds; set => _highAttackMilliseconds = value; }
+    private double? _highReleaseMilliseconds;
+    public double HighReleaseMilliseconds { get => _highReleaseMilliseconds ?? ReleaseMilliseconds; set => _highReleaseMilliseconds = value; }
+    private double? _highOnsetRiseWindowMilliseconds;
+    public double HighOnsetRiseWindowMilliseconds { get => _highOnsetRiseWindowMilliseconds ?? OnsetRiseWindowMilliseconds; set => _highOnsetRiseWindowMilliseconds = value; }
+    private double? _highTransientSeparationMilliseconds;
+    public double HighTransientSeparationMilliseconds { get => _highTransientSeparationMilliseconds ?? TransientSeparationMilliseconds; set => _highTransientSeparationMilliseconds = value; }
+    public string HighTriggerMode { get; set; } = "both";
+    public double BassFilterQ { get; set; } = 1.2;
+    public double HighFilterQ { get; set; } = 1.6;
     public AudioSettings Copy() => (AudioSettings)MemberwiseClone();
 
     [System.Text.Json.Serialization.JsonIgnore]
@@ -79,6 +100,18 @@ internal sealed class AudioSettings
             (CaptureDeviceId.Length != 0 && !((CaptureDeviceId.StartsWith("input:", StringComparison.Ordinal) && CaptureDeviceId.Length > 6) ||
                 (CaptureDeviceId.StartsWith("output:", StringComparison.Ordinal) && CaptureDeviceId.Length > 7))))
             throw new ArgumentException("Invalid audio device ID.");
+        Range(BassAttackMilliseconds, 1, 100, nameof(BassAttackMilliseconds));
+        Range(BassReleaseMilliseconds, 5, 1000, nameof(BassReleaseMilliseconds));
+        Range(BassOnsetRiseWindowMilliseconds, 5, 100, nameof(BassOnsetRiseWindowMilliseconds));
+        Range(BassTransientSeparationMilliseconds, 40, 500, nameof(BassTransientSeparationMilliseconds));
+        Range(BassFilterQ, 0.5, 4, nameof(BassFilterQ));
+        if (BassTriggerMode is not ("both" or "level" or "rise")) throw new ArgumentException("Unsupported trigger mode.");
+        Range(HighAttackMilliseconds, 1, 100, nameof(HighAttackMilliseconds));
+        Range(HighReleaseMilliseconds, 5, 1000, nameof(HighReleaseMilliseconds));
+        Range(HighOnsetRiseWindowMilliseconds, 5, 100, nameof(HighOnsetRiseWindowMilliseconds));
+        Range(HighTransientSeparationMilliseconds, 40, 500, nameof(HighTransientSeparationMilliseconds));
+        Range(HighFilterQ, 0.5, 4, nameof(HighFilterQ));
+        if (HighTriggerMode is not ("both" or "level" or "rise")) throw new ArgumentException("Unsupported trigger mode.");
         Range(Sensitivity, 0, 100, nameof(Sensitivity));
         Range(BassGainDb, -12, 12, nameof(BassGainDb));
         Range(HighGainDb, -12, 12, nameof(HighGainDb));
@@ -105,7 +138,7 @@ internal sealed class AudioSettings
         Range(MinimumSpacingMilliseconds, 30, 1000, nameof(MinimumSpacingMilliseconds));
         Range(MaximumEventAgeMilliseconds, 5, 250, nameof(MaximumEventAgeMilliseconds));
         Range(StrongBassAboveThresholdDb, 0, 60, nameof(StrongBassAboveThresholdDb));
-        if (BackgroundMilliseconds <= Math.Max(AttackMilliseconds, ReleaseMilliseconds))
+        if (BackgroundMilliseconds <= new[] { AttackMilliseconds, ReleaseMilliseconds, BassAttackMilliseconds, BassReleaseMilliseconds, HighAttackMilliseconds, HighReleaseMilliseconds }.Max())
             throw new ArgumentException("BackgroundMilliseconds must exceed attack and release.");
     }
 }

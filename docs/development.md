@@ -258,3 +258,25 @@ Mac system-default capture checks the current CPAL device ID every 500 ms inside
 Live metrics use an authenticated SSE response at /metrics/stream, consumed through fetch so the session token stays in a header. One connection delivers snapshots at up to 10 Hz; controls remain normal HTTP requests. Hidden pages close the stream and visible pages reconnect. An idle stream is aborted after 3 seconds, with reconnection backoff capped at 10 seconds. The server permits at most four streams, bounds each frame to 256 KiB and closes writes exceeding 3 seconds. It produces the next snapshot only after the preceding write completes. The existing /metrics endpoint remains available for diagnostics. This removes repeated HTTP request overhead; JSON serialization and chart rendering still occur at the update rate.
 
 Rapid-rise detection compares the current envelope with a bounded history window (`OnsetRiseWindowMilliseconds`, 5–100 ms, default 20 ms), rounded to the nearest detector frame (about 5 ms). It looks backward and does not buffer future audio. The browser exposes this beside Attack contrast in Tune → Rapid-rise triggers. Older settings and profiles retain the 20 ms default. The beat re-arm interval and overall pulse spacing still limit repeat events independently.
+
+### Independent band detection
+
+Tune → Bass/Detail → advanced detection exposes trigger mode (level, rapid rise, both), filter Q (0.5–4), envelope attack (1–100 ms), release (5–1000 ms), and re-arm interval (40–500 ms). Separate bass/detail rise windows (5–100 ms) remain beside Attack contrast in Rapid-rise triggers. Level-only mode disables its rise-window control. Background tracking and contrast remain shared; background time must exceed both bands' envelope times. Global pulse spacing still caps combined output.
+
+Q controls width inversely. The constant-skirt filters are gain-compensated to retain the original center gain (1.2 bass, 1.6 detail), so changing Q does not simply amplify the center frequency. Transient response can still change with bandwidth. No spectral detector, future-frame confirmation or native capture change is included.
+
+Legacy shared timing keys remain readable. Each new band timing property falls back to the corresponding shared value until explicitly assigned; serialization writes resolved values, independent of JSON property order. Older custom profiles keep their original timing, both trigger rules and original filter widths. Built-in profile selection deliberately applies the revised tuning below; loading the plugin does not overwrite a user's saved tuning.
+
+| Profile | Bass/detail mode | Bass/detail Q | Rise window ms | Attack ms | Release ms | Re-arm ms |
+|---|---|---|---|---|---|---|
+| Music | both / rise | 1.2 / 1.6 | 25 / 15 | 5 / 3 | 60 / 40 | 90 / 80 |
+| Bass focus | both / both | 1.8 / 1.6 | 30 / 20 | 5 / 5 | 70 / 60 | 100 / 80 |
+| Gentle | level / level | 1.0 / 1.4 | 35 / 25 | 10 / 8 | 100 / 80 | 180 / 200 |
+| Electronic / dance | rise / rise | 1.8 / 2.0 | 20 / 10 | 3 / 2 | 50 / 35 | 100 / 80 |
+| Rock / live | both / rise | 1.2 / 1.8 | 25 / 15 | 5 / 3 | 55 / 40 | 120 / 100 |
+| Acoustic / jazz | both / both | 0.9 / 1.2 | 40 / 25 | 8 / 5 | 90 / 65 | 150 / 120 |
+| Movies / cinematic | both / level | 1.8 / 1.6 | 50 / 20 | 8 / 5 | 100 / 60 | 220 / 200 |
+| Games / action | rise / rise | 1.4 / 2.0 | 20 / 10 | 3 / 2 | 60 / 35 | 160 / 140 |
+| Ambient / sustained | level / level | 1.0 / 1.6 | 60 / 40 | 15 / 10 | 180 / 120 | 250 / 200 |
+
+All paired values are bass/detail. Disabled detail bands remain disabled; level-only modes retain inactive rise-window values. These are design starting points, validated for settings constraints and synthetic signals, not a measured listening-quality improvement.
