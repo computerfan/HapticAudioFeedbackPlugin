@@ -64,6 +64,8 @@ internal sealed class HapticMonitorSample
 internal sealed class HapticMonitorDebugServer : IDisposable
 {
     private HttpListener _listener;
+    private readonly object _streamsGate = new();
+    private readonly HashSet<HttpListenerResponse> _streams = new();
     private readonly Thread _thread;
     private readonly Func<HapticMonitorSample> _metrics;
     private readonly Func<(AudioSettings Settings, int Revision)> _settings;
@@ -163,6 +165,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     public void Dispose()
     {
         _running = false;
+        lock (_streamsGate) foreach (var response in _streams) { try { response.Abort(); } catch { } }
         _listener?.Close();
         if (_thread.IsAlive && Thread.CurrentThread != _thread) _thread.Join(1000);
     }
@@ -172,7 +175,8 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         while (_running)
         {
             HttpListenerContext context = null;
-            try { context = _listener.GetContext(); Handle(context); }
+            var streaming = false;
+            try { context = _listener.GetContext(); streaming = Handle(context); }
             catch (Exception ex)
             {
                 if (!_running) break;
@@ -190,11 +194,11 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                 if (message.Length > 512) message = message[..512] + "…";
                 try { Json(context, new { Error = message }, status); } catch { }
             }
-            finally { try { context?.Response.Close(); } catch { } }
+            finally { if (!streaming) { try { context?.Response.Close(); } catch { } } }
         }
     }
 
-    private void Handle(HttpListenerContext context)
+    private bool Handle(HttpListenerContext context)
     {
         var request = context.Request;
         var path = request.Url?.AbsolutePath ?? "/";
@@ -205,48 +209,49 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         // Accept only the exact loopback authority; no wildcard hostnames or DNS rebinding.
         if (request.Url?.GetLeftPart(UriPartial.Authority) + "/" != BaseUrl ||
             request.RemoteEndPoint == null || !IPAddress.IsLoopback(request.RemoteEndPoint.Address))
-        { Json(context, new { Error = "Loopback requests only" }, 403); return; }
+        { Json(context, new { Error = "Loopback requests only" }, 403); return false; }
         if (request.HttpMethod != "GET" || (path != "/" && path != "/vendor/pico-2.1.1.min.css" && path != "/logo.png" && path != "/localization.js" && path != "/locales/zh-CN.json" && path != "/licenses" && !_licenseTexts.ContainsKey(path)))
         {
             var origin = request.Headers["Origin"];
             if (request.Headers["X-Haptic-Token"] != _token ||
                 (origin != null && origin + "/" != BaseUrl))
-            { Json(context, new { Error = "Reopen settings using the launcher or Open haptic settings action." }, 403); return; }
+            { Json(context, new { Error = "Reopen settings using the launcher or Open haptic settings action." }, 403); return false; }
         }
         if (request.HttpMethod == "GET")
         {
             if (_licenseTexts.TryGetValue(path, out var licenseText))
-            { Write(context, licenseText, "text/plain; charset=utf-8"); return; }
+            { Write(context, licenseText, "text/plain; charset=utf-8"); return false; }
             switch (path)
             {
-                case "/devices": Json(context, _devices?.Invoke() ?? throw new InvalidOperationException("Device enumeration unavailable.")); return;
+                case "/devices": Json(context, _devices?.Invoke() ?? throw new InvalidOperationException("Device enumeration unavailable.")); return false;
                 case "/logs":
                     var logs = _logs?.Invoke() ?? throw new InvalidOperationException("Plugin logs are unavailable.");
-                    Json(context, new { logs.Directory, logs.RecentText, logs.Warnings }); return;
+                    Json(context, new { logs.Directory, logs.RecentText, logs.Warnings }); return false;
                 case "/logs/download":
                     var download = _logs?.Invoke() ?? throw new InvalidOperationException("Plugin logs are unavailable.");
                     context.Response.Headers["Content-Disposition"] = "attachment; filename=feel-the-rhythm-diagnostics.txt";
-                    Write(context, "Feel the Rhythm diagnostic logs\n" + string.Join("\n", download.Warnings) + "\n" + download.Text, "text/plain; charset=utf-8"); return;
-                case "/metrics": Json(context, _metrics()); return;
+                    Write(context, "Feel the Rhythm diagnostic logs\n" + string.Join("\n", download.Warnings) + "\n" + download.Text, "text/plain; charset=utf-8"); return false;
+                case "/metrics": Json(context, _metrics()); return false;
+                case "/metrics/stream": return StartMetricsStream(context);
                 case "/settings":
                     var snapshot = _settings();
                     var catalog = _profiles.Snapshot();
                     Json(context, new { snapshot.Settings, snapshot.Revision, Presets = HapticPatterns.Presets.Keys,
-                        catalog.Profiles, catalog.ProfileInfo, catalog.ProfilesRevision, catalog.ProfilesError }); return;
-                case "/licenses": Write(context, _licensesHtml, "text/html; charset=utf-8"); return;
-                case "/": Write(context, _html, "text/html; charset=utf-8"); return;
-                case "/localization.js": Write(context, _localizationJs, "text/javascript; charset=utf-8"); return;
-                case "/locales/zh-CN.json": Write(context, _chineseJson, "application/json; charset=utf-8"); return;
-                case "/logo.png": Write(context, _logoPng, "image/png"); return;
-                case "/vendor/pico-2.1.1.min.css": Write(context, _picoCss, "text/css; charset=utf-8"); return;
-                default: Json(context, new { Error = "Not found" }, 404); return;
+                        catalog.Profiles, catalog.ProfileInfo, catalog.ProfilesRevision, catalog.ProfilesError }); return false;
+                case "/licenses": Write(context, _licensesHtml, "text/html; charset=utf-8"); return false;
+                case "/": Write(context, _html, "text/html; charset=utf-8"); return false;
+                case "/localization.js": Write(context, _localizationJs, "text/javascript; charset=utf-8"); return false;
+                case "/locales/zh-CN.json": Write(context, _chineseJson, "application/json; charset=utf-8"); return false;
+                case "/logo.png": Write(context, _logoPng, "image/png"); return false;
+                case "/vendor/pico-2.1.1.min.css": Write(context, _picoCss, "text/css; charset=utf-8"); return false;
+                default: Json(context, new { Error = "Not found" }, 404); return false;
             }
         }
-        if (request.HttpMethod != "POST") { Json(context, new { Error = "Method not allowed" }, 405); return; }
+        if (request.HttpMethod != "POST") { Json(context, new { Error = "Method not allowed" }, 405); return false; }
         if (!(request.ContentType?.StartsWith("application/json", StringComparison.OrdinalIgnoreCase) ?? false))
-        { Json(context, new { Error = "JSON required" }, 415); return; }
+        { Json(context, new { Error = "JSON required" }, 415); return false; }
         if (request.ContentLength64 < 0 || request.ContentLength64 > 32768)
-        { Json(context, new { Error = "Invalid request length" }, 413); return; }
+        { Json(context, new { Error = "Invalid request length" }, 413); return false; }
         var buffer = new byte[(int)request.ContentLength64];
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(3));
         request.InputStream.ReadExactlyAsync(buffer.AsMemory(), timeout.Token).AsTask().GetAwaiter().GetResult();
@@ -257,7 +262,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                 ?? throw new ArgumentException("Settings must be an object.");
             settings.Validate();
             if (!int.TryParse(request.Headers["If-Match"]?.Trim('"'), out var revision))
-            { Json(context, new { Error = "Reload current settings before saving." }, 428); return; }
+            { Json(context, new { Error = "Reload current settings before saving." }, 428); return false; }
             _apply(settings, revision);
             var snapshot = _settings();
             Json(context, new { snapshot.Settings, snapshot.Revision, Saved = true });
@@ -288,6 +293,48 @@ internal sealed class HapticMonitorDebugServer : IDisposable
             Json(context, new { Accepted = _preview(HapticPatterns.Presets[waveform]) });
         }
         else Json(context, new { Error = "Not found" }, 404);
+        return false;
+    }
+
+    private bool StartMetricsStream(HttpListenerContext context)
+    {
+        var response = context.Response;
+        lock (_streamsGate)
+        {
+            if (!_running || _streams.Count >= 4)
+            { Json(context, new { Error = "Too many monitor connections. Close another settings tab." }, 503); return false; }
+            response.ContentType = "text/event-stream; charset=utf-8";
+            response.SendChunked = true;
+            _streams.Add(response);
+        }
+        _ = Task.Run(async () =>
+        {
+            try
+            {
+                while (_running)
+                {
+                    // Produce only after the previous write completes: no application backlog.
+                    var bytes = Encoding.UTF8.GetBytes("data: " + JsonSerializer.Serialize(_metrics()) + "\n\n");
+                    if (bytes.Length > 262144) throw new IOException("Monitor frame exceeds its size limit.");
+                    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+                    using var abort = deadline.Token.Register(() => { try { response.Abort(); } catch { } });
+                    await response.OutputStream.WriteAsync(bytes, deadline.Token).ConfigureAwait(false);
+                    await response.OutputStream.FlushAsync(deadline.Token).ConfigureAwait(false);
+                    await Task.Delay(100).ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                if (_running && ex is not (IOException or HttpListenerException or ObjectDisposedException or OperationCanceledException))
+                    PluginLog.Warning(ex, "Monitor stream stopped.");
+            }
+            finally
+            {
+                try { response.Close(); } catch { }
+                lock (_streamsGate) _streams.Remove(response);
+            }
+        });
+        return true;
     }
 
     private static void Json(HttpListenerContext context, object value, int status = 200)

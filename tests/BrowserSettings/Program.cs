@@ -160,6 +160,45 @@ using (var result = JsonDocument.Parse(await response.Content.ReadAsStringAsync(
     Check(response.IsSuccessStatusCode && previews == 1 && result.RootElement.GetProperty("Accepted").GetBoolean()
         && !result.RootElement.TryGetProperty("Sent", out _), "preview reports acceptance without claiming completed playback");
 Check(!(await Send("preview", token, body: "invalid")).IsSuccessStatusCode && previews == 1, "invalid preview cannot dispatch");
+Check((await Send("metrics/stream")).StatusCode == HttpStatusCode.Forbidden, "metrics stream requires header authentication");
+Check((await Send("metrics/stream", token, origin: "https://example.com")).StatusCode == HttpStatusCode.Forbidden, "foreign origins cannot open monitor streams");
+using (var streamClient = new HttpClient { Timeout = TimeSpan.FromSeconds(5) })
+{
+    var active = new List<HttpResponseMessage>();
+    try
+    {
+        for (var i=0;i<4;i++)
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, server.BaseUrl + "metrics/stream");
+            request.Headers.Add("X-Haptic-Token", token);
+            var response = await streamClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+            active.Add(response);
+            Check(response.IsSuccessStatusCode && response.Content.Headers.ContentType.MediaType == "text/event-stream", "authenticated monitor stream opens " + i);
+        }
+        using var reader = new StreamReader(await active[0].Content.ReadAsStreamAsync());
+        var line = await reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(3));
+        using var frame = JsonDocument.Parse(line.Substring(6));
+        Check(line.StartsWith("data: ") && frame.RootElement.GetProperty("SentCount").GetString() == long.MaxValue.ToString(), "streamed metrics preserve exact counters");
+        Check((await Send("settings", token)).IsSuccessStatusCode, "open streams do not block settings requests");
+        Check((await Send("metrics/stream", token)).StatusCode == HttpStatusCode.ServiceUnavailable, "monitor stream connection count is bounded");
+    }
+    finally { foreach (var response in active) response.Dispose(); }
+}
+using (var closing = Create())
+using (var closingClient = new HttpClient())
+{
+    closing.Start();
+    using var request = new HttpRequestMessage(HttpMethod.Get, closing.BaseUrl + "metrics/stream");
+    request.Headers.Add("X-Haptic-Token", new Uri(closing.LaunchUrl).Fragment.Substring(7));
+    using var response = await closingClient.SendAsync(request, HttpCompletionOption.ResponseHeadersRead);
+    using var body = await response.Content.ReadAsStreamAsync();
+    closing.Dispose();
+    using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
+    var buffer = new byte[8192];
+    try { while (await body.ReadAsync(buffer, deadline.Token) != 0) { } }
+    catch (IOException) { }
+    Check(!deadline.IsCancellationRequested, "server shutdown terminates active monitor streams");
+}
 Check((await Send("preview", body: "subtle_collision")).StatusCode == HttpStatusCode.Forbidden && previews == 1, "unauthenticated preview cannot dispatch");
 Check((int)(await Send("settings", token, body: new string('x', 33000), rev: 1)).StatusCode == 413, "oversized request bodies are rejected");
 Check((await Send("capture/permissions", body: new { })).StatusCode == HttpStatusCode.Forbidden && permissionOpens == 0, "opening system permissions requires authentication");

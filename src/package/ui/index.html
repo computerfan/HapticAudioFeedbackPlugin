@@ -501,13 +501,10 @@ byId('permissionRetry').onclick=async()=>{
  try{await byId('restartCapture').onclick();}finally{button.disabled=false;}
 };
 
-let pollRunning=false,pollFailures=0,pollTimer=null;
-async function poll(){
- clearTimeout(pollTimer);pollTimer=null;
- if(pollRunning||document.hidden)return;
- pollRunning=true;
- try{
-  const {response,body:m}=await fetchBody('/metrics',{headers:authHeaders},'json',3000);if(document.hidden)return;if(!response.ok)throw new Error(t('Monitor unavailable'));updatePermissionHelp(m);
+let pollRunning=false,pollFailures=0,pollTimer=null,monitorController=null,monitorSuspended=false;
+function renderMetrics(m){
+ if(document.hidden)return;
+ updatePermissionHelp(m);
   const age=m.LastPacketUtc?Date.now()-Date.parse(m.LastPacketUtc):Infinity;
   const signalAge=m.LastSignalUtc?Date.now()-Date.parse(m.LastSignalUtc):Infinity;
   byId('state').textContent=m.CapturePermission==='denied'?t('Audio permission denied'):m.CaptureError?t('Capture unavailable'):m.ProcessingError?t('Feedback error'):!m.Enabled?t('Paused'):m.CaptureMode==='starting'?t('Starting capture'):m.Settling?t('Settling'):!m.AudioReceived?t('Waiting for audio'):age>1000?t('No audio packets'):signalAge>1000?t('Silent audio'):t('Listening');
@@ -520,11 +517,33 @@ async function poll(){
   byId('backendTiming').textContent=ms(m.BackendCallMs)+' / '+ms(m.MaxBackendCallMs);
   byId('waitTiming').textContent=t('Callback lock wait: ')+ms(m.LockWaitMs)+' / '+ms(m.MaxLockWaitMs)+t(' max. Last event age within its delivered batch: ')+ms(m.LastEventAgeWithinCallbackMs)+t('. Newest sample age: ')+ms(m.NewestSampleAgeMs)+t(' ms. Capture frames discarded: ')+formatCounter(m.CaptureDroppedFrames??'0').label+'.';
   byId('logStatus').textContent=t(m.LoggingError)||(t('Log messages suppressed: ')+formatCounter(m.LogSuppressedCount??'0').label+t('. Diagnostic logs keep at most three 512 KiB files.'));
-  acceptMetrics(m);updateBandReadouts(m);chart();pollFailures=0;
- }catch(error){pollFailures=Math.min(pollFailures+1,5);byId('state').textContent=t('Disconnected');byId('audioStatus').textContent=t('Plugin unavailable. Reopen the settings launcher or use Open haptic settings in Options+. The port changes after reload.');}
- finally{pollRunning=false;if(!document.hidden)pollTimer=setTimeout(poll,pollFailures?Math.min(1000*2**(pollFailures-1),10000):100);}
+  acceptMetrics(m);updateBandReadouts(m);chart();
 }
-document.addEventListener('visibilitychange',()=>{clearTimeout(pollTimer);pollTimer=null;if(!document.hidden)poll();});
+async function poll(){
+ clearTimeout(pollTimer);pollTimer=null;
+ if(pollRunning||document.hidden||monitorSuspended)return;
+ pollRunning=true;
+ const controller=monitorController=new AbortController();
+ try{
+  await consumeMetrics(controller,m=>{renderMetrics(m);pollFailures=0;});
+ }catch(error){
+  if(!document.hidden){
+   pollFailures=Math.min(pollFailures+1,5);
+   byId('state').textContent=t('Disconnected');
+   byId('audioStatus').textContent=t('Plugin unavailable. Reopen the settings launcher or use Open haptic settings in Options+. The port changes after reload.');
+  }
+ }finally{
+  if(monitorController===controller)monitorController=null;
+  pollRunning=false;
+  if(!document.hidden&&!monitorSuspended)pollTimer=setTimeout(poll,pollFailures?Math.min(1000*2**(pollFailures-1),10000):0);
+ }
+}
+document.addEventListener('visibilitychange',()=>{
+ clearTimeout(pollTimer);pollTimer=null;
+ if(document.hidden)monitorController?.abort();else poll();
+});
+window.addEventListener('pagehide',()=>{monitorSuspended=true;clearTimeout(pollTimer);monitorController?.abort();});
+window.addEventListener('pageshow',()=>{if(monitorSuspended){monitorSuspended=false;poll();}});
 byId('restartCapture').onclick=async()=>{
  const button=byId('restartCapture');button.disabled=true;
  try {const {response,body:result}=await fetchBody('/capture/restart',{method:'POST',headers:{...authHeaders,'Content-Type':'application/json'},body:'{}'});

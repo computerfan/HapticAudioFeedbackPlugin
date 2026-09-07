@@ -64,3 +64,31 @@ document.getElementById('language').addEventListener('change',async event=>{
   message(saveFailed?t('Changes are not saved. Retry saving, or reload saved settings.'):saving||dirty?t('Saving changes…'):t('Ready · changes save automatically'),saveFailed);
  }catch{document.getElementById('language').value=currentLocale;message('Could not load Chinese translations. Try again.',true);}
 });
+
+// Our SSE endpoint uses one JSON data line per event. Fetch preserves header authentication.
+async function consumeMetrics(controller,onSample){
+ let reader,timer;
+ const arm=()=>{clearTimeout(timer);timer=setTimeout(()=>controller.abort(),3000);};
+ arm();
+ try{
+  const response=await fetch('/metrics/stream',{headers:authHeaders,signal:controller.signal});
+  if(!response.ok)throw new Error('Monitor unavailable');
+  reader=response.body.getReader();
+  const decoder=new TextDecoder();let pending='';
+  while(true){
+   const {done,value}=await reader.read();if(done)throw new Error('Monitor disconnected');
+   pending+=decoder.decode(value,{stream:true});
+   let end;
+   while((end=pending.indexOf('\n\n'))>=0){
+    if(end>262144)throw new Error('Monitor frame too large');
+    const frame=pending.slice(0,end);pending=pending.slice(end+2);
+    if(!frame.startsWith('data: '))throw new Error('Invalid monitor frame');
+    const sample=JSON.parse(frame.slice(6));arm();onSample(sample);
+   }
+   if(pending.length>262144)throw new Error('Monitor frame too large');
+  }
+ }finally{
+  clearTimeout(timer);controller.abort();
+  if(reader){try{await reader.cancel();}catch{}reader.releaseLock();}
+ }
+}

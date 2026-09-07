@@ -30,11 +30,19 @@ function harness(){
  const catalog=()=>({Profiles:profiles,ProfileInfo:info,ProfilesRevision:state.catalogWrites,Presets:['subtle_collision','damp_collision','sharp_collision','damp_state_change','sharp_state_change','wave']});
  const timers=new Map();let timerId=0;
  const aborted=signal=>new Promise((resolve,reject)=>{if(signal.aborted)reject(new Error('aborted'));else signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});});
- const context=vm.createContext({document,URL:{createObjectURL(){state.downloaded=true;return "blob:test";},revokeObjectURL(){}},URLSearchParams,navigator:{languages:['en-US']},location:{hash:'',pathname:'/',search:''},sessionStorage:{getItem(){return 'test';}},window:{addEventListener(){},history:{replaceState(){}}},structuredClone,AbortController,setTimeout(callback,delay){const id=++timerId;timers.set(id,{callback,delay});return id;},clearTimeout(id){timers.delete(id);},console,
+ const context=vm.createContext({document,URL:{createObjectURL(){state.downloaded=true;return "blob:test";},revokeObjectURL(){}},URLSearchParams,navigator:{languages:['en-US']},location:{hash:'',pathname:'/',search:''},sessionStorage:{getItem(){return 'test';}},window:{addEventListener(){},history:{replaceState(){}}},structuredClone,AbortController,TextDecoder,setTimeout(callback,delay){const id=++timerId;timers.set(id,{callback,delay});return id;},clearTimeout(id){timers.delete(id);},console,
  fetch:async(path,options={})=>{
   if(state.hangPath===path)return aborted(options.signal);
   let body,ok=true;
-  if(path==='/metrics'){state.metricReads=(state.metricReads||0)+1;body=state.metrics||{};}
+  if(path==='/metrics/stream'){
+   state.metricReads=(state.metricReads||0)+1;
+   let index=0;const chunks=state.streamChunks||['data: '+JSON.stringify(state.metrics||{})+'\n\n'];
+   return {ok:true,body:{getReader(){return {
+    async read(){if(index<chunks.length){const chunk=chunks[index++];return {done:false,value:typeof chunk==='string'?new TextEncoder().encode(chunk):chunk};}if(state.endStream)return {done:true};return aborted(options.signal);},
+    async cancel(){state.streamCancelled=true;},releaseLock(){}
+   };}}};
+  }
+  else if(path==='/metrics'){state.metricReads=(state.metricReads||0)+1;body=state.metrics||{};}
   else if(path==='/locales/zh-CN.json'){ok=!state.failLocale;body=chinese;}
   else if(path==='/logs'||path==='/logs/download'){assert.equal(options.headers['X-Haptic-Token'],'test');state.logReads=(state.logReads||0)+1;ok=!state.failLogs;body=ok?{Directory:'/test/logs',RecentText:'<script>not executable</script> 日志',Warnings:[]}:{Error:'Logs unavailable'};}
   else if(path==='/devices'){body=state.enumerationError?{Error:'Device service unavailable'}:{Devices:devices};ok=!state.enumerationError;}
@@ -59,7 +67,7 @@ function harness(){
  const change=(id,value)=>{el(id).value=value;el(id).events.change();};
  const settle=async()=>{for(let i=0;i<20&&run('saving');i++)await new Promise(setImmediate);assert.equal(run('saving'),false);};
  const feedScript=new vm.Script('acceptMetrics(soakSample,soakNow)');
- return{el,run,choose,change,settle,state,devices,profiles,timers,feed(sample,now){context.soakSample=sample;context.soakNow=now;feedScript.runInContext(context);},expire(){for(const [id,timer] of timers)if(timer.delay>=3000){timers.delete(id);timer.callback();}}};
+ return{el,run,choose,change,settle,state,devices,profiles,timers,render(){context.currentMetrics=state.metrics||{};run('renderMetrics(currentMetrics)');},feed(sample,now){context.soakSample=sample;context.soakNow=now;feedScript.runInContext(context);},expire(){for(const [id,timer] of timers)if(timer.delay>=3000){timers.delete(id);timer.callback();}}};
 }
 (async()=>{
  if(process.argv.includes('--soak')){
@@ -89,12 +97,12 @@ function harness(){
  }
 
  { const timeout=harness();await timeout.run('init()');
- timeout.state.hangPath='/metrics';
+ timeout.state.hangPath='/metrics/stream';
  const pending=timeout.run('poll()');await new Promise(setImmediate);timeout.expire();await pending;
  assert.equal(timeout.el('state').textContent,'Disconnected');
  assert.equal(timeout.run('pollRunning'),false);assert.equal(timeout.run('pollFailures'),1);
  assert.ok([...timeout.timers.values()].some(timer=>timer.delay===1000));
- delete timeout.state.hangPath;await timeout.run('poll()');assert.equal(timeout.run('pollFailures'),0);
+ delete timeout.state.hangPath;const resumed=timeout.run('poll()');await new Promise(setImmediate);assert.equal(timeout.run('pollFailures'),0);timeout.run('document.hidden=true;monitorController.abort()');await resumed;
  timeout.state.hangBody='/logs/download';
  const logs=timeout.run('logRequest(true)');await new Promise(setImmediate);timeout.expire();await logs;
  assert.equal(timeout.el('downloadLogs').disabled,false);assert.match(timeout.el('logActionStatus').textContent,/timed out/);
@@ -117,16 +125,26 @@ function harness(){
  assert.equal(background.state.metricReads,undefined);
  background.run("document.hidden=false;document.events.visibilitychange()");
  await new Promise(setImmediate);assert.equal(background.state.metricReads,1);
- assert.ok([...background.timers.values()].some(timer=>timer.delay===100));
- background.run("document.hidden=true;document.events.visibilitychange()");
+ assert.equal(background.run('pollRunning'),true);
+ background.run("document.hidden=true;document.events.visibilitychange()");await new Promise(setImmediate);
  assert.equal([...background.timers.values()].some(timer=>timer.delay===100),false);
  background.run("byId('chart').getContext=()=>{throw new Error('Hidden canvas rendered');};chart()");
- background.run('document.hidden=false');background.state.hangPath='/metrics';
+ background.run('document.hidden=false');background.state.hangPath='/metrics/stream';
  const inFlight=background.run('poll()');await new Promise(setImmediate);
  background.run("document.hidden=true;document.events.visibilitychange()");
  background.expire();await inFlight;
  assert.equal([...background.timers.values()].some(timer=>timer.delay===100||timer.delay===1000),false);
  console.log('PASS hidden page stops monitor polling and drawing, and visibility resumes one polling loop');
+ }
+ { const stream=harness(),data=new TextEncoder().encode('data: '+JSON.stringify({Name:'耳机',SentCount:'9007199254740993'})+'\n\ndata: '+JSON.stringify({Name:'Second'})+'\n\n');
+ stream.state.streamChunks=[data.slice(0,18),data.slice(18,19),data.slice(19,43),data.slice(43)];stream.state.endStream=true;
+ await assert.rejects(stream.run('globalThis.received=[];consumeMetrics(new AbortController(),m=>received.push(m))'),/disconnected/);
+ assert.equal(stream.run('received.length'),2);assert.equal(stream.run('received[0].Name'),'耳机');
+ assert.equal(stream.run('received[0].SentCount'),'9007199254740993');assert.equal(stream.state.streamCancelled,true);
+ stream.state.streamChunks=['data: '+'x'.repeat(262145)];
+ await assert.rejects(stream.run('consumeMetrics(new AbortController(),()=>{})'),/too large/);
+ assert.equal([...stream.timers.values()].filter(timer=>timer.delay===3000).length,0);
+ console.log('PASS streaming handles fragmented UTF-8 and multiple frames, preserves counters, bounds buffering and cleans up');
  }
  const h=harness();await h.run('init()');const {el,run,state,devices}=h;
  await el('preview').children[0].events.click();assert.match(el('previewStatus').textContent,/requested/);
@@ -253,31 +271,31 @@ function harness(){
  const monitor=harness();
  const time=new Date().toISOString();
  monitor.state.metrics={Enabled:true,AudioReceived:false,CapturePackets:'0',CaptureSamples:'0'};
- await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'Waiting for audio');
+ monitor.render();assert.equal(monitor.el('state').textContent,'Waiting for audio');
  monitor.state.metrics={Enabled:true,AudioReceived:true,Timestamp:time,LastPacketUtc:time,RawPeakDb:-180,CapturePackets:'9007199254740993',CaptureSamples:'9223372036854775807'};
- await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'Silent audio');
+ monitor.render();assert.equal(monitor.el('state').textContent,'Silent audio');
  monitor.state.metrics.LastSignalUtc=time;
- await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'Listening');
+ monitor.render();assert.equal(monitor.el('state').textContent,'Listening');
  monitor.state.metrics.LastPacketUtc=new Date(Date.now()-5000).toISOString();
- await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'No audio packets');
+ monitor.render();assert.equal(monitor.el('state').textContent,'No audio packets');
  const permission=harness();
  permission.state.metrics={CapturePlatform:'macos',CaptureSourceKind:'output',CapturePermission:'unknown',CaptureMode:'starting',Enabled:true};
- await permission.run('poll()');assert.equal(permission.el('permissionHelp').hidden,false);
+ permission.render();assert.equal(permission.el('permissionHelp').hidden,false);
  assert.ok(permission.el('permissionMessage').textContent.includes('choose Allow'));
  permission.state.metrics.CaptureMode='unavailable';permission.state.metrics.CapturePermission='denied';
- await permission.run('poll()');assert.equal(permission.el('state').textContent,'Audio permission denied');
+ permission.render();assert.equal(permission.el('state').textContent,'Audio permission denied');
  assert.ok(permission.el('permissionMessage').textContent.includes('System Audio Recording Only'));
  await permission.el('openPermissions').onclick();assert.equal(permission.state.permissionOpens,1);
  await permission.el('permissionRetry').onclick();assert.equal(permission.state.restarts,1);
  permission.state.failPermissions=true;await permission.el('openPermissions').onclick();
  assert.ok(permission.el('permissionActionStatus').textContent.includes('Could not open'));assert.equal(permission.el('openPermissions').disabled,false);
  permission.state.metrics.CapturePermission='unknown';permission.state.metrics.CaptureMode='open';
- await permission.run('poll()');assert.equal(permission.el('permissionTitle').textContent,'Audio access');
+ permission.render();assert.equal(permission.el('permissionTitle').textContent,'Audio access');
  assert.ok(permission.el('permissionMessage').textContent.includes('Permission status is unknown'));
- permission.state.metrics.CaptureSourceKind='input';await permission.run('poll()');
+ permission.state.metrics.CaptureSourceKind='input';permission.render();
  assert.ok(permission.el('permissionMessage').textContent.includes('Microphone'));
- permission.state.metrics.LastSignalUtc=new Date().toISOString();await permission.run('poll()');assert.equal(permission.el('permissionHelp').hidden,true);
- permission.state.metrics={CapturePlatform:'windows',CaptureSourceKind:'output',Enabled:true};await permission.run('poll()');assert.equal(permission.el('permissionHelp').hidden,true);
+ permission.state.metrics.LastSignalUtc=new Date().toISOString();permission.render();assert.equal(permission.el('permissionHelp').hidden,true);
+ permission.state.metrics={CapturePlatform:'windows',CaptureSourceKind:'output',Enabled:true};permission.render();assert.equal(permission.el('permissionHelp').hidden,true);
  console.log('PASS permission guidance distinguishes denial, pending and unknown; recovery actions and platform/source routing work');
  const logs=harness();await logs.run('init()');assert.equal(logs.state.logReads,undefined);
  await logs.el('refreshLogs').onclick();assert.equal(logs.state.logReads,1);
