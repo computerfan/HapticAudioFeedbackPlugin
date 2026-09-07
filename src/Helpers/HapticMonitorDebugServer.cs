@@ -19,6 +19,9 @@ internal sealed class HapticMonitorSample
     public bool Enabled { get; set; }
     public bool Settling { get; set; }
     public string CaptureMode { get; set; }
+    public string CapturePlatform { get; set; }
+    public string CapturePermission { get; set; } = "unknown";
+    public string CaptureSourceKind { get; set; }
     public string CaptureError { get; set; }
     public string ProcessingError { get; set; }
     public string CaptureWarning { get; set; }
@@ -67,6 +70,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private readonly Action<AudioSettings, int?> _apply;
     private readonly Func<string, bool> _preview;
     private readonly Action _restartCapture;
+    private readonly Action _openPermissions;
     private readonly Func<object> _devices;
     private readonly string _html, _picoCss, _localizationJs, _chineseJson;
     private readonly byte[] _logoPng;
@@ -81,7 +85,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     public bool IsRunning => _running;
 
     public HapticMonitorDebugServer(string htmlPath, Func<HapticMonitorSample> metrics,
-        Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null, Action restartCapture = null, Func<object> devices = null)
+        Func<(AudioSettings Settings, int Revision)> settings, Action<AudioSettings, int?> apply, Func<string, bool> preview, Func<int> nextPort = null, CustomProfileStore profiles = null, Action restartCapture = null, Func<object> devices = null, Action openPermissions = null)
     {
         _html = File.ReadAllText(htmlPath);
         _localizationJs = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "localization.js"));
@@ -122,6 +126,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         _preview = preview;
         _restartCapture = restartCapture;
         _devices = devices;
+        _openPermissions = openPermissions;
         _nextPort = nextPort ?? (() => System.Security.Cryptography.RandomNumberGenerator.GetInt32(49152, 65536));
         _thread = new Thread(Loop) { IsBackground = true, Name = "HapticMonitorControlServer" };
     }
@@ -253,6 +258,12 @@ internal sealed class HapticMonitorDebugServer : IDisposable
             var profile = JsonSerializer.Deserialize<ProfileRequest>(buffer, new JsonSerializerOptions
                 { UnmappedMemberHandling = JsonUnmappedMemberHandling.Disallow }) ?? throw new ArgumentException("Profile request required.");
             Json(context, _profiles.Save(profile));
+        }
+        else if (path == "/capture/permissions")
+        {
+            if (_openPermissions == null) throw new InvalidOperationException("System permission settings unavailable.");
+            _openPermissions();
+            Json(context, new { Opened = true });
         }
         else if (path == "/capture/restart")
         {

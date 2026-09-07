@@ -24,7 +24,7 @@ public sealed class CpalHelperProtocol
             if (length > 4096) throw new IOException("Invalid helper error length.");
             var message = new byte[(int)length];
             await stream.ReadExactlyAsync(message, cancellationToken).ConfigureAwait(false);
-            throw new IOException(System.Text.Encoding.UTF8.GetString(message));
+            throw CapturePermissionException.FromNativeMessage(System.Text.Encoding.UTF8.GetString(message));
         }
         await stream.ReadExactlyAsync(header.AsMemory(4), cancellationToken).ConfigureAwait(false);
         return new CpalHelperProtocol(header);

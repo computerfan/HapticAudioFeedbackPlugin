@@ -1,6 +1,7 @@
 import importlib.util
 import hashlib
 import json
+import plistlib
 from pathlib import Path
 import stat
 import struct
@@ -46,7 +47,8 @@ class PackageChecks(unittest.TestCase):
                 payloads["bin-mac/" + name] = b"managed fixture"
             for runtime, cpu in verifier.MAC_HELPERS.items():
                 bundle = f"bin-mac/runtimes/{runtime}/native/Feel the Rhythm Capture.app/Contents/"
-                payloads[bundle + "Info.plist"] = "plist fixture"
+                payloads[bundle + "Info.plist"] = plistlib.dumps({"CFBundleIconFile": "FeelTheRhythm.icns"})
+                payloads[bundle + "Resources/FeelTheRhythm.icns"] = b"icns" + struct.pack(">I", 16) + b"ic07" + struct.pack(">I", 8)
                 payloads[bundle + "_CodeSignature/CodeResources"] = "signature fixture"
                 header = bytearray(32)
                 struct.pack_into("<IIII", header, 0, 0xFEEDFACF, 0 if wrong_cpu else cpu, 0, 2)
@@ -79,7 +81,7 @@ class PackageChecks(unittest.TestCase):
             verifier.verify_package(self.package(executable=False), True)
 
     def test_missing_files(self):
-        for missing in ["ui/localization.js", "ui/locales/zh-CN.json", "localization/HapticAudioFeedback_zh-CN.xliff", "LICENSE", "ui/index.html", "FRONTEND-NOTICES.txt", "FRONTEND-dependencies.json", "Pico-CSS-MIT.txt", "pico-2.1.1.min.css", "haptic_cpal.dll", "haptic-cpal-helper", "CodeResources", "NAudio-MIT.txt", "NAudio.Core.dll"]:
+        for missing in ["ui/localization.js", "ui/locales/zh-CN.json", "localization/HapticAudioFeedback_zh-CN.xliff", "LICENSE", "ui/index.html", "FRONTEND-NOTICES.txt", "FRONTEND-dependencies.json", "Pico-CSS-MIT.txt", "pico-2.1.1.min.css", "haptic_cpal.dll", "haptic-cpal-helper", "Info.plist", "FeelTheRhythm.icns", "CodeResources", "NAudio-MIT.txt", "NAudio.Core.dll"]:
             with self.subTest(missing=missing), self.assertRaisesRegex(ValueError, "Missing package entry"):
                 verifier.verify_package(self.package(missing=missing), True)
 

@@ -4,11 +4,30 @@ import os
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
 
 ROOT = Path(__file__).resolve().parents[1]
 CRATE = ROOT / "native" / "cpal-capture"
 TARGETS = {"x86_64-pc-windows-msvc": "win-x64", "aarch64-pc-windows-msvc": "win-arm64",
            "x86_64-apple-darwin": "osx-x64", "aarch64-apple-darwin": "osx-arm64"}
+
+def build_mac_icon(bundle):
+    """Use Apple's icon tools; no additional build dependencies or bundled libraries."""
+    master = ROOT / "assets/branding/feel-the-rhythm-plugin-master.png"
+    resources = bundle / "Contents" / "Resources"
+    resources.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="ftr-icon-") as temporary:
+        iconset = Path(temporary) / "FeelTheRhythm.iconset"
+        iconset.mkdir()
+        for points in (16, 32, 128, 256, 512):
+            for scale in (1, 2):
+                pixels = str(points * scale)
+                suffix = "@2x" if scale == 2 else ""
+                output = iconset / f"icon_{points}x{points}{suffix}.png"
+                subprocess.run(["sips", "-z", pixels, pixels, str(master), "--out", str(output)],
+                               check=True, stdout=subprocess.DEVNULL)
+        subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o",
+                        str(resources / "FeelTheRhythm.icns")], check=True)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -31,6 +50,7 @@ def main():
         executable.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(source / "haptic-cpal-helper", executable)
         shutil.copy2(CRATE / "Info.plist", bundle / "Contents" / "Info.plist")
+        build_mac_icon(bundle)
         executable.chmod(0o755)
         # Development signing only. Release distribution needs a stable Developer ID identity.
         subprocess.run(["codesign", "--force", "--sign", "-", "--timestamp=none", str(bundle)], check=True)

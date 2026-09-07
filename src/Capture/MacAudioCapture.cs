@@ -21,7 +21,7 @@ public sealed class MacAudioCapture : ISystemAudioCapture
     public int RequestedBufferMilliseconds => 20;
     public event EventHandler<AudioCaptureData> DataAvailable;
     public event EventHandler<Exception> RecordingStopped;
-    public MacAudioCapture(string pluginBinaryDirectory, string deviceId = "")
+    public MacAudioCapture(string pluginBinaryDirectory, string deviceId = "", CancellationToken cancellationToken = default)
     {
         if (!OperatingSystem.IsMacOS()) throw new PlatformNotSupportedException("macOS capture is only available on macOS.");
         var executable = HelperPath(pluginBinaryDirectory);
@@ -32,6 +32,7 @@ public sealed class MacAudioCapture : ISystemAudioCapture
             UseShellExecute = false, CreateNoWindow = true } };
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
             _sessionDirectory = "/tmp/ftr-" + Guid.NewGuid().ToString("N");
             Directory.CreateDirectory(_sessionDirectory, UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
             var socketPath = Path.Combine(_sessionDirectory, "audio.sock");
@@ -41,12 +42,21 @@ public sealed class MacAudioCapture : ISystemAudioCapture
             foreach (var argument in new[] { "-n", "-a", bundle, "--args", "--socket", socketPath, "--device", deviceId })
                 _process.StartInfo.ArgumentList.Add(argument);
             _process.Start();
-            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            using var deadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            deadline.CancelAfter(TimeSpan.FromSeconds(30));
             _process.WaitForExitAsync(deadline.Token).GetAwaiter().GetResult();
             if (_process.ExitCode != 0) throw new IOException("macOS could not launch the capture app. Open Feel the Rhythm Capture.app once in Finder and check any launch message.");
             _connection = listener.AcceptAsync(deadline.Token).AsTask().GetAwaiter().GetResult();
             _reader = new BinaryReader(new NetworkStream(_connection, ownsSocket: false));
-            _protocol = CpalHelperProtocol.ReadHandshakeAsync(_reader.BaseStream, deadline.Token).GetAwaiter().GetResult();
+            // The socket connects before Core Audio asks for permission. Give the person time
+            // to answer, independently of the launch timeout and the plugin's Load callback.
+            using var permissionDeadline = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            permissionDeadline.CancelAfter(TimeSpan.FromMinutes(5));
+            try { _protocol = CpalHelperProtocol.ReadHandshakeAsync(_reader.BaseStream, permissionDeadline.Token).GetAwaiter().GetResult(); }
+            catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+            {
+                throw new TimeoutException("Timed out waiting for audio capture. Respond to the macOS permission prompt, then retry capture in settings.");
+            }
             SampleRate = _protocol.SampleRate;
             Channels = _protocol.Channels;
             Mode = "CPAL CoreAudio app via LaunchServices" + (_protocol.DefaultBuffer ? " (device-default buffer)" : " (20 ms target)");

@@ -110,16 +110,22 @@ where T: SizedSample + Copy, f32: FromSample<T> {
             // WASAPI reports an initial discontinuity and recoverable packet gaps as Xrun.
             cpal::ErrorKind::Xrun | cpal::ErrorKind::DeviceChanged => { errors.gap.store(true, std::sync::atomic::Ordering::Relaxed); }
             cpal::ErrorKind::RealtimeDenied => { }
-            _ => { if let Ok(mut slot) = errors.error.lock() { *slot = Some(error.to_string()); } }
+            _ => { if let Ok(mut slot) = errors.error.lock() { *slot = Some(capture_error(error)); } }
         }
     }, Some(Duration::from_secs(3)))
+}
+// Preserve a machine-readable authorization category across the existing text-error ABI.
+fn capture_error(error: cpal::Error) -> String {
+    if error.kind() == cpal::ErrorKind::PermissionDenied {
+        format!("HAPTIC_PERMISSION_DENIED:{error}")
+    } else { error.to_string() }
 }
 fn open(key: &str) -> Result<(Capture, Format), String> {
     if !cfg!(any(target_os = "windows", target_os = "macos")) {
         return Err("Audio capture supports Windows and macOS only".into());
     }
     let (device, input) = devices::resolve(key)?;
-    let supported = if input { device.default_input_config() } else { device.default_output_config() }.map_err(|e| e.to_string())?;
+    let supported = if input { device.default_input_config() } else { device.default_output_config() }.map_err(capture_error)?;
     let mut config = supported.config();
     if !(8000..=384000).contains(&config.sample_rate) || !(1..=32).contains(&config.channels) {
         return Err("Unsupported audio sample rate or channel count".into());
@@ -147,11 +153,11 @@ fn open(key: &str) -> Result<(Capture, Format), String> {
         Ok(stream) => (stream, 0),
         Err(error) if error.kind() == cpal::ErrorKind::UnsupportedConfig => {
             config.buffer_size = BufferSize::Default;
-            (build(config).map_err(|e| e.to_string())?, 1)
+            (build(config).map_err(capture_error)?, 1)
         }
-        Err(error) => return Err(error.to_string()),
+        Err(error) => return Err(capture_error(error)),
     };
-    stream.play().map_err(|e| e.to_string())?;
+    stream.play().map_err(capture_error)?;
     let format = Format { sample_rate: config.sample_rate, channels: config.channels as u32,
         capacity: capacity as u32, requested_ms: 20, default_buffer };
     Ok((Capture { _stream: stream, shared }, format))
@@ -230,6 +236,14 @@ pub unsafe extern "C" fn haptic_cpal_close(handle: *mut Capture) {
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn permission_category_survives_text_bridge() {
+        assert!(super::capture_error(cpal::ErrorKind::PermissionDenied.into()).starts_with("HAPTIC_PERMISSION_DENIED:"));
+        for kind in [cpal::ErrorKind::DeviceNotAvailable, cpal::ErrorKind::UnsupportedOperation, cpal::ErrorKind::RealtimeDenied] {
+            assert!(!super::capture_error(kind.into()).starts_with("HAPTIC_PERMISSION_DENIED:"));
+        }
+    }
+
     #[test]
     fn dropped_counter_saturates_without_affecting_pcm() {
         let mut pending = super::Pending::new(4, 2);

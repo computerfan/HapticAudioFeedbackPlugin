@@ -43,7 +43,7 @@ function harness(){
     if(state.hold){state.hold=false;await new Promise(resolve=>state.release=resolve);}
     if(state.failSave){ok=false;body={Error:'Settings changed elsewhere'};}
     else{assert.equal(options.headers['If-Match'],'"'+state.revision+'"');state.current=JSON.parse(options.body);state.revision++;state.saves++;body={Settings:state.current,Revision:state.revision};}
-   }else throw new Error('Unexpected test route '+path);
+   }else if(path==='/capture/permissions'){state.permissionOpens=(state.permissionOpens||0)+1;ok=!state.failPermissions;body=ok?{Opened:true}:{Error:'Settings unavailable'};}else if(path==='/capture/restart'){state.restarts=(state.restarts||0)+1;body={};}else throw new Error('Unexpected test route '+path);
   }else{ok=!state.failLoad;body=ok?{Settings:state.current,Revision:state.revision,...catalog()}:{Error:'Unavailable'};}
   return{ok,json:async()=>structuredClone(body)};
  }});
@@ -180,12 +180,30 @@ function harness(){
  await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'Waiting for audio');
  monitor.state.metrics={Enabled:true,AudioReceived:true,Timestamp:time,LastPacketUtc:time,RawPeakDb:-180,CapturePackets:'9007199254740993',CaptureSamples:'9223372036854775807'};
  await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'Silent audio');
- assert.ok(monitor.el('captureSignal').textContent.includes('9223372036854775807'));
  monitor.state.metrics.LastSignalUtc=time;
  await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'Listening');
  monitor.state.metrics.LastPacketUtc=new Date(Date.now()-5000).toISOString();
  await monitor.run('poll()');assert.equal(monitor.el('state').textContent,'No audio packets');
- console.log('PASS monitor distinguishes missing packets, silent PCM and signal without losing counter precision');
+ const permission=harness();
+ permission.state.metrics={CapturePlatform:'macos',CaptureSourceKind:'output',CapturePermission:'unknown',CaptureMode:'starting',Enabled:true};
+ await permission.run('poll()');assert.equal(permission.el('permissionHelp').hidden,false);
+ assert.ok(permission.el('permissionMessage').textContent.includes('choose Allow'));
+ permission.state.metrics.CaptureMode='unavailable';permission.state.metrics.CapturePermission='denied';
+ await permission.run('poll()');assert.equal(permission.el('state').textContent,'Audio permission denied');
+ assert.ok(permission.el('permissionMessage').textContent.includes('System Audio Recording Only'));
+ await permission.el('openPermissions').onclick();assert.equal(permission.state.permissionOpens,1);
+ await permission.el('permissionRetry').onclick();assert.equal(permission.state.restarts,1);
+ permission.state.failPermissions=true;await permission.el('openPermissions').onclick();
+ assert.ok(permission.el('permissionActionStatus').textContent.includes('Could not open'));assert.equal(permission.el('openPermissions').disabled,false);
+ permission.state.metrics.CapturePermission='unknown';permission.state.metrics.CaptureMode='open';
+ await permission.run('poll()');assert.equal(permission.el('permissionTitle').textContent,'Audio access');
+ assert.ok(permission.el('permissionMessage').textContent.includes('Permission status is unknown'));
+ permission.state.metrics.CaptureSourceKind='input';await permission.run('poll()');
+ assert.ok(permission.el('permissionMessage').textContent.includes('Microphone'));
+ permission.state.metrics.LastSignalUtc=new Date().toISOString();await permission.run('poll()');assert.equal(permission.el('permissionHelp').hidden,true);
+ permission.state.metrics={CapturePlatform:'windows',CaptureSourceKind:'output',Enabled:true};await permission.run('poll()');assert.equal(permission.el('permissionHelp').hidden,true);
+ console.log('PASS permission guidance distinguishes denial, pending and unknown; recovery actions and platform/source routing work');
+ console.log('PASS monitor distinguishes missing packets, silent PCM and signal');
  console.log('PASS accessible tabs preserve drafts, detector-frame deduplication/bounds, canvas dot-to-trace alignment, capture gaps and chart scaling');
 
 

@@ -26,6 +26,18 @@ foreach (var length in new uint[] { 3, 4097, uint.MaxValue }) {
     try { await CpalHelperProtocol.ReadHandshakeAsync(handshake, default); throw new Exception("Error handshake accepted"); }
     catch (IOException ex) { Check(ex.Message == (length == 3 ? "bad" : "Invalid helper error length."), "bounded helper startup errors preserve details: " + length); }
 }
+foreach (var message in new[] { "HAPTIC_PERMISSION_DENIED:Access refused", "Device unavailable", "Silent audio", "Permission denied" }) {
+    var bytes = System.Text.Encoding.UTF8.GetBytes(message);
+    using var handshake = new MemoryStream();
+    handshake.Write("HCE1"u8);
+    var length = new byte[4]; BinaryPrimitives.WriteUInt32LittleEndian(length, (uint)bytes.Length);
+    handshake.Write(length); handshake.Write(bytes); handshake.Position = 0;
+    try { await CpalHelperProtocol.ReadHandshakeAsync(handshake, default); throw new Exception("Error accepted"); }
+    catch (IOException error) {
+        Check(CapturePermissionException.IsDenied(new IOException("wrapper", error)) == message.StartsWith("HAPTIC_PERMISSION_DENIED:"),
+            "only explicit native authorization category becomes permission denied: " + message);
+    }
+}
 var protocol = new CpalHelperProtocol(Header());
 using(var stream=Packet(995)) {
     var data=protocol.ReadPacket(stream,()=>1000);
@@ -88,4 +100,5 @@ if (args.Length == 2 && args[0] == "--device-smoke") {
     catch(IOException){Check(true,"missing explicit device fails instead of capturing the default");}
     using(var restored=new CpalAudioCapture(directory)) {restored.StartRecording();Check(restored.Channels>0,"default capture opens after selected-device shutdown");}
 }
+await CaptureStartupChecks.Run(Check);
 Console.WriteLine($"{checks} capture bridge checks passed; no haptic events sent (live audio only with --device-smoke).");

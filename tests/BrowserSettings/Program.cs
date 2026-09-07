@@ -10,6 +10,7 @@ var settings = new AudioSettings { Enabled = false };
 var revision = 0;
 var previews = 0;
 var captureRestarts = 0;
+var permissionOpens = 0;
 var enumerations = 0;
 Exception metricsFailure = null;
 var customProfiles = new CustomProfileStore(() => null, _ => { }, ex => throw ex);
@@ -20,7 +21,7 @@ HapticMonitorDebugServer Create(Func<int> port = null) => new(Path.Combine(AppCo
         settings = next.Copy(); revision++;
     }, _ => { previews++; return true; }, port, customProfiles, () => captureRestarts++, () => { enumerations++; return new { Devices = new[] {
         new { Id = "output:WASAPI:stable-speaker", Name = "Speakers", Kind = "output" },
-        new { Id = "input:WASAPI:stable-mic", Name = "Microphone", Kind = "input" } } }; });
+        new { Id = "input:WASAPI:stable-mic", Name = "Microphone", Kind = "input" } } }; }, () => permissionOpens++);
 if (args.Contains("--preview")) {
     using var previewServer = Create(); previewServer.Start();
     Console.WriteLine("Simulated UI preview. No audio capture or haptic events. " + previewServer.LaunchUrl);
@@ -158,6 +159,10 @@ Check((await Send("preview", token, body: "subtle_collision")).IsSuccessStatusCo
 Check(!(await Send("preview", token, body: "invalid")).IsSuccessStatusCode && previews == 1, "invalid preview cannot dispatch");
 Check((await Send("preview", body: "subtle_collision")).StatusCode == HttpStatusCode.Forbidden && previews == 1, "unauthenticated preview cannot dispatch");
 Check((int)(await Send("settings", token, body: new string('x', 33000), rev: 1)).StatusCode == 413, "oversized request bodies are rejected");
+Check((await Send("capture/permissions", body: new { })).StatusCode == HttpStatusCode.Forbidden && permissionOpens == 0, "opening system permissions requires authentication");
+Check((await Send("capture/permissions", token, "https://example.invalid", new { })).StatusCode == HttpStatusCode.Forbidden && permissionOpens == 0, "foreign origins cannot open system permissions");
+Check((await Send("capture/permissions", token)).StatusCode == HttpStatusCode.NotFound && permissionOpens == 0, "GET cannot open system permissions");
+Check((await Send("capture/permissions", token, body: new { })).IsSuccessStatusCode && permissionOpens == 1, "authenticated permission action reaches fixed controller");
 Check((await Send("capture/restart", body: new { })).StatusCode == HttpStatusCode.Forbidden && captureRestarts == 0, "capture restart requires authentication");
 Check((await Send("capture/restart", token, "https://example.invalid", new { })).StatusCode == HttpStatusCode.Forbidden && captureRestarts == 0, "foreign origins cannot restart capture");
 Check((await Send("capture/restart", token, body: new { })).IsSuccessStatusCode && captureRestarts == 1, "authenticated capture restart reaches the controller");

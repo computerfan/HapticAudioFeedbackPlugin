@@ -22,6 +22,8 @@ internal sealed class HapticAudioMonitor : IDisposable
     private readonly Stopwatch _clock = Stopwatch.StartNew();
     private readonly List<HapticOnset> _candidates = new();
     private ISystemAudioCapture _capture;
+    private readonly CaptureStartup _macStartup;
+    private bool _stopped, _permissionDenied;
     private AudioOnsetDetector _detector;
     private HapticScheduler _scheduler;
     private HapticMonitorDebugServer _debugServer;
@@ -42,17 +44,41 @@ internal sealed class HapticAudioMonitor : IDisposable
         _profiles = profiles;
         _binaryDirectory = binaryDirectory;
         _scheduler = new HapticScheduler(_settings);
+        _macStartup = new CaptureStartup(_settingsGate);
     }
 
     public void Start()
     {
         lock (_settingsGate)
         {
-            if (_capture != null) return;
+            if (_stopped || _capture != null || _macStartup.IsPending) return;
             _captureError = _captureWarning = _processingError = null;
-            try { StartCapture(OperatingSystem.IsMacOS() ? new MacAudioCapture(_binaryDirectory, _settings.CaptureDeviceId) : new CpalAudioCapture(_binaryDirectory, _settings.CaptureDeviceId)); }
+            lock (_gate) _permissionDenied = false;
+            if (OperatingSystem.IsMacOS())
+            {
+                var deviceId = _settings.CaptureDeviceId;
+                lock (_gate) _captureMode = "starting";
+                _ = _macStartup.Start(token => new MacAudioCapture(_binaryDirectory, deviceId, token),
+                    StartCapture, ex =>
+                    {
+                        lock (_settingsGate)
+                        {
+                            StopCapture();
+                            lock (_gate)
+                            {
+                                _captureMode = "unavailable";
+                                _permissionDenied = CapturePermissionException.IsDenied(ex);
+                                _captureError = ex.Message + " Check the selected device and system audio recording permission, then retry capture.";
+                            }
+                            PluginLog.Warning(ex, "Could not start macOS audio capture.");
+                        }
+                    }, ex => PluginLog.Warning(ex, "Could not dispose a cancelled capture attempt."));
+                return;
+            }
+            try { StartCapture(new CpalAudioCapture(_binaryDirectory, _settings.CaptureDeviceId)); }
             catch (Exception ex)
             {
+                _permissionDenied = CapturePermissionException.IsDenied(ex);
                 StopCapture();
                 if (OperatingSystem.IsWindows() && _settings.CaptureDeviceId.Length == 0)
                 {
@@ -64,7 +90,7 @@ internal sealed class HapticAudioMonitor : IDisposable
                         StopCapture();
                         PluginLog.Warning(fallback, "Event-driven fallback failed; trying polling capture.");
                         try { StartWindowsFallback(false); }
-                        catch (Exception last) { StopCapture(); _captureError = last.Message; }
+                        catch (Exception last) { StopCapture(); _captureError = last.Message; _permissionDenied = CapturePermissionException.IsDenied(last); }
                     }
                 }
                 else _captureError = ex.Message + (OperatingSystem.IsMacOS() ? " Check the selected audio device and System Audio Recording Only permission for Feel the Rhythm Audio Capture, then retry. This error alone does not establish a permission denial." : " Select an available audio device, then retry capture.");
@@ -78,7 +104,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     private void StartCapture(ISystemAudioCapture capture)
     {
         _capture = capture;
-        lock (_gate) _signal = new();
+        lock (_gate) { _signal = new(); _permissionDenied = false; }
         ResetDetector();
         _captureMode = capture.Mode;
         capture.DataAvailable += OnDataAvailable;
@@ -90,7 +116,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         ? MacAudioCapture.ListDevices(_binaryDirectory) : CpalAudioCapture.ListDevices(_binaryDirectory) };
     internal void RestartCapture()
     {
-        lock (_settingsGate) { StopCapture(); lock (_gate) { _latest = new(); _maxBufferMs = 0; } Start(); }
+        lock (_settingsGate) { _macStartup.Cancel(); StopCapture(); lock (_gate) { _latest = new(); _maxBufferMs = 0; } Start(); }
     }
     private void ResetDetector()
     {
@@ -199,6 +225,9 @@ internal sealed class HapticAudioMonitor : IDisposable
             sample.LogSuppressedCount = PluginLog.SuppressedCount;
             sample.Settling = _clock.Elapsed.TotalMilliseconds < _suppressUntilMs;
             sample.CaptureMode = _captureMode;
+            sample.CapturePlatform = OperatingSystem.IsMacOS() ? "macos" : "windows";
+            sample.CapturePermission = _permissionDenied ? "denied" : "unknown";
+            sample.CaptureSourceKind = _settings.CaptureDeviceId.StartsWith("input:", StringComparison.Ordinal) ? "input" : "output";
             sample.CaptureError = _captureError;
             sample.ProcessingError = _processingError;
             sample.CaptureWarning = _captureWarning;
@@ -277,11 +306,29 @@ internal sealed class HapticAudioMonitor : IDisposable
         {
             if (_debugServer?.IsRunning == true) return _debugServer.LaunchUrl;
             _debugServer?.Dispose();
-            var server = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettingsSnapshot, ApplySettingsIfCurrent, Preview, profiles: _profiles, restartCapture: RestartCapture, devices: ListDevices);
+            var server = new HapticMonitorDebugServer(_htmlPath, GetMetrics, GetSettingsSnapshot, ApplySettingsIfCurrent, Preview, profiles: _profiles, restartCapture: RestartCapture, devices: ListDevices, openPermissions: OpenPermissionSettings);
             try { server.Start(); lock (_gate) _debugServer = server; }
             catch { server.Dispose(); throw; }
             return server.LaunchUrl;
         }
+    }
+
+    private void OpenPermissionSettings()
+    {
+        var input = GetSettings().CaptureDeviceId.StartsWith("input:", StringComparison.Ordinal);
+        if (OperatingSystem.IsMacOS())
+        {
+            var launch = new ProcessStartInfo("/usr/bin/open") { UseShellExecute = false };
+            launch.ArgumentList.Add(input
+                ? "x-apple.systempreferences:com.apple.preference.security?Privacy_Microphone"
+                : "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture");
+            using var process = Process.Start(launch);
+        }
+        else if (OperatingSystem.IsWindows())
+        {
+            using var process = Process.Start(new ProcessStartInfo("ms-settings:privacy-microphone") { UseShellExecute = true });
+        }
+        else throw new PlatformNotSupportedException("Open system permissions is not available on this platform.");
     }
 
     internal bool Preview(string eventName)
@@ -311,6 +358,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         {
             if (!ReferenceEquals(sender, _capture)) return;
             _captureError = error.Message;
+            _permissionDenied = CapturePermissionException.IsDenied(error);
             _captureMode = "stopped";
             PluginLog.Error(error, "Audio capture stopped. Check the output device or permission, then retry capture.");
         }
@@ -337,7 +385,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     }
     public void Stop()
     {
-        lock (_settingsGate) StopCapture();
+        lock (_settingsGate) { _stopped = true; _macStartup.Cancel(); StopCapture(); }
         lock (_diagnosticsGate)
         {
             var server = _debugServer;

@@ -262,5 +262,18 @@
   "Audio signal detected. Feel for pulses around the attacks.": "已检测到音频信号，留意起音附近的触感脉冲。",
   "Packets": "数据包",
   "Samples": "样本",
-  "Raw peak": "原始峰值"
+  "Raw peak": "原始峰值",
+  "Starting capture": "正在启动采集",
+  "Starting audio capture. If macOS asks for permission, choose Allow. Installation can finish while you decide.": "正在启动音频采集。如果 macOS 请求权限，请选择允许。您作出选择前，插件安装也可正常完成。",
+  "Open system permissions": "打开系统权限设置",
+  "Audio permission denied": "音频访问权限被拒绝",
+  "Audio access": "音频访问权限",
+  "In macOS System Settings → Privacy & Security → Microphone, enable Feel the Rhythm Capture, then retry capture.": "在 macOS 系统设置 → 隐私与安全性 → 麦克风中，允许 Feel the Rhythm Capture 访问，然后重试采集。",
+  "In macOS System Settings → Privacy & Security → Screen & System Audio Recording → System Audio Recording Only, enable Feel the Rhythm Capture, then retry capture.": "在 macOS 系统设置 → 隐私与安全性 → 屏幕与系统录音 → 仅系统录音中，允许 Feel the Rhythm Capture 访问，然后重试采集。",
+  "For microphone access, enable access for desktop apps in Windows privacy settings, then retry capture.": "若要访问麦克风，请在 Windows 隐私设置中允许桌面应用访问麦克风，然后重试采集。",
+  "The audio backend reported that access was denied.": "音频后端报告访问权限被拒绝。",
+  "If macOS asks to record audio, choose Allow. Capture will continue automatically after permission is granted.": "如果 macOS 请求录音权限，请选择允许。授权后，采集将自动继续。",
+  "Permission status is unknown. If audio is playing but the graph stays flat, check your audio source and recording permissions.": "权限状态未知。如果正在播放音频但图表仍无变化，请检查音频源和录音权限。",
+  "Could not open system permissions": "无法打开系统权限设置",
+  "Check the system settings window, then return here and retry capture.": "请检查系统设置窗口，然后返回此页面重试采集。"
 }

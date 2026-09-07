@@ -72,7 +72,7 @@ public sealed class CpalAudioCapture : ISystemAudioCapture
                 try {
                     var bytes = new byte[AudioDeviceCatalog.MaximumBytes]; var error = new byte[2048];
                     var count = enumerate(bytes, (uint)bytes.Length, error, (uint)error.Length);
-                    if (count < 0) throw new IOException(Decode(error));
+                    if (count < 0) throw CapturePermissionException.FromNativeMessage(Decode(error));
                     if (count > bytes.Length) throw new IOException("Invalid device catalog length.");
                     devices = AudioDeviceCatalog.Decode(bytes.AsSpan(0, count).ToArray());
                 } catch (Exception ex) { failure = ex; }
@@ -107,7 +107,7 @@ public sealed class CpalAudioCapture : ISystemAudioCapture
             var error = new byte[2048];
             // COM initialization, stream creation, reads and destruction all use this owner thread.
             handle = _open(_deviceKey, (uint)_deviceKey.Length, out _format, error, (uint)error.Length);
-            if (handle == IntPtr.Zero) throw new IOException(Decode(error));
+            if (handle == IntPtr.Zero) throw CapturePermissionException.FromNativeMessage(Decode(error));
             if (_format.SampleRate is < 8000 or > 384000 || _format.Channels is < 1 or > 32 ||
                 _format.Capacity == 0 || _format.Capacity > 384000 * 32 || _format.Capacity % _format.Channels != 0)
                 throw new IOException("Invalid CPAL audio format.");
@@ -118,7 +118,7 @@ public sealed class CpalAudioCapture : ISystemAudioCapture
             while (!_stop.IsSet)
             {
                 var result = _read(handle, samples, (uint)samples.Length, out var packet, error, (uint)error.Length);
-                if (result < 0) throw new IOException(Decode(error));
+                if (result < 0) throw CapturePermissionException.FromNativeMessage(Decode(error));
                 if (result > 0 && !_stop.IsSet)
                 {
                     if (packet.Samples > samples.Length || packet.Samples % Channels != 0 ||

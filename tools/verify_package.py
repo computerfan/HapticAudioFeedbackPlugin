@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import plistlib
 from pathlib import Path
 import re
 import stat
@@ -89,7 +90,12 @@ def verify_package(path, require_all=False):
             mode = entry.external_attr >> 16
             if entry.create_system != 3 or not stat.S_ISREG(mode) or mode & 0o111 != 0o111:
                 raise ValueError(f"Mac helper lost executable permissions: {runtime}")
-            require(bundle + "Info.plist")
+            info = plistlib.loads(require(bundle + "Info.plist"))
+            if info.get("CFBundleIconFile") != "FeelTheRhythm.icns":
+                raise ValueError(f"Mac helper icon is not declared: {runtime}")
+            icon = require(bundle + "Resources/FeelTheRhythm.icns")
+            if len(icon) <= 8 or icon[:4] != b"icns" or struct.unpack_from(">I", icon, 4)[0] != len(icon):
+                raise ValueError(f"Invalid Mac helper icon: {runtime}")
             require(bundle + "_CodeSignature/CodeResources")
             found.append(runtime)
         if mac_declared != bool(found):
