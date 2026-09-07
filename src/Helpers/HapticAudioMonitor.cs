@@ -363,7 +363,7 @@ internal sealed class HapticAudioMonitor : IDisposable
                         revision == _settingsRevision && onset is { IsSustain: false, LevelDb: { } level })
                     {
                         _onsetHistory.Add(onsetTimestamp, onset.Band, level, level - onset.StrengthDb);
-                        _traceHistory.MarkSent(onset.AudioMilliseconds, onset.Band, onset.TriggerReason);
+                        _traceHistory.MarkSent(onset.AudioMilliseconds, onset.Band, onset.TriggerReason, onset.EventName);
                     }
                 }
                 else _processingError = "Haptic feedback failed. " + BoundedPluginLogger.SafeText(failure.Message, 512);

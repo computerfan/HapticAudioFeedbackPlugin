@@ -7,7 +7,7 @@ using System.Text.Json.Serialization;
 internal sealed record AudioTracePoint(
     [property: JsonNumberHandling(JsonNumberHandling.WriteAsString)] long Sequence,
     DateTime Timestamp, double LowEnvDb, double HighEnvDb,
-    double LowThresholdDb, double HighThresholdDb, bool BreakBefore, string? SentBand = null, string? TriggerReason = null);
+    double LowThresholdDb, double HighThresholdDb, bool BreakBefore, string? SentBand = null, string? TriggerReason = null, string? SentTexture = null);
 
 // Envelope/threshold telemetry only; no audio samples. Accessed under the monitor lock.
 internal sealed class AudioTraceHistory
@@ -39,7 +39,7 @@ internal sealed class AudioTraceHistory
         _breakBefore = false;
     }
 
-    internal bool MarkSent(double audioMilliseconds, string band, string? triggerReason = null)
+    internal bool MarkSent(double audioMilliseconds, string band, string? triggerReason = null, string? eventName = null)
     {
         if (band is not ("bass" or "high")) return false;
         for (var offset = 1; offset <= _count; offset++)
@@ -47,7 +47,7 @@ internal sealed class AudioTraceHistory
             var index = (_next - offset + Capacity) % Capacity;
             if (_audioTimes[index] == audioMilliseconds)
             {
-                _points[index] = _points[index]! with { SentBand = band, TriggerReason = triggerReason is "threshold" or "rise" ? triggerReason : null };
+                _points[index] = _points[index]! with { SentBand = band, SentTexture = eventName == null ? null : HapticPatterns.WaveformForEvent(eventName), TriggerReason = triggerReason is "threshold" or "rise" ? triggerReason : null };
                 return true;
             }
             if (_audioTimes[index] < audioMilliseconds) break;

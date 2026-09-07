@@ -22,7 +22,7 @@ function harness(){
  }
  for(const match of html.matchAll(/<(\w+)\b([^>]*\bid="([^"]+)"[^>]*)>/g)){const e=new Element(match[1]);e.id=match[3];e.type=match[2].match(/\btype="([^"]+)"/)?.[1]||'';e.disabled=/\bdisabled\b/.test(match[2]);e.hidden=/\bhidden\b/.test(match[2]);}
  const document={events:{},addEventListener(name,handler){this.events[name]=handler;},documentElement:{},querySelectorAll(){return [];},getElementById:id=>elements.get(id)||null,createElement:tag=>new Element(tag),createTextNode:text=>({textContent:text})};
- const defaults={Enabled:false,EnableDebugServer:false,Sensitivity:50,CaptureDeviceId:'',BassGainDb:0,HighGainDb:0,BassEnabled:true,HighEnabled:true,LowCenterHz:100,HighCenterHz:2000,LowThresholdDb:-38,HighThresholdDb:-42,OnsetMarginDb:6,RearmMarginDb:2,AttackMilliseconds:5,ReleaseMilliseconds:60,BackgroundMilliseconds:300,MinimumSpacingMilliseconds:80,MaximumEventAgeMilliseconds:50,OnsetRiseDb:3,TransientSeparationMilliseconds:80,StrongBassAboveThresholdDb:12,BassWaveform:'damp_collision',StrongBassWaveform:'sharp_collision',HighWaveform:'subtle_collision',SustainEnabled:false,SustainWaveform:'subtle_collision',SustainThresholdDb:-30,SustainSlowIntervalMilliseconds:260,SustainFastIntervalMilliseconds:140};
+ const defaults={Enabled:false,EnableDebugServer:false,Sensitivity:50,CaptureDeviceId:'',BassGainDb:0,HighGainDb:0,BassEnabled:true,HighEnabled:true,LowCenterHz:100,HighCenterHz:2000,LowThresholdDb:-38,HighThresholdDb:-42,OnsetMarginDb:6,RearmMarginDb:2,AttackMilliseconds:5,ReleaseMilliseconds:60,BackgroundMilliseconds:300,MinimumSpacingMilliseconds:80,MaximumEventAgeMilliseconds:50,OnsetRiseDb:3,OnsetRiseWindowMilliseconds:20,TransientSeparationMilliseconds:80,StrongBassAboveThresholdDb:12,BassWaveform:'damp_collision',StrongBassWaveform:'sharp_collision',HighWaveform:'subtle_collision',SustainEnabled:false,SustainWaveform:'subtle_collision',SustainThresholdDb:-30,SustainSlowIntervalMilliseconds:260,SustainFastIntervalMilliseconds:140};
  const profiles={music:{...defaults,Enabled:true},gentle:{...defaults,Enabled:true,Sensitivity:30,MinimumSpacingMilliseconds:180}};
  const info=Object.keys(profiles).map(Id=>({Id,Label:Id==='music'?'Music':'Gentle',Description:'Description of '+Id,IsCustom:false}));
  const state={current:{...defaults},revision:0,enumerationError:false,failSave:false,failLoad:false,failLocale:false,saves:0,release:null,hold:false,catalogWrites:0};
@@ -220,7 +220,7 @@ function harness(){
  tabs.el('tab-advanced').events.keydown({key:'Home',preventDefault(){}});assert.equal(tabs.el('panel-tune').hidden,false);
  assert.ok(html.indexOf('id="liveMonitor"')<html.indexOf('role="tablist"'));assert.ok(html.indexOf('role="tablist"')<html.indexOf('id="tuningControls"'));
 
- const placement={Sensitivity:'basic',MinimumSpacingMilliseconds:'basic',BassGainDb:'bassControls',LowCenterHz:'bassControls',LowThresholdDb:'bassControls',HighGainDb:'detailControls',HighCenterHz:'detailControls',HighThresholdDb:'detailControls',OnsetMarginDb:'thresholdControls',OnsetRiseDb:'riseControls',AttackMilliseconds:'advanced'};
+ const placement={Sensitivity:'basic',MinimumSpacingMilliseconds:'basic',BassGainDb:'bassControls',LowCenterHz:'bassControls',LowThresholdDb:'bassControls',HighGainDb:'detailControls',HighCenterHz:'detailControls',HighThresholdDb:'detailControls',OnsetMarginDb:'thresholdControls',OnsetRiseDb:'riseControls',OnsetRiseWindowMilliseconds:'riseControls',AttackMilliseconds:'advanced'};
  for(const [key,parent]of Object.entries(placement))assert.equal(tabs.el(key).parentElement.parentElement.id,parent,key);
  for(const [button,group,kind]of [['linkBass','bassSettings','bass'],['linkDetail','detailSettings','detail'],['linkThreshold','thresholdSettings','threshold'],['linkRise','riseSettings','rise']]){
   tabs.run("activateTab('advanced')");tabs.el(button).events.click();
@@ -245,17 +245,21 @@ function harness(){
  assert.equal(tabs.run('history.length'),4);assert.equal(tabs.run('onsetMarkers.size'),2);
  assert.deepEqual(JSON.parse(tabs.run(`JSON.stringify(chartSeries(history,'LowEnvDb').map(point=>point.value))`)),[-60,-42,-60,-60]);
  // Verify the actual canvas commands, not just the helper's input data.
- const drawing={vertices:[],dots:[],diamonds:[],path:[],setTransform(){},clearRect(){this.vertices=[];this.dots=[];this.diamonds=[];},setLineDash(dashes){this.dashed=dashes.length>0;},beginPath(){this.path=[];},closePath(){this.diamonds.push([...this.path]);},moveTo(x,y){this.path.push({x,y});this.vertices.push({x,y,color:this.strokeStyle,dashed:this.dashed,move:true});},lineTo(x,y){this.path.push({x,y});this.vertices.push({x,y,color:this.strokeStyle,dashed:this.dashed});},stroke(){},fillText(){},arc(x,y,r){if(r===4.5)this.dots.push({x,y});},fill(){}};
+ const drawing={vertices:[],dots:[],diamonds:[],path:[],setTransform(){},clearRect(){this.vertices=[];this.dots=[];this.diamonds=[];},setLineDash(dashes){this.dashed=dashes.length>0;},beginPath(){this.path=[];},closePath(){this.diamonds.push([...this.path]);},moveTo(x,y){this.path.push({x,y});this.vertices.push({x,y,color:this.strokeStyle,dashed:this.dashed,move:true});},lineTo(x,y){this.path.push({x,y});this.vertices.push({x,y,color:this.strokeStyle,dashed:this.dashed});},stroke(){},fillText(){},arc(x,y,r){if(r===6)this.dots.push({x,y});},fill(){}};
  tabs.el('chart').getContext=()=>drawing;tabs.el('chart').clientWidth=640;tabs.el('chart').clientHeight=210;tabs.el('chartScale').value='fixed';tabs.run(`chart(${now})`);
  assert.equal(drawing.dots.length,2);
  for(const [i,color] of ['#9ae5c0','#adbef6'].entries())assert.ok(drawing.vertices.some(v=>!v.dashed&&v.color===color&&v.x===drawing.dots[i].x&&v.y===drawing.dots[i].y),'Dot must match its own audio path vertex');
  assert.equal(tabs.run('chartBounds.min'),-80);assert.equal(tabs.run('chartBounds.max'),0);
- const classified=frames.map((f,i)=>({...f,TriggerReason:i===1?'threshold':i===3?'rise':null}));
+ const classified=frames.map((f,i)=>({...f,SentTexture:i===1?'damp_collision':i===3?'subtle_collision':null,TriggerReason:i===1?'threshold':i===3?'rise':null}));
  tabs.run(`acceptMetrics({RecentAudio:${JSON.stringify(classified)}},${now})`);tabs.run(`chart(${now})`);
  assert.equal(drawing.dots.length,1);assert.equal(drawing.diamonds.length,1);assert.equal(drawing.diamonds[0].length,4);
  const diamond=drawing.diamonds[0],center={x:(diamond[0].x+diamond[2].x)/2,y:(diamond[0].y+diamond[2].y)/2};
  assert.ok(drawing.vertices.some(v=>!v.dashed&&v.color==='#adbef6'&&v.x===center.x&&v.y===center.y),'Diamond center must stay on the detail trace');
  assert.equal(tabs.run('[...onsetMarkers.values()][0].reason'),'threshold');assert.equal(tabs.run('[...onsetMarkers.values()][1].reason'),'rise');
+ assert.equal(tabs.run('[...onsetMarkers.values()][0].texture'),'damp_collision');
+ tabs.run("settings.BassWaveform='wave'");
+ assert.equal(tabs.run('[...onsetMarkers.values()][0].texture'),'damp_collision','Changing settings must not recolor old events');
+ assert.ok(html.includes('data-i18n="Sent textures"'));
  assert.ok(html.includes('data-i18n="Level trigger"')&&html.includes('data-i18n="Rapid-rise trigger"'));
  assert.equal(chinese['Level trigger'],'电平触发');assert.equal(chinese['Rapid-rise trigger'],'快速上升触发');
 

@@ -115,7 +115,7 @@ internal sealed class AudioOnsetDetector
         {
             _settings = settings;
             _windowMs = windowMs;
-            _history = Enumerable.Repeat(-180.0, Math.Max(1, (int)Math.Round(20 / windowMs))).ToArray();
+            _history = Enumerable.Repeat(-180.0, Math.Max(1, (int)Math.Round(settings.OnsetRiseWindowMilliseconds / windowMs))).ToArray();
             _floorDb = floorDb;
             _attack = 1 - Math.Exp(-windowMs / settings.AttackMilliseconds);
             _release = 1 - Math.Exp(-windowMs / settings.ReleaseMilliseconds);

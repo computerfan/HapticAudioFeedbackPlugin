@@ -25,6 +25,44 @@ void Check(bool condition, string message)
 }
 double Tone(double t, double frequency, double amplitude = 0.25) => amplitude * Math.Sin(2 * Math.PI * frequency * t);
 
+Test("rise window distinguishes sharp and gradual attacks across sample rates", () =>
+{
+    foreach (var rate in new[] { 44100, 48000, 96000 })
+    {
+        List<HapticOnset> Rising(double window) => Analyze(rate, 1,
+            (t, _) => Tone(t, 100, 0.08 * Math.Pow(10, Math.Clamp((t - 1.2) / 0.1, 0, 1) * 6 / 20)),
+            options: new AudioSettings { HighEnabled = false, OnsetMarginDb = 20,
+                BackgroundMilliseconds = 1000, OnsetRiseWindowMilliseconds = window }).Events;
+        Check(!Rising(5).Any(e => e.AudioMilliseconds >= 1200), "Short window accepted gradual rise.");
+        Check(Rising(100).Any(e => e.AudioMilliseconds >= 1200 && e.AudioMilliseconds < 1400 && e.TriggerReason == "rise"),
+            "Long window missed gradual rise.");
+    }
+});
+Test("rise window defaults preserve old settings and reject invalid values", () =>
+{
+    var old = System.Text.Json.JsonSerializer.Deserialize<AudioSettings>("{}")!;
+    Check(old.OnsetRiseWindowMilliseconds == 20, "Legacy settings changed timing.");
+    foreach (var value in new[] { 0, 4, 101, double.NaN, double.PositiveInfinity })
+    {
+        bool rejected = false;
+        try { new AudioSettings { OnsetRiseWindowMilliseconds = value }.Validate(); }
+        catch (ArgumentException) { rejected = true; }
+        Check(rejected, "Invalid rise window accepted.");
+    }
+});
+Test("trace stores the sent texture for aliases and every preset", () =>
+{
+    foreach (var waveform in HapticPatterns.Presets.Keys)
+        foreach (var role in new[] { "bass", "strong", "high" })
+        {
+            var trace = new AudioTraceHistory();
+            var now = DateTime.UtcNow;
+            trace.Add(now, 5, -30, -40, -20, -25);
+            trace.MarkSent(5, "bass", "rise", HapticPatterns.EventFor(waveform, role));
+            Check(trace.Snapshot(now)[0].SentTexture == waveform, "Sent texture mapping lost.");
+        }
+    Check(HapticPatterns.WaveformForEvent("unknown") == null, "Unknown texture guessed.");
+});
 Test("silence produces no feedback", () =>
     Check(Analyze(48000, 2, (_, _) => 0).Events.Count == 0, "Silence triggered."));
 Test("steady bass stops producing candidates after its initial attack", () =>
@@ -300,9 +338,9 @@ Test("SDK settings survive round-trip without re-enabling diagnostics", () =>
 {
     string saved = null!;
     var store = new SdkAudioSettingsStore(() => saved, value => saved = value, ex => throw ex);
-    store.Save(new AudioSettings { Sensitivity = 67, BassWaveform = "wave", EnableDebugServer = true, CaptureDeviceId = "input:CoreAudio:stable-device" });
+    store.Save(new AudioSettings { OnsetRiseWindowMilliseconds = 65, Sensitivity = 67, BassWaveform = "wave", EnableDebugServer = true, CaptureDeviceId = "input:CoreAudio:stable-device" });
     var loaded = store.Load(new AudioSettings(), () => throw new Exception("Unexpected migration"));
-    Check(loaded.CaptureDeviceId == "input:CoreAudio:stable-device" && loaded.Sensitivity == 67 && loaded.BassWaveform == "wave" && !loaded.EnableDebugServer, "SDK round-trip failed.");
+    Check(loaded.OnsetRiseWindowMilliseconds == 65 && loaded.CaptureDeviceId == "input:CoreAudio:stable-device" && loaded.Sensitivity == 67 && loaded.BassWaveform == "wave" && !loaded.EnableDebugServer, "SDK round-trip failed.");
 });
 Test("invalid or future SDK documents are preserved instead of overwritten", () =>
 {

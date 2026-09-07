@@ -255,9 +255,9 @@
   "Level triggers": "电平触发",
   "Rapid-rise triggers": "快速上升触发",
   "Circles mark level-triggered pulses. Background contrast sets how far the dashed threshold sits above the background in both bands.": "圆点表示电平触发的脉冲。背景对比设置两个频段中虚线阈值高于背景电平的幅度。",
-  "Diamonds mark sudden increases in audio level. Attack contrast sets the required rise over about 20 ms, so these can happen below the dashed line.": "菱形表示音频电平突然上升。起音对比设置约 20 毫秒内所需的上升幅度，因此可在虚线下方触发。",
+  "Diamonds mark sudden increases in audio level. Attack contrast sets the required rise within the rise window. These can happen below the dashed line.": "菱形标记音量的突然上升。起音对比度决定上升窗口内所需的增幅，也可在虚线下方触发。",
   "Off": "已关闭",
-  "Circle: level trigger. Diamond: rapid-rise trigger, which can happen below the dashed threshold. Color shows bass or detail. Select a legend to find its controls. Markers show sent attacks; not every crossing sends a pulse.": "圆点：电平触发。菱形：快速上升触发，可能发生在虚线下方。颜色区分低音与细节。点击图例可找到相应设置。标记表示已发送的起音；并非每次穿越阈值都会发送脉冲。",
+  "Circle: level trigger. Diamond: rapid-rise trigger. Marker fill and number identify the sent texture; the outline matches the bass or detail line. Hollow markers have unknown texture. Markers show sent attacks, not confirmed vibrations.": "圆形：电平触发。菱形：快速上升触发。标记填充色和数字表示已发送的纹理；边框与低音或细节曲线同色。空心表示纹理未知。标记表示已发送的起音，不代表已确认的实际振动。",
   "Shape the envelopes and timing limits. Band and trigger controls are in Tune; related limits adjust together to stay valid.": "调整包络形状与时间限制。频段和触发设置位于“常用调节”；关联参数会同步调整以保持有效。",
   "No audio packets": "没有音频数据包",
   "Silent audio": "音频静音",
@@ -293,5 +293,8 @@
   "No log entries are available yet.": "暂无日志记录。",
   "Save not confirmed: ": "保存未确认：",
   "Request timed out. Try again.": "请求超时，请重试。",
-  "Request timed out. The change may already have completed. Reload saved settings before retrying.": "请求超时，操作可能已经完成。重试前请重新加载已保存的设置。"
+  "Request timed out. The change may already have completed. Reload saved settings before retrying.": "请求超时，操作可能已经完成。重试前请重新加载已保存的设置。",
+  "Rise window": "上升窗口",
+  "Compare with the level this many milliseconds ago. Shorter favors sharp attacks; longer catches slower rises. No added waiting delay; rounded to about 5 ms frames.": "与此前指定毫秒的音量比较。较短偏向尖锐起音，较长可捕捉较缓上升。不会额外等待；按约 5 毫秒的分析帧取整。",
+  "Sent textures": "已发送纹理"
 }

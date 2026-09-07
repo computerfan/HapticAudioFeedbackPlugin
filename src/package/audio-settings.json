@@ -10,6 +10,7 @@
   "MaximumEventAgeMilliseconds": 50,
   "StrongBassAboveThresholdDb": 12,
   "EnableDebugServer": false,
+  "OnsetRiseWindowMilliseconds": 20,
   "OnsetRiseDb": 3,
   "HighWaveform": "subtle_collision",
   "BassEnabled": true,

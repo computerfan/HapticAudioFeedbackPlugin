@@ -24,6 +24,7 @@ internal sealed class AudioSettings
     public bool HighEnabled { get; set; } = true;
     public double LowCenterHz { get; set; } = 100;
     public double HighCenterHz { get; set; } = 2000;
+    public double OnsetRiseWindowMilliseconds { get; set; } = 20;
     public double OnsetRiseDb { get; set; } = 3;
     public double TransientSeparationMilliseconds { get; set; } = 80;
     public string BassWaveform { get; set; } = "damp_collision";
@@ -83,6 +84,7 @@ internal sealed class AudioSettings
         Range(HighGainDb, -12, 12, nameof(HighGainDb));
         Range(LowCenterHz, 60, 250, nameof(LowCenterHz));
         Range(HighCenterHz, 800, 6000, nameof(HighCenterHz));
+        Range(OnsetRiseWindowMilliseconds, 5, 100, nameof(OnsetRiseWindowMilliseconds));
         Range(OnsetRiseDb, 1, 12, nameof(OnsetRiseDb));
         Range(TransientSeparationMilliseconds, 40, 500, nameof(TransientSeparationMilliseconds));
         Range(SustainThresholdDb, -60, -6, nameof(SustainThresholdDb));

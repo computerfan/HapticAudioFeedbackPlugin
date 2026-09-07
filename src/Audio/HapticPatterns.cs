@@ -1,3 +1,5 @@
+#nullable enable
+
 namespace Loupedeck.HapticAudioFeedback;
 
 internal static class HapticPatterns
@@ -17,6 +19,14 @@ internal static class HapticPatterns
         ["subtle_collision"] = "Soft tap", ["damp_collision"] = "Rounded thump",
         ["sharp_collision"] = "Sharp impact", ["damp_state_change"] = "Soft transition",
         ["sharp_state_change"] = "Crisp tick", ["wave"] = "Wave"
+    };
+
+    public static string? WaveformForEvent(string eventName) => eventName switch
+    {
+        "bassAudioFeedback" => "damp_collision",
+        "sharpAudioFeedback" => "sharp_collision",
+        "subtleAudioFeedback" => "subtle_collision",
+        _ => Presets.FirstOrDefault(pair => pair.Value == eventName).Key
     };
 
     public static string EventFor(string waveform, string role) => (role, waveform) switch
