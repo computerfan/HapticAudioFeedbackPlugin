@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: MIT
 // English source strings are stable lookup keys; user content is never translated.
-let currentLocale='en', chineseCatalog=null, localeRequest=0;
-function t(text){return currentLocale==='zh-CN'&&chineseCatalog&&Object.hasOwn(chineseCatalog,text)?chineseCatalog[text]:text;}
+let currentLocale='en', localeCatalogs=Object.create(null), localeRequest=0;
+function t(text){return localeCatalogs[currentLocale]&&Object.hasOwn(localeCatalogs[currentLocale],text)?localeCatalogs[currentLocale][text]:text;}
 function profileLabel(profile){return profile.IsCustom?profile.Label:t(profile.Label);}
 function preferredLocale(languages){
  for(const language of languages){
-  if(/^zh(?:-CN|-SG|-Hans(?:-[a-z]+)?)?$/i.test(language))return 'zh-CN';
+  if(availableLocales.includes('zh-CN')&&/^zh(?:-CN|-SG|-Hans(?:-[a-z]+)?)?$/i.test(language))return 'zh-CN';
+  const exact=availableLocales.find(id=>id.toLowerCase()===language.toLowerCase());
+  if(exact)return exact;
   if(/^en(?:-|$)/i.test(language))return 'en';
  }
  return 'en';
 }
 function localizedText(source){const span=document.createElement('span');span.dataset.i18n=source;span.textContent=t(source);return span;}
 function applyLocale(){
- document.documentElement.lang=currentLocale==='zh-CN'?'zh-CN':'en';
+ document.documentElement.lang=currentLocale;
  document.title=t('Feel the Rhythm · Settings');
  for(const el of document.querySelectorAll('[data-i18n]'))el.textContent=t(el.dataset.i18n);
  for(const [attribute,key] of [['placeholder','i18nPlaceholder'],['aria-label','i18nAriaLabel']]){
@@ -42,18 +44,26 @@ async function fetchBody(path,options={},format='json',timeoutMs=15000){
 }
 async function setLocale(locale){
  const request=++localeRequest;
- if(locale==='zh-CN'&&!chineseCatalog){
-  const {response,body}=await fetchBody('/locales/zh-CN.json');
-  if(!response.ok)throw new Error('Could not load Chinese translations. Try again.');
-  chineseCatalog=body;
+ locale=availableLocales.includes(locale)?locale:'en';
+ if(locale!=='en'&&!localeCatalogs[locale]){
+  const {response,body}=await fetchBody('/locales/'+locale+'.json');
+  if(!response.ok)throw new Error('Could not load translations. Try again.');
+  localeCatalogs[locale]=body;
  }
  if(request!==localeRequest)return;
- currentLocale=locale==='zh-CN'?'zh-CN':'en';applyLocale();
+ currentLocale=locale;applyLocale();
 }
 async function initializeLocale(){
+ const menu=document.getElementById('language');
+ for(const id of availableLocales){
+  if([...menu.options].some(option=>option.value===id))continue;
+  const option=document.createElement('option');option.value=id;
+  try{option.textContent=new Intl.DisplayNames([id],{type:'language'}).of(id);}catch{option.textContent=id;}
+  menu.append(option);
+ }
  const choice=new URLSearchParams(location.search).get('lang');
- const wanted=choice==='zh-CN'||choice==='en'?choice:preferredLocale(navigator.languages||[navigator.language||'en']);
- try{await setLocale(wanted);}catch{applyLocale();message('Could not load Chinese translations. Try again.',true);}
+ const wanted=availableLocales.includes(choice)?choice:preferredLocale(navigator.languages||[navigator.language||'en']);
+ try{await setLocale(wanted);}catch{applyLocale();message('Could not load translations. Try again.',true);}
 }
 document.getElementById('language').addEventListener('change',async event=>{
  try{
@@ -62,7 +72,7 @@ document.getElementById('language').addEventListener('change',async event=>{
   window.history.replaceState(null,'',location.pathname+'?'+query.toString());
   if(settings){setCatalog({Profiles:profiles,ProfileInfo:profileInfo,ProfilesRevision:profilesRevision,ProfilesError:profilesError});sync();renderDevices();}
   message(saveFailed?t('Changes are not saved. Retry saving, or reload saved settings.'):saving||dirty?t('Saving changes…'):t('Ready · changes save automatically'),saveFailed);
- }catch{document.getElementById('language').value=currentLocale;message('Could not load Chinese translations. Try again.',true);}
+ }catch{document.getElementById('language').value=currentLocale;message('Could not load translations. Try again.',true);}
 });
 
 // Our SSE endpoint uses one JSON data line per event. Fetch preserves header authentication.

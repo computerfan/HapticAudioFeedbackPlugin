@@ -106,6 +106,10 @@ Turning **Audio haptics** off stops audio capture and analysis. Turn it on to re
 
 Audio is processed locally and is not recorded or uploaded.
 
+## Contribute a translation
+
+Help translate Feel the Rhythm! Edit **one XLIFF file per language** for both Options+ and the browser. Start with the [English XLIFF template](docs/localization/HapticAudioFeedback_template.xliff) and follow the [language contributor guide](docs/contributing-translations.md). No JSON editing or coding is needed; translation-only pull requests and issues are welcome.
+
 ## Development and license
 
 See the [developer guide](docs/development.md) for building, testing, CI, and implementation details.

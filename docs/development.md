@@ -207,14 +207,11 @@ Pinned upstream declarations for crates missing notice files are retained in [na
 
 ## Localization
 
-Simplified Chinese uses the SDK language ID `zh-CN`. Action names/descriptions and the action group are translated by `src/package/localization/HapticAudioFeedback_zh-CN.xliff`, generated from the running plugin using `logiplugintool xliff HapticAudioFeedback <output-directory>`. Keep the generated IDs and English source strings stable. Options+ selects its language automatically when supported, or the user can choose a plugin language in plugin settings; restart Logi Plugin Service after installing locale files.
+See the [language contributor guide](contributing-translations.md) and [English template](localization/HapticAudioFeedback_template.xliff). XLIFF 1.2 files in `src/package/localization/` are the only translation sources. Each catalog includes the SDK-generated action IDs plus a browser/runtime group. Shared English strings use the same translation.
 
-`src/package/ui/locales/zh-CN.json` contains browser strings and runtime action-editor labels/profile descriptions. It is embedded into the assembly for native list items, and included in the package for the browser. Names supplied by the user and device names are displayed unchanged. Low-level operating-system/backend diagnostics retain their original wording when there is no translation.
+`tools/generate_localization.py` generates JSON catalogs, the browser language list, and the blank English template. Generated files are checked in for previews and tests; CI rejects stale output with `--check`. Plugin builds regenerate them before resource assignment. The SDK consumes the XLIFF directly; native labels use embedded generated JSON, and the browser loads only the exact bundled locale routes. New catalogs are discovered by filename; no per-language route or UI changes are required.
 
-The browser uses its preferred supported language, falling back to English. Its language selector changes only presentation and records `?lang=en` or `?lang=zh-CN` in the current URL; refreshing preserves that choice. Opening the launcher after a plugin restart uses browser preferences again because the local port changes. The browser language and Options+ plugin language are independent. No audio settings are written when switching languages.
-
-Only `/localization.js` and `/locales/zh-CN.json` are public localization routes; settings and device endpoints still require the session token. The locale adds no third-party dependencies.
-
+English keys and SDK IDs remain stable. Missing or empty targets fall back to English. Browser language and Options+ plugin language remain independent; user profile names and audio device names are never translated. Source-less, conflicting, malformed, and incorrectly named catalogs fail generation. The generator accepts plain-text XLIFF 1.2, with or without its standard namespace.
 
 ### Tabbed settings and onset chart
 

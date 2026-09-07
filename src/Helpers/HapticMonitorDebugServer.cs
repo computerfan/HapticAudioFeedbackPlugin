@@ -75,7 +75,8 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     private readonly Action _openPermissions;
     private readonly Func<PluginLogSnapshot> _logs;
     private readonly Func<object> _devices;
-    private readonly string _html, _picoCss, _localizationJs, _chineseJson;
+    private readonly string _html, _picoCss, _localizationJs;
+    private readonly Dictionary<string, string> _localeAssets = new(StringComparer.Ordinal);
     private readonly byte[] _logoPng;
     private readonly Dictionary<string, string> _licenseTexts = new(StringComparer.Ordinal);
     private readonly string _licensesHtml;
@@ -92,7 +93,13 @@ internal sealed class HapticMonitorDebugServer : IDisposable
     {
         _html = File.ReadAllText(htmlPath).Replace("{{PLUGIN_VERSION}}", WebUtility.HtmlEncode(PluginVersion.Display));
         _localizationJs = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "localization.js"));
-        _chineseJson = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "locales", "zh-CN.json"));
+        var localesDirectory = Path.Combine(Path.GetDirectoryName(htmlPath), "locales");
+        _localeAssets.Add("/locales/available.js", File.ReadAllText(Path.Combine(localesDirectory, "available.js")));
+        foreach (var file in Directory.GetFiles(localesDirectory, "*.json"))
+        {
+            if (System.Text.RegularExpressions.Regex.IsMatch(Path.GetFileName(file), @"^[a-z]{2}-[A-Z]{2}\.json$"))
+                _localeAssets.Add("/locales/" + Path.GetFileName(file), File.ReadAllText(file));
+        }
         _logoPng = File.ReadAllBytes(Path.Combine(Path.GetDirectoryName(htmlPath), "logo.png"));
         _picoCss = File.ReadAllText(Path.Combine(Path.GetDirectoryName(htmlPath), "vendor", "pico-2.1.1.min.css"));
         // Only these bundled, public notices are exposed; request paths never become file paths.
@@ -210,7 +217,7 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         if (request.Url?.GetLeftPart(UriPartial.Authority) + "/" != BaseUrl ||
             request.RemoteEndPoint == null || !IPAddress.IsLoopback(request.RemoteEndPoint.Address))
         { Json(context, new { Error = "Loopback requests only" }, 403); return false; }
-        if (request.HttpMethod != "GET" || (path != "/" && path != "/vendor/pico-2.1.1.min.css" && path != "/logo.png" && path != "/localization.js" && path != "/locales/zh-CN.json" && path != "/licenses" && !_licenseTexts.ContainsKey(path)))
+        if (request.HttpMethod != "GET" || (path != "/" && path != "/vendor/pico-2.1.1.min.css" && path != "/logo.png" && path != "/localization.js" && !_localeAssets.ContainsKey(path) && path != "/licenses" && !_licenseTexts.ContainsKey(path)))
         {
             var origin = request.Headers["Origin"];
             if (request.Headers["X-Haptic-Token"] != _token ||
@@ -221,6 +228,11 @@ internal sealed class HapticMonitorDebugServer : IDisposable
         {
             if (_licenseTexts.TryGetValue(path, out var licenseText))
             { Write(context, licenseText, "text/plain; charset=utf-8"); return false; }
+            if (_localeAssets.TryGetValue(path, out var localeAsset))
+            {
+                Write(context, localeAsset, path.EndsWith(".js") ? "text/javascript; charset=utf-8" : "application/json; charset=utf-8");
+                return false;
+            }
             switch (path)
             {
                 case "/devices": Json(context, _devices?.Invoke() ?? throw new InvalidOperationException("Device enumeration unavailable.")); return false;
@@ -241,7 +253,6 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                 case "/licenses": Write(context, _licensesHtml, "text/html; charset=utf-8"); return false;
                 case "/": Write(context, _html, "text/html; charset=utf-8"); return false;
                 case "/localization.js": Write(context, _localizationJs, "text/javascript; charset=utf-8"); return false;
-                case "/locales/zh-CN.json": Write(context, _chineseJson, "application/json; charset=utf-8"); return false;
                 case "/logo.png": Write(context, _logoPng, "image/png"); return false;
                 case "/vendor/pico-2.1.1.min.css": Write(context, _picoCss, "text/css; charset=utf-8"); return false;
                 default: Json(context, new { Error = "Not found" }, 404); return false;

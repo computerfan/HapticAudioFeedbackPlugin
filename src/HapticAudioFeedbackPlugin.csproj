@@ -36,13 +36,19 @@
     </PackageReference>
     <Compile Remove="Helpers/ResponsiveLoopbackCapture.cs;Capture/**/*.cs" />
     <ProjectReference Include="Capture/HapticAudioCapture.csproj" />
-    <EmbeddedResource Include="package/ui/locales/zh-CN.json" LogicalName="HapticAudioFeedback.zh-CN.json" />
     <Reference Include="PluginApi">
       <HintPath>$(PluginApiDir)PluginApi.dll</HintPath>
       <Private>False</Private>
     </Reference>
   </ItemGroup>
 
+
+  <Target Name="GenerateTranslations" BeforeTargets="AssignTargetPaths">
+    <Exec Command="$(PythonCommand) &quot;$(MSBuildThisFileDirectory)../tools/generate_localization.py&quot;" />
+    <ItemGroup>
+      <EmbeddedResource Include="package/ui/locales/*.json" LogicalName="HapticAudioFeedback.%(Filename).json" />
+    </ItemGroup>
+  </Target>
 
   <Target Name="CopyPackage" AfterTargets="PostBuildEvent">
     <Message Text="📦 Copying package files..." Importance="High" />

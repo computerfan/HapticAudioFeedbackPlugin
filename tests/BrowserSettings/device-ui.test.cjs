@@ -1,7 +1,8 @@
 // Exercise the actual page handlers. Network and hardware are simulated.
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict');
 const html=fs.readFileSync(require('node:path').join(__dirname,'../../src/package/ui/index.html'),'utf8');
-const localization=fs.readFileSync(require('node:path').join(__dirname,'../../src/package/ui/localization.js'),'utf8');
+const localeManifest=fs.readFileSync(require('node:path').join(__dirname,'../../src/package/ui/locales/available.js'),'utf8');
+const localization=localeManifest+'\n'+fs.readFileSync(require('node:path').join(__dirname,'../../src/package/ui/localization.js'),'utf8');
 const chinese=JSON.parse(fs.readFileSync(require('node:path').join(__dirname,'../../src/package/ui/locales/zh-CN.json'),'utf8'));
 const script=localization+'\n'+html.match(/<script>([\s\S]*?)<\/script>/)[1].replace("window.addEventListener('resize',()=>chart());start();",'');
 function harness(){
@@ -18,6 +19,7 @@ function harness(){
   scrollIntoView(options){this.scrolled=options;}
   contains(target){while(target){if(target===this)return true;target=target.parentElement;}return false;}
   getContext(){return {setTransform(){},clearRect(){},setLineDash(){},beginPath(){},closePath(){},moveTo(){},lineTo(){},stroke(){},fillText(){},arc(){},fill(){}};}
+  get options(){return this.children.filter(child=>child.tagName==='option');}
   get selectedOptions(){const all=[];function walk(e){if(e.tagName==='option')all.push(e);for(const c of e.children||[])walk(c);}walk(this);return all.filter(o=>o.value===this.value);}
  }
  for(const match of html.matchAll(/<(\w+)\b([^>]*\bid="([^"]+)"[^>]*)>/g)){const e=new Element(match[1]);e.id=match[3];e.type=match[2].match(/\btype="([^"]+)"/)?.[1]||'';e.disabled=/\bdisabled\b/.test(match[2]);e.hidden=/\bhidden\b/.test(match[2]);}
@@ -43,6 +45,7 @@ function harness(){
    };}}};
   }
   else if(path==='/metrics'){state.metricReads=(state.metricReads||0)+1;body=state.metrics||{};}
+  else if(state.extraCatalogs&&state.extraCatalogs[path]){body=state.extraCatalogs[path];}
   else if(path==='/locales/zh-CN.json'){ok=!state.failLocale;body=chinese;}
   else if(path==='/logs'||path==='/logs/download'){assert.equal(options.headers['X-Haptic-Token'],'test');state.logReads=(state.logReads||0)+1;ok=!state.failLogs;body=ok?{Directory:'/test/logs',RecentText:'<script>not executable</script> 日志',Warnings:[]}:{Error:'Logs unavailable'};}
   else if(path==='/devices'){body=state.enumerationError?{Error:'Device service unavailable'}:{Devices:devices};ok=!state.enumerationError;}
@@ -209,9 +212,18 @@ function harness(){
  for(const descriptor of zh.run('[...basic,...advanced,...sustain]')){assert.ok(chinese[descriptor[1]],descriptor[1]);assert.ok(chinese[descriptor[6]],descriptor[6]);}
  const unavailable=harness();unavailable.state.failLocale=true;await unavailable.run('init()');
  await unavailable.el('language').events.change({target:{value:'zh-CN'}});
- assert.equal(unavailable.run('currentLocale'),'en');assert.equal(unavailable.state.saves,0);assert.match(unavailable.el('saveStatus').textContent,/Could not load Chinese/);
+ assert.equal(unavailable.run('currentLocale'),'en');assert.equal(unavailable.state.saves,0);assert.match(unavailable.el('saveStatus').textContent,/Could not load translations/);
  unavailable.state.failLocale=false;await unavailable.el('language').events.change({target:{value:'zh-CN'}});assert.equal(unavailable.run('currentLocale'),'zh-CN');
  console.log('PASS Chinese locale, language switching without writes, source/name preservation, save/Undo, fallback and exact counters');
+ const french=harness();french.run("availableLocales.push('fr-FR');location.search='?lang=fr-FR'");
+ french.state.extraCatalogs={'/locales/fr-FR.json':{'Music':'Musique'}};
+ await french.run('initializeLocale()');
+ assert.equal(french.run('currentLocale'),'fr-FR');assert.equal(french.run("t('Music')"),'Musique');
+ assert.equal(french.run("t('Missing translation')"),'Missing translation');
+ assert.ok(french.el('language').options.some(option=>option.value==='fr-FR'));
+ assert.equal(french.state.saves,0);
+ assert.equal(french.run("preferredLocale(['fr-FR'])"),'fr-FR');
+ console.log('PASS generated language discovery, menu registration and English fallback');
  const tabs=harness();await tabs.run('init()');tabs.el('captureDevice').value=tabs.devices[1].Id;tabs.el('captureDevice').events.change();
  tabs.el('customProfileName').value='Unfinished name';const original=JSON.stringify(tabs.state.current);
  for(const tab of ['detection','textures','advanced','tune']){tabs.el('tab-'+tab).events.click();assert.equal(tabs.el('panel-'+tab).hidden,false);for(const other of ['tune','detection','textures','advanced'].filter(id=>id!==tab))assert.equal(tabs.el('panel-'+other).hidden,true);assert.equal(tabs.el('tab-'+tab).attributes['aria-selected'],'true');}

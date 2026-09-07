@@ -1,1417 +1,1417 @@
-<?xml version='1.0' encoding='utf-8'?>
+<?xml version="1.0" encoding="utf-8"?>
 <xliff version="1.2">
-  <file original="$HapticAudioFeedback___@general" source-language="en-US" target-language="zh-CN" datatype="plaintext">
+  <file original="$HapticAudioFeedback___@general" source-language="en-US" target-language="REPLACE-ME" datatype="plaintext">
     <body>
       <group id="@general">
         <trans-unit id="$HapticAudioFeedback___General___ResetDisplayNameTemplate" translate="yes">
           <source>Reset %</source>
-          <target>重置 %</target>
+          <target state="needs-translation" />
         </trans-unit>
       </group>
       <group id="@modes">
         <trans-unit id="$HapticAudioFeedback___ModeName___main" translate="yes">
           <source>Main</source>
-          <target>主页面</target>
+          <target state="needs-translation" />
         </trans-unit>
       </group>
       <group id="@resources" />
     </body>
   </file>
-  <file original="$HapticAudioFeedback___main" source-language="en-US" target-language="zh-CN" datatype="plaintext">
+  <file original="$HapticAudioFeedback___main" source-language="en-US" target-language="REPLACE-ME" datatype="plaintext">
     <body>
       <group id="@commands">
         <trans-unit id="$HapticAudioFeedback___Loupedeck.HapticAudioFeedback.ConfigureAudioHaptics" translate="yes">
           <source>Open haptic settings</source>
-          <target>打开触觉设置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="$HapticAudioFeedback___Loupedeck.HapticAudioFeedback.ConfigureAudioHaptics###description" translate="yes">
           <source>Open browser settings at the current local port. Settings also have a standalone launcher file.</source>
-          <target>在当前本地端口打开浏览器设置，也可使用独立的设置启动文件。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="$HapticAudioFeedback___Loupedeck.HapticAudioFeedback.ToggleAudioHaptics" translate="yes">
           <source>Toggle haptics</source>
-          <target>切换触觉反馈</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="$HapticAudioFeedback___Loupedeck.HapticAudioFeedback.ToggleAudioHaptics###description" translate="yes">
           <source>Pause or resume system audio haptics.</source>
-          <target>暂停或恢复系统音频触觉反馈。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="$HapticAudioFeedback___SelectAudioProfile" translate="yes">
           <source>Select haptic profile</source>
-          <target>选择触觉配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="$HapticAudioFeedback___SelectAudioProfile###description" translate="yes">
           <source>Apply a listening profile while preserving whether audio haptics are paused.</source>
-          <target>应用聆听配置，同时保留触觉反馈的暂停状态。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="$HapticAudioFeedback___PreviewAudioHaptic" translate="yes">
           <source>Preview haptic texture</source>
-          <target>测试触感</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="$HapticAudioFeedback___PreviewAudioHaptic###description" translate="yes">
           <source>Send one preset, including while audio haptics are paused.</source>
-          <target>触发一次预设触感，音频触觉反馈暂停时也可使用。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="$HapticAudioFeedback___#DynamicFolder" translate="yes">
           <source>Dynamic Folder</source>
-          <target>动态文件夹</target>
+          <target state="needs-translation" />
         </trans-unit>
       </group>
       <group id="@adjustments" />
       <group id="@groups">
         <trans-unit id="$HapticAudioFeedback___GroupName___F94B4FE9A4788697000D" translate="yes">
           <source>Audio haptics</source>
-          <target>音频触觉反馈</target>
+          <target state="needs-translation" />
         </trans-unit>
       </group>
     </body>
   </file>
-  <file original="HapticAudioFeedback.browser" source-language="en-US" target-language="zh-CN" datatype="plaintext">
+  <file original="HapticAudioFeedback.browser" source-language="en-US" target-language="REPLACE-ME" datatype="plaintext">
     <body>
       <group id="browser-and-runtime">
         <trans-unit id="runtime.9e3391e9bf072ad367ce" translate="yes" xml:space="preserve">
           <source>Homepage</source>
-          <target>项目主页</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.635ae219ad13dc7102f5" translate="yes" xml:space="preserve">
           <source>Report an issue</source>
-          <target>反馈问题</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c9f6d0ff74eb7ba56cc7" translate="yes" xml:space="preserve">
           <source>Open-source licenses</source>
-          <target>开源许可证</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.6f2dd1ae435c169429c8" translate="yes" xml:space="preserve">
           <source>Audio into touch</source>
-          <target>让声音化作触感</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.550fb3aa57b690139e3a" translate="yes" xml:space="preserve">
           <source>A little closer to the music.</source>
-          <target>让音乐更贴近你。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.9816e85ee493661c34c7" translate="yes" xml:space="preserve">
           <source>Connecting to your plugin…</source>
-          <target>正在连接插件…</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.3adee60b233635b88b8c" translate="yes" xml:space="preserve">
           <source>Retry saving</source>
-          <target>重试保存</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.415db71a129627bb3f0c" translate="yes" xml:space="preserve">
           <source>Reload saved settings</source>
-          <target>重新加载已保存的设置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.72eb7f81f6a922d89edd" translate="yes" xml:space="preserve">
           <source>Find your feel</source>
-          <target>找到适合你的触感</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.43e26492591ce6bd3680" translate="yes" xml:space="preserve">
           <source>Live tuning</source>
-          <target>实时调节</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ed3158deda46a0bd9567" translate="yes" xml:space="preserve">
           <source>Pick a profile. Hear the difference, feel the change.</source>
-          <target>选择配置，听见不同，感受变化。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.44d877318bac9ebc31cf" translate="yes" xml:space="preserve">
           <source>Listening profile</source>
-          <target>聆听配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.16b0bbfd1d1194f9a094" translate="yes" xml:space="preserve">
           <source>Loading profiles…</source>
-          <target>正在加载配置…</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d148dc74ad56202658c0" translate="yes" xml:space="preserve">
           <source>Selecting a profile updates the controls and saves immediately. Your audio source and paused state stay the same.</source>
-          <target>选择配置后，参数会立即更新并保存。音频来源和暂停状态保持不变。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.bc98137ebf020faa15e5" translate="yes" xml:space="preserve">
           <source>Undo profile change</source>
-          <target>撤销配置切换</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.34ca8a4540f5238f274f" translate="yes" xml:space="preserve">
           <source>Make it yours</source>
-          <target>调出你的风格</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.904d05fdd5a8e20fb7f2" translate="yes" xml:space="preserve">
           <source>Auto-save</source>
-          <target>自动保存</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d1ebdb960054293658b9" translate="yes" xml:space="preserve">
           <source>Start with sensitivity and spacing. More space gives each pulse room to land.</source>
-          <target>先调节灵敏度和脉冲间隔。间隔越大，每次触感越清晰。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ef7db9b1d4b4443d9c40" translate="yes" xml:space="preserve">
           <source>Texture &amp; character</source>
-          <target>触感与风格</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.048c9383c0837a5c40db" translate="yes" xml:space="preserve">
           <source>Choose how each pulse feels. Overall intensity is set in Logi Options+.</source>
-          <target>选择每次脉冲的触感。整体强度在 Logi Options+ 中设置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.a155741b9da8071386a1" translate="yes" xml:space="preserve">
           <source>Test buttons send a single texture, even while paused. They do not change your settings.</source>
-          <target>测试按钮会触发一次触感，暂停时也可使用。测试不会更改设置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f5110a387dd38b1f7f2d" translate="yes" xml:space="preserve">
           <source>Sustained bass texture</source>
-          <target>持续低音触感</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.8a9d8df5f77cad32ff80" translate="yes" xml:space="preserve">
           <source>Slow pulses during held bass notes. Leave off for a cleaner beat.</source>
-          <target>低音持续时缓慢触发脉冲。关闭此项可获得更清晰的节拍。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.838fd0cfb89abb50f005" translate="yes" xml:space="preserve">
           <source>Save &amp; manage your profiles</source>
-          <target>保存与管理配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.2d1252079a646ac55baa" translate="yes" xml:space="preserve">
           <source>Keep a sound you like. Editing the live controls never overwrites a saved profile.</source>
-          <target>保存喜欢的触感。调节实时参数不会覆盖已保存的配置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d3663280e101b56ddfbb" translate="yes" xml:space="preserve">
           <source>Profile name</source>
-          <target>配置名称</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.429ecb0614fd87c62df7" translate="yes" xml:space="preserve">
           <source>My evening music</source>
-          <target>我的晚间音乐</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.43d782d4b44bd6425f59" translate="yes" xml:space="preserve">
           <source>Save your current tuning, duplicate the selected original, or update an existing custom profile.</source>
-          <target>保存当前参数、复制选中的原始配置，或更新已有的自定义配置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.84b113d12d0c87d7ed16" translate="yes" xml:space="preserve">
           <source>Save as new</source>
-          <target>另存为新配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ae77efb2efa7fd85ff12" translate="yes" xml:space="preserve">
           <source>Duplicate selected</source>
-          <target>复制选中配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ffe0d8a9f91116b72bc7" translate="yes" xml:space="preserve">
           <source>Update selected</source>
-          <target>更新选中配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.8f2ff055b5d3b66f310b" translate="yes" xml:space="preserve">
           <source>Advanced detection</source>
-          <target>高级检测</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.a95738c56db769777556" translate="yes" xml:space="preserve">
           <source>Listening now</source>
-          <target>当前聆听状态</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d403c686f6a1048014bd" translate="yes" xml:space="preserve">
           <source>Connecting</source>
-          <target>连接中</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e91455e1fad612bc69c5" translate="yes" xml:space="preserve">
           <source>Waiting for the plugin…</source>
-          <target>正在等待插件…</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f3553e1a729a02095da0" translate="yes" xml:space="preserve">
           <source>Recent bass and detail audio levels with detection thresholds</source>
-          <target>近期低音与细节电平及检测阈值</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4714c3637c0f9ead73dd" translate="yes" xml:space="preserve">
           <source>● Bass</source>
-          <target>● 低音</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f68381e8b337ad52ec91" translate="yes" xml:space="preserve">
           <source>● Detail</source>
-          <target>● 细节</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.b56e4e3b07318463e8ff" translate="yes" xml:space="preserve">
           <source>Events sent</source>
-          <target>已发送事件</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.106475855516cc22ad2c" translate="yes" xml:space="preserve">
           <source>Candidates skipped</source>
-          <target>已跳过候选事件</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.651089c6163618c6e3fc" translate="yes" xml:space="preserve">
           <source>Last texture</source>
-          <target>上次触感</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f6479eb15e423313ae0d" translate="yes" xml:space="preserve">
           <source>Audio source</source>
-          <target>音频来源</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e0826e11e7330dee1da3" translate="yes" xml:space="preserve">
           <source>Listen to</source>
-          <target>监听来源</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.59ecc2eccd4dedda4c40" translate="yes" xml:space="preserve">
           <source>System default playback device</source>
-          <target>系统默认播放设备</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e18e671c9a403d449449" translate="yes" xml:space="preserve">
           <source>Playback follows your speakers or headphones. Input listens to a microphone, line-in, or virtual device.</source>
-          <target>播放设备捕获扬声器或耳机的声音；输入设备捕获麦克风、线路输入或虚拟设备的声音。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.9d19bd2659fca011f535" translate="yes" xml:space="preserve">
           <source>Use this source</source>
-          <target>使用此来源</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0e91610117029a62a478" translate="yes" xml:space="preserve">
           <source>Refresh</source>
-          <target>刷新</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f5cee5181579097ac665" translate="yes" xml:space="preserve">
           <source>Source changes require Use this source, so selecting a microphone does not start capturing it.</source>
-          <target>更改来源需要点击“使用此来源”；仅选中麦克风不会开始采集。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.14d9514bad82c9f069d5" translate="yes" xml:space="preserve">
           <source>Retry audio capture</source>
-          <target>重试音频采集</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.24eca9b97bee7a6ff6c8" translate="yes" xml:space="preserve">
           <source>Haptic output is managed by Logi Options+. This selector only changes the audio being analyzed.</source>
-          <target>触觉输出由 Logi Options+ 管理。此处仅更改用于分析的音频来源。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.268f14bbfe119c1e9215" translate="yes" xml:space="preserve">
           <source>Diagnostics</source>
-          <target>诊断信息</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4cc755d4527a77fa2114" translate="yes" xml:space="preserve">
           <source>Waiting for capture information…</source>
-          <target>正在等待采集信息…</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c350e33e5f6c358681e9" translate="yes" xml:space="preserve">
           <source>Audio batch · latest / max</source>
-          <target>音频批次 · 最新 / 最大</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.bc3afb54423011e4b0e0" translate="yes" xml:space="preserve">
           <source>Detection · latest / max</source>
-          <target>检测耗时 · 最新 / 最大</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4938f4b293160687e8f3" translate="yes" xml:space="preserve">
           <source>Logitech call · last / max</source>
-          <target>罗技调用 · 上次 / 最大</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.71f10a0682e583d3777b" translate="yes" xml:space="preserve">
           <source>Timings are milliseconds since reload. They exclude physical vibration latency. Events sent counts API calls, not confirmed vibrations.</source>
-          <target>耗时单位为毫秒，统计自插件重新加载起计算，不包含实际振动延迟。“已发送事件”统计 API 调用次数，并非确认发生的振动次数。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.bcb9137c53d09218c216" translate="yes" xml:space="preserve">
           <source>Audio stays on your computer. The plugin does not record or upload it. Changing profiles preserves your audio source and whether haptics are paused.</source>
-          <target>音频仅在本机处理，插件不会录制或上传音频。切换配置不会更改音频来源和触觉反馈的暂停状态。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.38b9cd5cb193fbf444e6" translate="yes" xml:space="preserve">
           <source>Soft tap</source>
-          <target>轻触</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ab1c960b03c195499c8a" translate="yes" xml:space="preserve">
           <source>Rounded thump</source>
-          <target>柔和重击</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.3c82212f0ce09e09083e" translate="yes" xml:space="preserve">
           <source>Sharp impact</source>
-          <target>强烈冲击</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.68b12c5a982154809af7" translate="yes" xml:space="preserve">
           <source>Soft transition</source>
-          <target>柔和过渡</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.05eee11c0ade17c0f7b5" translate="yes" xml:space="preserve">
           <source>Crisp tick</source>
-          <target>清脆轻点</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.43eb1b148ebbaca00a1a" translate="yes" xml:space="preserve">
           <source>Wave</source>
-          <target>波浪</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ebb57a260d58207c3cce" translate="yes" xml:space="preserve">
           <source>Sensitivity</source>
-          <target>灵敏度</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f4f3c29c076eacc3779d" translate="yes" xml:space="preserve">
           <source>Higher detects quieter sounds. 50 keeps the base thresholds.</source>
-          <target>数值越高，越容易检测到较轻的声音。50 表示使用基础阈值。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ccc97f2b39c0c4307484" translate="yes" xml:space="preserve">
           <source>Pulse spacing</source>
-          <target>脉冲间隔</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.48fb50b51e7860bc05c3" translate="yes" xml:space="preserve">
           <source>More space feels cleaner; less space follows faster rhythms.</source>
-          <target>间隔越大，触感越清晰；间隔越小，越能跟随快速节奏。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.dd4f2b2bc55e3afb686c" translate="yes" xml:space="preserve">
           <source>Bass sensitivity</source>
-          <target>低音灵敏度</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1b7fa1b0ad06edbb9cdf" translate="yes" xml:space="preserve">
           <source>Boost or reduce which bass attacks are picked up.</source>
-          <target>增强或减弱对低音起音的响应。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.671969ad5086fa2e9c2f" translate="yes" xml:space="preserve">
           <source>Detail sensitivity</source>
-          <target>细节灵敏度</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d8bb0ff0f4d7ee6f7b48" translate="yes" xml:space="preserve">
           <source>Reduce if vocals and bright instruments create too many taps.</source>
-          <target>如果人声或高音乐器触发过多轻触，可调低此值。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.b1e17f72d0237fcbadfd" translate="yes" xml:space="preserve">
           <source>Bass band center</source>
-          <target>低音频段中心</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c967960a33844dc8e57c" translate="yes" xml:space="preserve">
           <source>100 Hz is a useful starting point for kicks and bass.</source>
-          <target>检测底鼓和低音时，可从 100 Hz 开始调整。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.233ffaec7968231e1ea3" translate="yes" xml:space="preserve">
           <source>Detail band center</source>
-          <target>细节频段中心</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f12b4d50e12073e56038" translate="yes" xml:space="preserve">
           <source>Focus on instrument attacks and upper-frequency detail.</source>
-          <target>关注乐器起音和较高频率的细节。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.bfa6fd30ec34ed3a0dc9" translate="yes" xml:space="preserve">
           <source>Attack contrast</source>
-          <target>起音对比度</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.5e822b4c6d6df0fe5c85" translate="yes" xml:space="preserve">
           <source>Lower picks up smaller rises above sustained music.</source>
-          <target>调低后可检测持续音乐中较小的电平上升。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.7b5170a47f8eae63c01c" translate="yes" xml:space="preserve">
           <source>Beat re-arm interval</source>
-          <target>节拍再次触发间隔</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.70401471f2c1f8253163" translate="yes" xml:space="preserve">
           <source>Prevents a single attack being detected repeatedly in the same band.</source>
-          <target>避免同一频段中的一次起音被重复检测。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.57d58e025b98cbf636e7" translate="yes" xml:space="preserve">
           <source>Bass floor</source>
-          <target>低音电平下限</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ab554626c5dbd0e9bf4c" translate="yes" xml:space="preserve">
           <source>Minimum level before sensitivity adjustments.</source>
-          <target>应用灵敏度调整前的最低电平。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.178b8d151e30db773b08" translate="yes" xml:space="preserve">
           <source>Detail floor</source>
-          <target>细节电平下限</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4d342a56d3a5425df453" translate="yes" xml:space="preserve">
           <source>Background contrast</source>
-          <target>背景对比度</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.7af1f9b9a01e7229f91c" translate="yes" xml:space="preserve">
           <source>How far an onset must rise above the slower background.</source>
-          <target>起音电平需要高于缓慢变化的背景电平的幅度。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0165e18c7ad3695222a2" translate="yes" xml:space="preserve">
           <source>Re-arm contrast</source>
-          <target>再次触发对比度</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f8588f25870e629f4ffd" translate="yes" xml:space="preserve">
           <source>Must be lower than background contrast.</source>
-          <target>必须低于背景对比度。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.692d21806adf3f8f494d" translate="yes" xml:space="preserve">
           <source>Envelope attack</source>
-          <target>包络上升时间</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.15309b478d8facc3ff9e" translate="yes" xml:space="preserve">
           <source>Smaller responds faster.</source>
-          <target>数值越小，响应越快。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.199e30eb2ecddbcd5054" translate="yes" xml:space="preserve">
           <source>Envelope release</source>
-          <target>包络释放时间</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1e2d720418b5a0feb189" translate="yes" xml:space="preserve">
           <source>Larger smooths the decay.</source>
-          <target>数值越大，衰减越平滑。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.bfbc174d8394315f65e8" translate="yes" xml:space="preserve">
           <source>Background tracking</source>
-          <target>背景跟踪时间</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1a6b52eb49659bd4eed7" translate="yes" xml:space="preserve">
           <source>Must be longer than envelope attack and release.</source>
-          <target>必须长于包络上升时间和释放时间。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.75c1940fa3b5907516e8" translate="yes" xml:space="preserve">
           <source>Strong bass threshold</source>
-          <target>强低音阈值</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ffb3cf951a7bb28299ba" translate="yes" xml:space="preserve">
           <source>Level above the effective bass floor that selects the stronger preset.</source>
-          <target>超过有效低音电平下限此幅度时，使用更强的触感预设。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.9044c91245303f1db46f" translate="yes" xml:space="preserve">
           <source>Discard events older than</source>
-          <target>丢弃超时事件</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d9a94f0061a3a5014063" translate="yes" xml:space="preserve">
           <source>Avoids late playback when audio arrives in large buffers.</source>
-          <target>音频以较大缓冲区到达时，避免播放过时的触感。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.23013adb98a39f19c5c3" translate="yes" xml:space="preserve">
           <source>Texture floor</source>
-          <target>持续触感电平下限</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.193d12a2a3f299cd81ef" translate="yes" xml:space="preserve">
           <source>Minimum bass level for the optional texture. Sensitivity also applies.</source>
-          <target>触发持续触感所需的最低低音电平，也受灵敏度影响。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4f54378f9261b7a63d80" translate="yes" xml:space="preserve">
           <source>Quiet bass spacing</source>
-          <target>轻低音脉冲间隔</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.6c88d84aa22ba14c2aca" translate="yes" xml:space="preserve">
           <source>Must be at least the loud-bass spacing.</source>
-          <target>不得小于强低音脉冲间隔。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1d142332d9ed09ff90fa" translate="yes" xml:space="preserve">
           <source>Loud bass spacing</source>
-          <target>强低音脉冲间隔</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.84c7458d134f9c944c72" translate="yes" xml:space="preserve">
           <source>The shared pulse spacing still applies.</source>
-          <target>仍受全局脉冲间隔限制。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.10c8f33cf36047ab7b39" translate="yes" xml:space="preserve">
           <source>Custom tuning</source>
-          <target>自定义参数</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.8c346c2e06fbdff94106" translate="yes" xml:space="preserve">
           <source>Matches </source>
-          <target>当前匹配：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.bc64e2f81f0d57c0654b" translate="yes" xml:space="preserve">
           <source>Modified from </source>
-          <target>已修改，基于：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f46841e4856de2c3de07" translate="yes" xml:space="preserve">
           <source>System default playback</source>
-          <target>系统默认播放设备</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.79cff94ee4afc92bfddb" translate="yes" xml:space="preserve">
           <source>System default input (microphone / line-in)</source>
-          <target>系统默认输入设备（麦克风 / 线路输入）</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.df6dc9d053198a68e242" translate="yes" xml:space="preserve">
           <source>Playback — what you hear</source>
-          <target>播放设备 — 你听到的声音</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.cafb1708579ae470efbf" translate="yes" xml:space="preserve">
           <source>Input — microphone / line-in</source>
-          <target>输入设备 — 麦克风 / 线路输入</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.18e072359b937b84924c" translate="yes" xml:space="preserve">
           <source>Unavailable — reconnect or choose another source</source>
-          <target>不可用 — 请重新连接或选择其他来源</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d7880c0eba3b0ef476cb" translate="yes" xml:space="preserve">
           <source>Could not list devices</source>
-          <target>无法列出设备</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.2583232ca867474fe7c5" translate="yes" xml:space="preserve">
           <source>Choose a source, then use it. Microphone capture starts only after you confirm the source.</source>
-          <target>选择来源后，点击“使用此来源”。确认来源后才会开始采集麦克风。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1dbaeffd3b3880ba37e2" translate="yes" xml:space="preserve">
           <source> You can still choose a default source or refresh again.</source>
-          <target> 你仍可选择默认来源或再次刷新。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1aa603b95b41d87525d1" translate="yes" xml:space="preserve">
           <source>Use this source will start capturing the selected input.</source>
-          <target>点击“使用此来源”后，将开始采集选中的输入设备。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e9a249b3a463f542387f" translate="yes" xml:space="preserve">
           <source>Choose Use this source to switch playback capture.</source>
-          <target>点击“使用此来源”以切换播放采集设备。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.7614f321d1243a3f5f81" translate="yes" xml:space="preserve">
           <source>Switching audio source…</source>
-          <target>正在切换音频来源…</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.b524a819b9d212f4d941" translate="yes" xml:space="preserve">
           <source>Enable bass detection to use sustained texture.</source>
-          <target>启用低音检测后，才能使用持续触感。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.cfce761befa84073c2ea" translate="yes" xml:space="preserve">
           <source>Request failed</source>
-          <target>请求失败</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.56f4286a0e6acf969148" translate="yes" xml:space="preserve">
           <source>Changes are not saved. Retry saving, or reload saved settings.</source>
-          <target>更改尚未保存。请重试保存，或重新加载已保存的设置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.395207583eb8f1d1a4d7" translate="yes" xml:space="preserve">
           <source>Saving changes…</source>
-          <target>正在保存更改…</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4c3a1121261dc39c4c77" translate="yes" xml:space="preserve">
           <source>Saved · live settings updated</source>
-          <target>已保存 · 实时设置已更新</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0863436a8f308e27021e" translate="yes" xml:space="preserve">
           <source>Active source: </source>
-          <target>当前来源：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.33e79211ee140619ac66" translate="yes" xml:space="preserve">
           <source>System default input</source>
-          <target>系统默认输入设备</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.b776a1122fd06ccc2730" translate="yes" xml:space="preserve">
           <source>Selected device</source>
-          <target>选中的设备</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f906b2cfb1a4ad098baf" translate="yes" xml:space="preserve">
           <source>Not saved: </source>
-          <target>未保存：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.33fe55332c1e87c933b6" translate="yes" xml:space="preserve">
           <source> Reload saved settings if they changed elsewhere.</source>
-          <target> 如果设置已在其他位置更改，请重新加载已保存的设置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ad39593236c2d80e9a9c" translate="yes" xml:space="preserve">
           <source>Wait for the current save to finish.</source>
-          <target>请等待当前保存完成。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ed9c827a46f71f8c8002" translate="yes" xml:space="preserve">
           <source>Could not load settings</source>
-          <target>无法加载设置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.819455253aea6177c892" translate="yes" xml:space="preserve">
           <source>Saved settings loaded</source>
-          <target>已加载保存的设置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.77a311342174d320bbe0" translate="yes" xml:space="preserve">
           <source> — use Reload saved settings to retry.</source>
-          <target> — 点击“重新加载已保存的设置”重试。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f06ae45a434642374ce5" translate="yes" xml:space="preserve">
           <source> copy</source>
-          <target> 副本</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.a0a4d29486c4b7143caf" translate="yes" xml:space="preserve">
           <source> copy </source>
-          <target> 副本 </target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0d137c2162dc90c99324" translate="yes" xml:space="preserve">
           <source>Choose a profile to apply its tuning immediately. You can undo the change.</source>
-          <target>选择配置后会立即应用其参数，你可以撤销此更改。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4005a4d540e96c743403" translate="yes" xml:space="preserve">
           <source>Custom tuning / choose a profile</source>
-          <target>自定义参数 / 选择配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1a09b9e675ea8e919a49" translate="yes" xml:space="preserve">
           <source>Your profiles</source>
-          <target>你的配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e2c7316fc0912c77d48b" translate="yes" xml:space="preserve">
           <source>Built-in profiles</source>
-          <target>内置配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d2f3fb4c097573d485df" translate="yes" xml:space="preserve">
           <source>Saving profile…</source>
-          <target>正在保存配置…</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.915f022f26772deb9ab3" translate="yes" xml:space="preserve">
           <source>Original profile duplicated. Select the copy to use it.</source>
-          <target>已复制原始配置。选中副本即可使用。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c1632eafd4468cab3df4" translate="yes" xml:space="preserve">
           <source>Profile saved.</source>
-          <target>配置已保存。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0503a8f36c39ed3ccf7c" translate="yes" xml:space="preserve">
           <source>Bass attacks</source>
-          <target>低音起音</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.8bd58e9f6243f7f0dc9f" translate="yes" xml:space="preserve">
           <source>Detail attacks</source>
-          <target>细节起音</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1586b8be6b3b3d735c85" translate="yes" xml:space="preserve">
           <source>Bass attack</source>
-          <target>低音起音触感</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.eaf59f541fabd167ff5a" translate="yes" xml:space="preserve">
           <source>Stronger bass attack</source>
-          <target>强低音起音触感</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.dcf9f6cfd23e47fae5e5" translate="yes" xml:space="preserve">
           <source>Detail attack</source>
-          <target>细节起音触感</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.8f602e7e42880e41489f" translate="yes" xml:space="preserve">
           <source>Texture pulse</source>
-          <target>持续触感脉冲</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.58ce68e6a62175931f1d" translate="yes" xml:space="preserve">
           <source>Test </source>
-          <target>测试：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.faf095eac42b25a8478d" translate="yes" xml:space="preserve">
           <source> requested.</source>
-          <target>已请求。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.23c781d1310e57a99c28" translate="yes" xml:space="preserve">
           <source> sent.</source>
-          <target>已发送。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.eddd7cb017c8897fa716" translate="yes" xml:space="preserve">
           <source>Another pulse is still using the playback slot. Try again.</source>
-          <target>另一个脉冲尚未结束，请重试。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e8d754cef9cfca6b1d8f" translate="yes" xml:space="preserve">
           <source>Ready · changes save automatically</source>
-          <target>已就绪 · 更改会自动保存</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.520987f0af0386571efe" translate="yes" xml:space="preserve">
           <source>Counter unavailable</source>
-          <target>计数不可用</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.a365a0b90a45f1a74c93" translate="yes" xml:space="preserve">
           <source> (counter limit reached)</source>
-          <target>（已达到计数上限）</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.76d60867d9617a89dabc" translate="yes" xml:space="preserve">
           <source>Monitor unavailable</source>
-          <target>监测信息不可用</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.81f8eef61098eb191bd4" translate="yes" xml:space="preserve">
           <source>Capture unavailable</source>
-          <target>采集不可用</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ae93dfd8733727135e14" translate="yes" xml:space="preserve">
           <source>Feedback error</source>
-          <target>反馈错误</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e159b06187d369a0615f" translate="yes" xml:space="preserve">
           <source>Paused</source>
-          <target>已暂停</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c5fd7cc168faf8cf8bcc" translate="yes" xml:space="preserve">
           <source>Settling</source>
-          <target>稳定中</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d95138b003cb99821f9e" translate="yes" xml:space="preserve">
           <source>Waiting for audio</source>
-          <target>等待音频</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c0ebb7d6b69390c501d3" translate="yes" xml:space="preserve">
           <source>Quiet</source>
-          <target>暂无音频</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.49c4605816cfbf30455b" translate="yes" xml:space="preserve">
           <source>Listening</source>
-          <target>聆听中</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.64cdc2b8509779bfd716" translate="yes" xml:space="preserve">
           <source>Audio capture and analysis are paused. Turn on Audio haptics to resume. Preset previews remain available.</source>
-          <target>音频采集和分析已暂停。开启音频触觉反馈即可恢复，仍可测试触感预设。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.663e9f0153a330dbd811" translate="yes" xml:space="preserve">
           <source>Settings applied. Waiting briefly for the detector to settle.</source>
-          <target>设置已应用，正在等待检测器稳定。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.a3951fc07173ec50218c" translate="yes" xml:space="preserve">
           <source>Play audio through the selected source.</source>
-          <target>请通过选中的来源播放音频。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ed019ab862be06eff15d" translate="yes" xml:space="preserve">
           <source>No recent audio packets. Last sample </source>
-          <target>近期未收到音频数据，上次采样时间：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d7a6e4f420334206af92" translate="yes" xml:space="preserve">
           <source>Audio is arriving. Feel for pulses around the attacks.</source>
-          <target>正在接收音频，留意起音附近的触感脉冲。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d52efa06acd55db67f4a" translate="yes" xml:space="preserve">
           <source>Capture: </source>
-          <target>采集方式：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.3a64b78bcb984ae54d28" translate="yes" xml:space="preserve">
           <source> · requested buffer </source>
-          <target> · 请求缓冲区：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.92112a8dd54577b55938" translate="yes" xml:space="preserve">
           <source>Callback lock wait: </source>
-          <target>回调锁等待：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.871c55cd64ddaa33d5f9" translate="yes" xml:space="preserve">
           <source> max. Last event age within its delivered batch: </source>
-          <target>（最大）。上次事件在所属批次内的等待时间：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.977ce6ef931faa746673" translate="yes" xml:space="preserve">
           <source>. Newest sample age: </source>
-          <target>。最新采样距今：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.770141e23eaf12ce56fc" translate="yes" xml:space="preserve">
           <source> ms. Capture frames discarded: </source>
-          <target> 毫秒。已丢弃采集帧：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.db7deb6fbc49d6f4a80e" translate="yes" xml:space="preserve">
           <source>Log messages suppressed: </source>
-          <target>已抑制的日志条数：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.caebdc76741f6f25dc29" translate="yes" xml:space="preserve">
           <source>. Diagnostic logs keep at most three 512 KiB files.</source>
-          <target>。诊断日志最多保留 3 个文件，每个不超过 512 KiB。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.04dfac3671b494ad53fc" translate="yes" xml:space="preserve">
           <source>Disconnected</source>
-          <target>已断开</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e59f87105f29cecab5cf" translate="yes" xml:space="preserve">
           <source>Plugin unavailable. Reopen the settings launcher or use Open haptic settings in Options+. The port changes after reload.</source>
-          <target>插件不可用。请重新打开设置启动文件，或在 Options+ 中使用“打开触觉设置”。插件重新加载后端口会变化。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0427c1c725a4919a6707" translate="yes" xml:space="preserve">
           <source>Could not restart capture</source>
-          <target>无法重启采集</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d63855606a58a84583a5" translate="yes" xml:space="preserve">
           <source>Capture restarted. Play audio through the selected source.</source>
-          <target>采集已重启，请通过选中的来源播放音频。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.6eb00b4b2614a144d41c" translate="yes" xml:space="preserve">
           <source>Music</source>
-          <target>音乐</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.7fcf0b213cc682690f65" translate="yes" xml:space="preserve">
           <source>Balanced rhythm with rounded bass and quieter detail taps.</source>
-          <target>均衡的节奏，搭配柔和低音和较轻的细节触感。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c358a74335144e6135bb" translate="yes" xml:space="preserve">
           <source>Bass focus</source>
-          <target>低音优先</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.260f1665bd72cd27f935" translate="yes" xml:space="preserve">
           <source>Bass attacks only, with extra low-band sensitivity.</source>
-          <target>仅响应低音起音，并增强低频灵敏度。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.96124817c8108c2b220d" translate="yes" xml:space="preserve">
           <source>Gentle</source>
-          <target>轻柔</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.021dd6d67504913d8074" translate="yes" xml:space="preserve">
           <source>Fewer, softer pulses for background listening.</source>
-          <target>脉冲更少、更轻柔，适合背景聆听。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.3a9e374554f5ea9a563e" translate="yes" xml:space="preserve">
           <source>Electronic / dance</source>
-          <target>电子 / 舞曲</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.333e622c1945c9ceb224" translate="yes" xml:space="preserve">
           <source>Emphasizes deep bass attacks and reduces bright detail; sustained texture stays off.</source>
-          <target>突出深沉低音起音，减弱高频细节；持续触感保持关闭。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.84b126e1f2b263e375fa" translate="yes" xml:space="preserve">
           <source>Rock / live</source>
-          <target>摇滚 / 现场</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.367aed013ada81891908" translate="yes" xml:space="preserve">
           <source>More separation between impacts in dense mixes, with restrained upper-band taps.</source>
-          <target>在密集混音中拉开冲击间隔，并减少高频轻触。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ff73d1d54e6575e92e99" translate="yes" xml:space="preserve">
           <source>Acoustic / jazz</source>
-          <target>原声 / 爵士</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.91de16df191899feca55" translate="yes" xml:space="preserve">
           <source>Softer taps and wider spacing for lighter arrangements; detail remains enabled.</source>
-          <target>轻柔触感与较大间隔，适合清淡编曲；保留细节检测。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.848eba15bf2aaba710bc" translate="yes" xml:space="preserve">
           <source>Movies / cinematic</source>
-          <target>电影</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.2b1d0c1427e03ed4c3cf" translate="yes" xml:space="preserve">
           <source>Sparse low-end impacts. Dialogue and soundtrack are not recognized separately.</source>
-          <target>稀疏的低频冲击，不区分对白与配乐。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.28cac3bfe409ecb67237" translate="yes" xml:space="preserve">
           <source>Games / action</source>
-          <target>游戏 / 动作</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.21d40faaee444e48b5d8" translate="yes" xml:space="preserve">
           <source>Separated, higher-threshold impacts. Reacts to game audio; does not identify gameplay events.</source>
-          <target>间隔清晰、阈值较高的冲击。响应游戏音频，不识别游戏内事件。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.688e2638113f15b68402" translate="yes" xml:space="preserve">
           <source>Ambient / sustained</source>
-          <target>氛围 / 持续</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.5dcbb92292df508f4e9e" translate="yes" xml:space="preserve">
           <source>Experimental slow soft pulses during held bass (280–650 ms spacing). Pulse rate follows energy, not tempo.</source>
-          <target>实验性的持续低音轻柔脉冲（间隔 280–650 毫秒）。脉冲频率随音频能量变化，并非跟随节拍速度。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d696a35bdd1883da07a8" translate="yes" xml:space="preserve">
           <source>Profile</source>
-          <target>配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e28411a3404d21f9fc16" translate="yes" xml:space="preserve">
           <source>Texture</source>
-          <target>触感</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.919aad818f80341a9791" translate="yes" xml:space="preserve">
           <source>Logitech preset</source>
-          <target>罗技预设</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c8fea7ee0c17969f546c" translate="yes" xml:space="preserve">
           <source>Custom profile.</source>
-          <target>自定义配置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ce3fbecd23d371d68919" translate="yes" xml:space="preserve">
           <source>Reopen settings using the launcher or Open haptic settings action.</source>
-          <target>请使用设置启动文件或“打开触觉设置”操作重新打开设置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.b418a55fbbf0c6a03a1b" translate="yes" xml:space="preserve">
           <source>Settings changed elsewhere. Reload current settings before saving this draft.</source>
-          <target>设置已在其他位置更改。保存当前修改前，请重新加载设置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f3302e40d12df47ccb1f" translate="yes" xml:space="preserve">
           <source>Profiles changed elsewhere. Reload saved settings before saving a profile.</source>
-          <target>配置已在其他位置更改。保存配置前，请重新加载已保存的设置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.dcd8bf14a1eaa83a88ad" translate="yes" xml:space="preserve">
           <source>A profile with that name already exists. Choose another name.</source>
-          <target>已有同名配置，请使用其他名称。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.adcdfc7d44bdbea501b3" translate="yes" xml:space="preserve">
           <source>Only an existing custom profile can be updated. Save a new copy instead.</source>
-          <target>只能更新已有的自定义配置，请另存为新副本。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.9e3910a810741bceb0df" translate="yes" xml:space="preserve">
           <source>Profile name must contain 1–64 characters without control characters.</source>
-          <target>配置名称必须为 1–64 个字符，且不能包含控制字符。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.b4f518325d6ce51d23e9" translate="yes" xml:space="preserve">
           <source>Custom profiles could not be loaded. Saved data was preserved; restart the plugin after resolving the storage error.</source>
-          <target>无法加载自定义配置，已保存的数据保持不变。解决存储错误后，请重启插件。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.5f6363844a3774f5b458" translate="yes" xml:space="preserve">
           <source>Settings revision limit reached. Restart the plugin before saving more changes.</source>
-          <target>设置版本号已达上限，请重启插件后再保存更改。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.b77654f542df980787ef" translate="yes" xml:space="preserve">
           <source>Profile revision limit reached. Saved profiles remain available, but further changes cannot be saved.</source>
-          <target>配置版本号已达上限。已有配置仍可使用，但无法继续保存更改。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c1c77a7ce6ebc75b683d" translate="yes" xml:space="preserve">
           <source>Reload current settings before saving.</source>
-          <target>保存前请重新加载当前设置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.eebf2817c098a4d98a56" translate="yes" xml:space="preserve">
           <source>Device enumeration unavailable.</source>
-          <target>设备列表不可用。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c7e0d2b0d57554c7b24b" translate="yes" xml:space="preserve">
           <source>Unknown waveform.</source>
-          <target>未知的触感波形。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.a4fe65264ef7dbb38d10" translate="yes" xml:space="preserve">
           <source>Language</source>
-          <target>语言</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.3767e6e58f6dbd4d7a83" translate="yes" xml:space="preserve">
           <source>Feel the Rhythm · Settings</source>
-          <target>Feel the Rhythm · 设置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.7f9af632e14f3fd636f7" translate="yes" xml:space="preserve">
           <source>Could not load translations. Try again.</source>
-          <target>无法加载中文翻译，请重试。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4aefd163758914428540" translate="yes" xml:space="preserve">
           <source>Custom profile. Apply to restore its saved tuning; paused state is preserved.</source>
-          <target>自定义配置。应用后将恢复保存的参数，并保留暂停状态。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f8d0e720590d5bf2c6ba" translate="yes" xml:space="preserve">
           <source>Internal server error.</source>
-          <target>插件内部错误，请查看诊断日志。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.dbd1b0d8a77bf0150ccf" translate="yes" xml:space="preserve">
           <source>You can save up to 32 custom profiles.</source>
-          <target>最多可保存 32 个自定义配置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.98123ccc69040363d943" translate="yes" xml:space="preserve">
           <source>Request timed out.</source>
-          <target>请求超时，请重试。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.5a8ac985608e99608049" translate="yes" xml:space="preserve">
           <source>The operation failed. Check capture status or the plugin log, then retry.</source>
-          <target>操作失败，请检查采集状态或插件日志后重试。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.22c58d84f08e3a4e54e6" translate="yes" xml:space="preserve">
           <source>Tune</source>
-          <target>常用调节</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.b5779457b3993ccc9cc5" translate="yes" xml:space="preserve">
           <source>Textures</source>
-          <target>触感</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.535e52e4a2616ebec732" translate="yes" xml:space="preserve">
           <source>Profiles</source>
-          <target>配置管理</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.9f088dbebd6c3c70a5dd" translate="yes" xml:space="preserve">
           <source>Advanced</source>
-          <target>高级</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e26d51d36781ba171c5e" translate="yes" xml:space="preserve">
           <source>Settings sections</source>
-          <target>设置分类</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4a29f4f2357af030d33b" translate="yes" xml:space="preserve">
           <source>Choose a different profile</source>
-          <target>选择其他配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.fe67f64beb0fc187b59a" translate="yes" xml:space="preserve">
           <source>Selected profile: </source>
-          <target>当前选中配置：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1a3910cb83c63030e3bc" translate="yes" xml:space="preserve">
           <source>Vertical scale</source>
-          <target>纵轴范围</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0286249762f7c94349cd" translate="yes" xml:space="preserve">
           <source>Auto</source>
-          <target>自动</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.beabf0ca28d85edc2c1c" translate="yes" xml:space="preserve">
           <source>Fixed: −80 to 0 dBFS</source>
-          <target>固定：−80 至 0 dBFS</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.fe18013d93d22f4f2a70" translate="yes" xml:space="preserve">
           <source>Now</source>
-          <target>现在</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.465da5b827ff0a0ce71e" translate="yes" xml:space="preserve">
           <source>Dashed: adaptive threshold · dBFS</source>
-          <target>虚线：自适应阈值 · dBFS</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4424579b6eba2a92d596" translate="yes" xml:space="preserve">
           <source>Level trigger</source>
-          <target>电平触发</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.09a9ab801c2c0cbd56ac" translate="yes" xml:space="preserve">
           <source>Rapid-rise trigger</source>
-          <target>快速上升触发</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ca445e86d63fdd412958" translate="yes" xml:space="preserve">
           <source>Bass</source>
-          <target>低音</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.fb5f27d5457c46410228" translate="yes" xml:space="preserve">
           <source>Detail</source>
-          <target>细节</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.2766fe6020ae8bf0024f" translate="yes" xml:space="preserve">
           <source>Overall response</source>
-          <target>整体响应</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.05f9cd3d0b6f1958aad5" translate="yes" xml:space="preserve">
           <source>Sensitivity affects both bands. Pulse spacing limits how often markers can become haptic pulses.</source>
-          <target>灵敏度同时影响两个频段。脉冲间隔限制标记转化为触觉脉冲的频率。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.5d2dd199fd179199ed93" translate="yes" xml:space="preserve">
           <source>Mint lines show bass: solid is the audio level, dashed is its adaptive threshold.</source>
-          <target>薄荷绿线表示低音：实线为音频电平，虚线为自适应阈值。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.9137ee33bcf2cc41ad8e" translate="yes" xml:space="preserve">
           <source>Purple lines show detail: solid is the audio level, dashed is its adaptive threshold.</source>
-          <target>紫色线表示细节：实线为音频电平，虚线为自适应阈值。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e0dc632234be3bfefe14" translate="yes" xml:space="preserve">
           <source>Live level</source>
-          <target>实时电平</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.29cf865e026af3b3632e" translate="yes" xml:space="preserve">
           <source>Dashed threshold</source>
-          <target>虚线阈值</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1e55366ced3dc32605a7" translate="yes" xml:space="preserve">
           <source>Level triggers</source>
-          <target>电平触发</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.638663e6bbbabd9a2434" translate="yes" xml:space="preserve">
           <source>Rapid-rise triggers</source>
-          <target>快速上升触发</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.636dab8044ba79253388" translate="yes" xml:space="preserve">
           <source>Circles mark level-triggered pulses. Background contrast sets how far the dashed threshold sits above the background in both bands.</source>
-          <target>圆点表示电平触发的脉冲。背景对比设置两个频段中虚线阈值高于背景电平的幅度。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.592b7f03c40cad19e23e" translate="yes" xml:space="preserve">
           <source>Diamonds mark sudden increases in audio level. Attack contrast sets the required rise within the rise window. These can happen below the dashed line.</source>
-          <target>菱形标记音量的突然上升。起音对比度决定上升窗口内所需的增幅，也可在虚线下方触发。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ca7981b46ecf2c1787b6" translate="yes" xml:space="preserve">
           <source>Off</source>
-          <target>已关闭</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f3b74c8d1c6c8e63b4a8" translate="yes" xml:space="preserve">
           <source>Circle: level trigger. Diamond: rapid-rise trigger. Marker fill and number identify the sent texture; the outline matches the bass or detail line. Hollow markers have unknown texture. Markers show sent attacks, not confirmed vibrations.</source>
-          <target>圆形：电平触发。菱形：快速上升触发。标记填充色和数字表示已发送的纹理；边框与低音或细节曲线同色。空心表示纹理未知。标记表示已发送的起音，不代表已确认的实际振动。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.60cae766905a3db78df5" translate="yes" xml:space="preserve">
           <source>Shape the envelopes and timing limits. Band and trigger controls are in Tune; related limits adjust together to stay valid.</source>
-          <target>调整包络形状与时间限制。频段和触发设置位于“常用调节”；关联参数会同步调整以保持有效。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.3d50812bd8a6f7c105fe" translate="yes" xml:space="preserve">
           <source>No audio packets</source>
-          <target>没有音频数据包</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0b4dd9056a821f3d20c5" translate="yes" xml:space="preserve">
           <source>Silent audio</source>
-          <target>音频静音</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ff13f1374e7693bd50b1" translate="yes" xml:space="preserve">
           <source>Audio packets are arriving, but no signal is detected. Check playback routing and recording permission; silence alone does not prove permission was denied.</source>
-          <target>已收到音频数据包，但未检测到信号。请检查播放设备和录音权限；仅凭静音不能确定权限被拒绝。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.07ed47bc3d612becce58" translate="yes" xml:space="preserve">
           <source>Audio signal detected. Feel for pulses around the attacks.</source>
-          <target>已检测到音频信号，留意起音附近的触感脉冲。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0d34e73475ec93f7dec5" translate="yes" xml:space="preserve">
           <source>Packets</source>
-          <target>数据包</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.bc228b269ce0d87fc0dd" translate="yes" xml:space="preserve">
           <source>Samples</source>
-          <target>样本</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.09cb6bddb0ad4309b3a9" translate="yes" xml:space="preserve">
           <source>Raw peak</source>
-          <target>原始峰值</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.01eb83c772bbf64a546f" translate="yes" xml:space="preserve">
           <source>Starting capture</source>
-          <target>正在启动采集</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1024b3585b9b32dd994f" translate="yes" xml:space="preserve">
           <source>Starting audio capture. If macOS asks for permission, choose Allow. Installation can finish while you decide.</source>
-          <target>正在启动音频采集。如果 macOS 请求权限，请选择允许。您作出选择前，插件安装也可正常完成。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.8201bac7bceac156714b" translate="yes" xml:space="preserve">
           <source>Open system permissions</source>
-          <target>打开系统权限设置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.9486d9f6dc6d0acfe054" translate="yes" xml:space="preserve">
           <source>Audio permission denied</source>
-          <target>音频访问权限被拒绝</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.8478e87ca2b0b04d4e7b" translate="yes" xml:space="preserve">
           <source>Audio access</source>
-          <target>音频访问权限</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d149767092503cd939d0" translate="yes" xml:space="preserve">
           <source>In macOS System Settings → Privacy &amp; Security → Microphone, enable Feel the Rhythm Capture, then retry capture.</source>
-          <target>在 macOS 系统设置 → 隐私与安全性 → 麦克风中，允许 Feel the Rhythm Capture 访问，然后重试采集。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f9861636538649d8368b" translate="yes" xml:space="preserve">
           <source>In macOS System Settings → Privacy &amp; Security → Screen &amp; System Audio Recording → System Audio Recording Only, enable Feel the Rhythm Capture, then retry capture.</source>
-          <target>在 macOS 系统设置 → 隐私与安全性 → 屏幕与系统录音 → 仅系统录音中，允许 Feel the Rhythm Capture 访问，然后重试采集。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.b566cdd04e1cde888d69" translate="yes" xml:space="preserve">
           <source>For microphone access, enable access for desktop apps in Windows privacy settings, then retry capture.</source>
-          <target>若要访问麦克风，请在 Windows 隐私设置中允许桌面应用访问麦克风，然后重试采集。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.88c998b757312c9ebce8" translate="yes" xml:space="preserve">
           <source>The audio backend reported that access was denied.</source>
-          <target>音频后端报告访问权限被拒绝。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.addd5dca8aba5221876d" translate="yes" xml:space="preserve">
           <source>If macOS asks to record audio, choose Allow. Capture will continue automatically after permission is granted.</source>
-          <target>如果 macOS 请求录音权限，请选择允许。授权后，采集将自动继续。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.2e1b81f8103957ad47a8" translate="yes" xml:space="preserve">
           <source>Permission status is unknown. If audio is playing but the graph stays flat, check your audio source and recording permissions.</source>
-          <target>权限状态未知。如果正在播放音频但图表仍无变化，请检查音频源和录音权限。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d794ea2a60697801cc33" translate="yes" xml:space="preserve">
           <source>Could not open system permissions</source>
-          <target>无法打开系统权限设置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.81148c5072a1fcd40ed4" translate="yes" xml:space="preserve">
           <source>Check the system settings window, then return here and retry capture.</source>
-          <target>请检查系统设置窗口，然后返回此页面重试采集。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ea2100dc89ae9fe21fa9" translate="yes" xml:space="preserve">
           <source>Logs</source>
-          <target>日志</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.075945881cf1691135d8" translate="yes" xml:space="preserve">
           <source>Preview recent entries or download the retained logs for a support report. Logs may contain device names and local paths; review them before sharing.</source>
-          <target>查看最近的日志，或下载保留的日志用于反馈问题。日志可能包含设备名称和本地路径，分享前请先检查。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.8095aa650e602a40c08d" translate="yes" xml:space="preserve">
           <source>Refresh logs</source>
-          <target>刷新日志</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.9af63d68f9ab2af6fb3c" translate="yes" xml:space="preserve">
           <source>Download logs</source>
-          <target>下载日志</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.fe5acf52686c0d76bf79" translate="yes" xml:space="preserve">
           <source>Recent log entries</source>
-          <target>最近的日志记录</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.cfbff2416c7552e4419f" translate="yes" xml:space="preserve">
           <source>Logs load only when you request them. The preview shows up to 32,768 characters.</source>
-          <target>日志仅在您主动请求时加载，预览最多显示 32,768 个字符。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e1842662a5497b84f136" translate="yes" xml:space="preserve">
           <source>Loading logs…</source>
-          <target>正在加载日志…</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.685ca760eff8a5810c32" translate="yes" xml:space="preserve">
           <source>Could not load logs</source>
-          <target>无法加载日志</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.2b70b682d4f289b8fc09" translate="yes" xml:space="preserve">
           <source>Log download prepared. Review the file before sharing.</source>
-          <target>日志下载已准备好，分享前请检查文件内容。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.cec3aebae7688d45a44d" translate="yes" xml:space="preserve">
           <source>Log folder: </source>
-          <target>日志文件夹：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1e9a6cc77d26fe16e229" translate="yes" xml:space="preserve">
           <source>Recent logs loaded. Download logs includes all retained files.</source>
-          <target>已加载最近的日志。下载日志将包含所有保留的文件。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0efb56128ce798ad57b5" translate="yes" xml:space="preserve">
           <source>No log entries are available yet.</source>
-          <target>暂无日志记录。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.87428b1f610db5ab6d00" translate="yes" xml:space="preserve">
           <source>Save not confirmed: </source>
-          <target>保存未确认：</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e40e3614133bf452d1d8" translate="yes" xml:space="preserve">
           <source>Request timed out. Try again.</source>
-          <target>请求超时，请重试。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c3725fe77b2a0a0441e2" translate="yes" xml:space="preserve">
           <source>Request timed out. The change may already have completed. Reload saved settings before retrying.</source>
-          <target>请求超时，操作可能已经完成。重试前请重新加载已保存的设置。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.d5b1264de494f3524855" translate="yes" xml:space="preserve">
           <source>Rise window</source>
-          <target>上升窗口</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.7608188efeb89e009638" translate="yes" xml:space="preserve">
           <source>Compare with the level this many milliseconds ago. Shorter favors sharp attacks; longer catches slower rises. No added waiting delay; rounded to about 5 ms frames.</source>
-          <target>与此前指定毫秒的音量比较。较短偏向尖锐起音，较长可捕捉较缓上升。不会额外等待；按约 5 毫秒的分析帧取整。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1ec891afeac52eb75c37" translate="yes" xml:space="preserve">
           <source>Sent textures</source>
-          <target>已发送纹理</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.280bbfa38e07cc4974ed" translate="yes" xml:space="preserve">
           <source>Bass band width (Q)</source>
-          <target>低音频带宽度（Q）</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.9394f6d16ad4e1aa9a83" translate="yes" xml:space="preserve">
           <source>Lower Q covers more frequencies; higher Q isolates a narrower band. Center gain is preserved.</source>
-          <target>Q 值越低，覆盖频率越宽；越高，频带越窄。中心增益保持不变。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e83576f2ad5620c54906" translate="yes" xml:space="preserve">
           <source>Bass rise window</source>
-          <target>低音上升窗口</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e90b548be39d4523df60" translate="yes" xml:space="preserve">
           <source>Looks backward: shorter favors sharp attacks, longer catches slower rises. No extra waiting delay.</source>
-          <target>回看此前音量：较短偏向尖锐起音，较长可捕捉较缓上升，不增加等待延迟。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.aa70aad700dfa90f20b7" translate="yes" xml:space="preserve">
           <source>Bass envelope attack</source>
-          <target>低音包络起音</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.00732db960b7e41476f7" translate="yes" xml:space="preserve">
           <source>Bass envelope release</source>
-          <target>低音包络释放</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.2ef4b309c01ffe2762f9" translate="yes" xml:space="preserve">
           <source>Bass re-arm interval</source>
-          <target>低音重新触发间隔</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.8a8da77cc2c0cbb9e257" translate="yes" xml:space="preserve">
           <source>Minimum interval between detections in this band. Shared pulse spacing still applies.</source>
-          <target>此频带两次检测之间的最短间隔，仍受全局脉冲间隔限制。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.a54e14763a676c85bb2b" translate="yes" xml:space="preserve">
           <source>Detail band width (Q)</source>
-          <target>细节频带宽度（Q）</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.04d68a15ad9cd7c44d9e" translate="yes" xml:space="preserve">
           <source>Detail rise window</source>
-          <target>细节上升窗口</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.0b8d314a96134bdaed4a" translate="yes" xml:space="preserve">
           <source>Detail envelope attack</source>
-          <target>细节包络起音</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.66f7a7863d5fa51fcc49" translate="yes" xml:space="preserve">
           <source>Detail envelope release</source>
-          <target>细节包络释放</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.3e49d3e744ddda4ca04c" translate="yes" xml:space="preserve">
           <source>Detail re-arm interval</source>
-          <target>细节重新触发间隔</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.867a4d7b160d969d3789" translate="yes" xml:space="preserve">
           <source>Bass advanced detection</source>
-          <target>低音高级检测</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.494f61a1c3adb86a0ff4" translate="yes" xml:space="preserve">
           <source>Bass trigger mode</source>
-          <target>低音触发模式</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.56acce2b644682a47c8c" translate="yes" xml:space="preserve">
           <source>Detail advanced detection</source>
-          <target>细节高级检测</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.dc92b504547f155f4042" translate="yes" xml:space="preserve">
           <source>Detail trigger mode</source>
-          <target>细节触发模式</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1f1dfec940a20bd03ec1" translate="yes" xml:space="preserve">
           <source>Level + rapid rise</source>
-          <target>电平 + 快速上升</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f152101b6b915a496f25" translate="yes" xml:space="preserve">
           <source>Level only</source>
-          <target>仅电平</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1d3fa7804d2c7604c21b" translate="yes" xml:space="preserve">
           <source>Rapid rise only</source>
-          <target>仅快速上升</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.6b44af4de6f5e0a6fd0b" translate="yes" xml:space="preserve">
           <source>Bass spectral threshold</source>
-          <target>低音频谱阈值</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.ebb2d1f6904ca8eb26ca" translate="yes" xml:space="preserve">
           <source>Detail spectral threshold</source>
-          <target>细节频谱阈值</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.b7477f48ba5da022ff61" translate="yes" xml:space="preserve">
           <source>Minimum relative positive spectral change. Lower detects smaller changes; applies only to spectral mode.</source>
-          <target>最小相对频谱正向变化。越低可检测越小的变化；仅适用于频谱模式。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.3d06552ccbfc167e9fa4" translate="yes" xml:space="preserve">
           <source>Bass detection method</source>
-          <target>低音检测方法</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1c3059868ab70889558b" translate="yes" xml:space="preserve">
           <source>Detail detection method</source>
-          <target>细节检测方法</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.47a1436c7090cfb59614" translate="yes" xml:space="preserve">
           <source>Envelope</source>
-          <target>包络</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.a0a34507305fb564a1d2" translate="yes" xml:space="preserve">
           <source>Spectral flux (experimental)</source>
-          <target>频谱通量（实验性）</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.c75713dfc731ef385485" translate="yes" xml:space="preserve">
           <source>Square: spectral trigger. Dashed lines show envelope thresholds, not spectral thresholds.</source>
-          <target>方形：频谱触发。虚线表示包络阈值，而非频谱阈值。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.343f3fceb580a2745841" translate="yes" xml:space="preserve">
           <source>Spectral / experimental</source>
-          <target>频谱 / 实验性</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.6a6a186525694e38d57f" translate="yes" xml:space="preserve">
           <source>Experimental frequency-change detection for detail, with envelope bass and no confirmation delay.</source>
-          <target>对细节使用实验性频率变化检测，低音使用包络检测，不增加确认延迟。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.1ff5fb12ed8bcd10b9c8" translate="yes" xml:space="preserve">
           <source>Bass vibrato suppression</source>
-          <target>低音颤音抑制</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.fb84b2d1d3fd43090b56" translate="yes" xml:space="preserve">
           <source>Detail vibrato suppression</source>
-          <target>细节颤音抑制</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.5c66a11a4c422722960f" translate="yes" xml:space="preserve">
           <source>Spectral mode only. 0 is off; larger values tolerate wider pitch movement but may miss nearby new notes.</source>
-          <target>仅频谱模式。0 为关闭；值越大，可容忍越大的音高波动，但可能漏掉相邻音高的新音符。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.501feba3b0bafc152706" translate="yes" xml:space="preserve">
           <source>Bass extra confirmation delay</source>
-          <target>低音额外确认延迟</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.73a1141dfdffe90d0307" translate="yes" xml:space="preserve">
           <source>Detail extra confirmation delay</source>
-          <target>细节额外确认延迟</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4d4e1a6fea49c368c7c7" translate="yes" xml:space="preserve">
           <source>0 sends immediately. Otherwise wait this long and keep the strongest eligible peak. Adds real latency; event-age limit adjusts with it.</source>
-          <target>0 为立即发送。否则等待此时长并保留最强的合格峰值。会增加实际延迟，事件有效期上限会随之调整。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.225d29f6201e1a635684" translate="yes" xml:space="preserve">
           <source>Listen</source>
-          <target>聆听</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.e3818c7886164dae9924" translate="yes" xml:space="preserve">
           <source>Detection</source>
-          <target>检测</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.4b4e5cc7d032feabbbd8" translate="yes" xml:space="preserve">
           <source>Bass timing &amp; precision</source>
-          <target>低音时序与精细调节</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.bc508741fe268027a44e" translate="yes" xml:space="preserve">
           <source>Detail timing &amp; precision</source>
-          <target>细节时序与精细调节</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.7009999858c080d8b465" translate="yes" xml:space="preserve">
           <source>Playback safeguards</source>
-          <target>播放限制</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.08c5d00c8c4e7a4c6732" translate="yes" xml:space="preserve">
           <source>Limit how late a detected event may play. Detection controls are in the Detection tab.</source>
-          <target>限制检测事件允许延迟播放的时长。检测参数位于“检测”选项卡。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.2d2e4252a5b125bbe713" translate="yes" xml:space="preserve">
           <source>Shared by envelope detectors using rapid rise. Each band has its own rise window above.</source>
-          <target>供使用快速上升触发的包络检测器共用。各频段的上升窗口位于上方。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.9c31de2c078d170aba2f" translate="yes" xml:space="preserve">
           <source>Shared envelope background and level-trigger settings. Spectral mode uses its own threshold.</source>
-          <target>共用的包络背景与电平触发设置。频谱模式使用独立阈值。</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.6d0332cea0506e00f1d5" translate="yes" xml:space="preserve">
           <source>Shared background</source>
-          <target>共用背景参数</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.bec31eac637f64b5215b" translate="yes" xml:space="preserve">
           <source>Shared attack contrast</source>
-          <target>共用起音对比度</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.32f030919af2a28eca0e" translate="yes" xml:space="preserve">
           <source>How to read the chart</source>
-          <target>如何阅读图表</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.f28c4af6b815a89d1f60" translate="yes" xml:space="preserve">
           <source>Experimental profiles</source>
-          <target>实验性配置</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.5ea2abdbce904d1cc00f" translate="yes" xml:space="preserve">
           <source>No signal</source>
-          <target>未检测到信号</target>
+          <target state="needs-translation" />
         </trans-unit>
         <trans-unit id="runtime.5e322ce23bb0f6fa5b8f" translate="yes" xml:space="preserve">
           <source>Audio is currently silent. Signal was received earlier in this capture session.</source>
-          <target>当前音频静音。本次采集此前已收到音频信号。</target>
+          <target state="needs-translation" />
         </trans-unit>
       </group>
     </body>

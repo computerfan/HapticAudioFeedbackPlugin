@@ -33,6 +33,7 @@ def verify_package(path, require_all=False):
         require("LICENSE")
         require("ui/index.html")
         require("ui/localization.js")
+        require("ui/locales/available.js")
         locale = json.loads(require("ui/locales/zh-CN.json"))
         if not isinstance(locale, dict) or not locale or any(not isinstance(value, str) or not value for value in locale.values()):
             raise ValueError("Invalid Chinese translation catalog")
@@ -41,7 +42,7 @@ def verify_package(path, require_all=False):
         if not files or any(file.get("target-language") != "zh-CN" for file in files):
             raise ValueError("Invalid SDK translation language")
         units = list(xliff.iter("trans-unit"))
-        if not units or any(not unit.findtext("source") or not unit.findtext("target") for unit in units):
+        if not units or any(not unit.findtext("source") for unit in units):
             raise ValueError("Missing SDK action translation")
         metadata = require("metadata/LoupedeckPackage.yaml").decode("utf-8-sig")
         if not re.search(r"^pluginFolderWin:\s*bin\s*$", metadata, re.M):

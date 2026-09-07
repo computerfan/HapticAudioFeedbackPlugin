@@ -28,6 +28,7 @@ class PackageChecks(unittest.TestCase):
             "LICENSE": "project MIT license fixture",
             "ui/index.html": "<!doctype html><title>Frontend fixture</title>",
             "ui/localization.js": "// locale fixture",
+            "ui/locales/available.js": "const availableLocales=[\"en\",\"zh-CN\"];",
             "ui/locales/zh-CN.json": json.dumps({"Sensitivity": "灵敏度"}),
             "localization/HapticAudioFeedback_zh-CN.xliff": '<xliff><file target-language="'+('en-US' if bad_locale else 'zh-CN')+'"><body><trans-unit><source>Profile</source><target>配置</target></trans-unit></body></file></xliff>',
             "licenses/FRONTEND-NOTICES.txt": "frontend notice fixture",
