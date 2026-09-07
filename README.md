@@ -58,6 +58,8 @@ The **Toggle haptics**, **Select haptic profile**, and **Preview haptic texture*
 - **Too many or delayed pulses:** increase pulse spacing, try softer textures, and disable sustained texture.
 - **Settings conflict:** use **Reload saved settings** to load the latest changes.
 
+Turning **Audio haptics** off stops audio capture and analysis. Turn it on to resume. Browser settings remain available while paused.
+
 Audio is processed locally and is not recorded or uploaded.
 
 ## Development and license

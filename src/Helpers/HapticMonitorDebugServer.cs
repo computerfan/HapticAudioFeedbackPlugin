@@ -314,13 +314,14 @@ internal sealed class HapticMonitorDebugServer : IDisposable
                 while (_running)
                 {
                     // Produce only after the previous write completes: no application backlog.
-                    var bytes = Encoding.UTF8.GetBytes("data: " + JsonSerializer.Serialize(_metrics()) + "\n\n");
+                    var sample = _metrics();
+                    var bytes = Encoding.UTF8.GetBytes("data: " + JsonSerializer.Serialize(sample) + "\n\n");
                     if (bytes.Length > 262144) throw new IOException("Monitor frame exceeds its size limit.");
                     using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(3));
                     using var abort = deadline.Token.Register(() => { try { response.Abort(); } catch { } });
                     await response.OutputStream.WriteAsync(bytes, deadline.Token).ConfigureAwait(false);
                     await response.OutputStream.FlushAsync(deadline.Token).ConfigureAwait(false);
-                    await Task.Delay(100).ConfigureAwait(false);
+                    await Task.Delay(sample.Enabled ? 100 : 1000).ConfigureAwait(false);
                 }
             }
             catch (Exception ex)

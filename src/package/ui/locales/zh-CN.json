@@ -160,7 +160,7 @@
   "Waiting for audio": "等待音频",
   "Quiet": "暂无音频",
   "Listening": "聆听中",
-  "Audio-triggered haptics are paused. Preset previews remain available.": "音频触觉反馈已暂停，仍可测试触感预设。",
+  "Audio capture and analysis are paused. Turn on Audio haptics to resume. Preset previews remain available.": "音频采集和分析已暂停。开启音频触觉反馈即可恢复，仍可测试触感预设。",
   "Settings applied. Waiting briefly for the detector to settle.": "设置已应用，正在等待检测器稳定。",
   "Play audio through the selected source.": "请通过选中的来源播放音频。",
   "No recent audio packets. Last sample ": "近期未收到音频数据，上次采样时间：",

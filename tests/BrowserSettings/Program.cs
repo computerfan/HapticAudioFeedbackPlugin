@@ -241,9 +241,10 @@ using (var broken = Create()) {
     listener.Close();
     Check(SpinWait.SpinUntil(() => !broken.IsRunning, 2000), "failed listener stops instead of spinning on errors");
 }
+await MonitorLifecycleChecks.Run(Check);
 Console.WriteLine($"{count} browser settings integration checks passed; no audio or hardware used.");
 
 namespace Loupedeck.HapticAudioFeedback
 {
-    internal static class PluginLog { public static void Info(string message) { } public static void Warning(Exception ex, string message) { } public static void Error(Exception ex, string message) { } }
+    internal static class PluginLog { public static string LoggingError => null; public static long SuppressedCount => 0; public static PluginLogSnapshot ReadSnapshot() => null; public static void Info(string message) { } public static void Warning(Exception ex, string message) { } public static void Error(Exception ex, string message) { } }
 }

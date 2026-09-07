@@ -23,6 +23,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     private readonly List<HapticOnset> _candidates = new();
     private ISystemAudioCapture _capture;
     private readonly CaptureStartup _captureStartup;
+    private readonly Func<string, CancellationToken, ISystemAudioCapture> _createCapture;
     private readonly CaptureRecovery _recovery;
     private bool _stopped, _permissionDenied;
     private AudioOnsetDetector _detector;
@@ -36,7 +37,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     private double _backendCallMs, _maxBackendCallMs, _maxBufferMs, _maxProcessingMs, _maxLockWaitMs;
     private double _lastWarningMs = double.NegativeInfinity;
 
-    public HapticAudioMonitor(Plugin plugin, AudioSettings settings, Action<AudioSettings> saveSettings, string htmlPath, CustomProfileStore profiles, string binaryDirectory)
+    public HapticAudioMonitor(Plugin plugin, AudioSettings settings, Action<AudioSettings> saveSettings, string htmlPath, CustomProfileStore profiles, string binaryDirectory, Func<string, CancellationToken, ISystemAudioCapture> createCapture = null)
     {
         _plugin = plugin ?? throw new ArgumentNullException(nameof(plugin));
         settings.Validate();
@@ -45,11 +46,14 @@ internal sealed class HapticAudioMonitor : IDisposable
         _htmlPath = htmlPath;
         _profiles = profiles;
         _binaryDirectory = binaryDirectory;
+        _createCapture = createCapture ?? ((deviceId, token) => OperatingSystem.IsMacOS()
+            ? new MacAudioCapture(_binaryDirectory, deviceId, token)
+            : new CpalAudioCapture(_binaryDirectory, deviceId, token));
         _scheduler = new HapticScheduler(_settings);
         _captureStartup = new CaptureStartup(_settingsGate);
         _recovery = new CaptureRecovery(_settingsGate, () =>
         {
-            if (_stopped || !CaptureRecovery.IsDefaultSource(_settings.CaptureDeviceId)) return;
+            if (_stopped || !_settings.Enabled || !CaptureRecovery.IsDefaultSource(_settings.CaptureDeviceId)) return;
             PluginLog.Info("Reopening system-default audio capture after a device change or capture failure.");
             RestartCapture(automatic: true);
         }, ex => PluginLog.Warning(ex, "Automatic capture recovery failed."));
@@ -60,14 +64,14 @@ internal sealed class HapticAudioMonitor : IDisposable
     {
         lock (_settingsGate)
         {
-            if (_stopped || _capture != null || _captureStartup.IsPending) return;
+            if (_stopped) return;
+            if (!_settings.Enabled) { PauseCapture(); return; }
+            if (_capture != null || _captureStartup.IsPending) return;
             _captureError = _captureWarning = _processingError = null;
             lock (_gate) _permissionDenied = false;
             var deviceId = _settings.CaptureDeviceId;
             lock (_gate) _captureMode = "starting";
-            _ = _captureStartup.Start(token => OperatingSystem.IsMacOS()
-                    ? new MacAudioCapture(_binaryDirectory, deviceId, token)
-                    : new CpalAudioCapture(_binaryDirectory, deviceId, token),
+            _ = _captureStartup.Start(token => _createCapture(deviceId, token),
                 StartCapture, ex =>
                 {
                     StopCapture();
@@ -115,7 +119,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         var callbackEntryMs = _clock.Elapsed.TotalMilliseconds;
         lock (_gate)
         {
-            if (_capture == null || !ReferenceEquals(sender, _capture) || e.Samples.Length == 0) return;
+            if (!_settings.Enabled || _capture == null || !ReferenceEquals(sender, _capture) || e.Samples.Length == 0) return;
             try
             {
                 if (e.Samples.Length % _capture.Channels != 0)
@@ -257,7 +261,7 @@ internal sealed class HapticAudioMonitor : IDisposable
         AudioOnsetDetector detector;
         lock (_gate)
         {
-            detector = _capture == null ? null : new AudioOnsetDetector(_capture.SampleRate, _capture.Channels, copy);
+            detector = !copy.Enabled || _capture == null ? null : new AudioOnsetDetector(_capture.SampleRate, _capture.Channels, copy);
         }
         // SDK persistence can block. Keep it outside the audio callback lock.
         _saveSettings(copy);
@@ -276,7 +280,8 @@ internal sealed class HapticAudioMonitor : IDisposable
             _candidates.Clear();
             _suppressUntilMs = _clock.Elapsed.TotalMilliseconds + 400;
         }
-        if (restartRequired) RestartCapture();
+        if (!copy.Enabled) PauseCapture();
+        else if (restartRequired) RestartCapture();
         PluginLog.Info("Audio controls applied and saved through SDK settings.");
     }
 
@@ -377,7 +382,7 @@ internal sealed class HapticAudioMonitor : IDisposable
     {
         lock (_settingsGate)
         {
-            if (_stopped || !(OperatingSystem.IsWindows() || (OperatingSystem.IsMacOS() && failedCapture != null)) ||
+            if (_stopped || !_settings.Enabled || !(OperatingSystem.IsWindows() || (OperatingSystem.IsMacOS() && failedCapture != null)) ||
                 !CaptureRecovery.IsDefaultSource(_settings.CaptureDeviceId)) return;
             lock (_gate)
                 if (!ReferenceEquals(failedCapture, _capture) || _permissionDenied) return;
@@ -396,6 +401,20 @@ internal sealed class HapticAudioMonitor : IDisposable
         }
         RequestRecovery(sender as ISystemAudioCapture);
     }
+    // Caller holds the lifecycle lock. Cancel publication/retries before releasing capture.
+    private void PauseCapture()
+    {
+        _recovery.Cancel();
+        _captureStartup.Cancel();
+        StopCapture();
+        lock (_gate)
+        {
+            _captureMode = "paused";
+            _captureError = _captureWarning = _processingError = null;
+            _permissionDenied = false;
+            _suppressUntilMs = 0;
+        }
+    }
     private void StopCapture()
     {
         ISystemAudioCapture capture;
@@ -403,6 +422,9 @@ internal sealed class HapticAudioMonitor : IDisposable
         {
             capture = _capture;
             _capture = null;
+            _detector = null;
+            _candidates.Clear();
+            _traceHistory.Clear();
             _latest = new HapticMonitorSample();
             _signal = new();
             if (capture != null)

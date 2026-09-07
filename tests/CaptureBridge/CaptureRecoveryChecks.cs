@@ -13,6 +13,9 @@ internal static class CaptureRecoveryChecks
         check(!CaptureRecovery.NeedsRestart("", "", false, true, true) &&
             CaptureRecovery.NeedsRestart("", "input:default", false, true, true),
             "resume preserves a receiving stream; changing the source still restarts it");
+        check(!CaptureRecovery.NeedsRestart("", "input:default", false, false, false) &&
+            !CaptureRecovery.NeedsRestart("", "input:default", true, false, true),
+            "changing source while disabled never opens capture");
         var gate = new object();
         var calls = 0;
         using (var recovery = new CaptureRecovery(gate, () => Interlocked.Increment(ref calls), _ => { }, new[] { 30 }))

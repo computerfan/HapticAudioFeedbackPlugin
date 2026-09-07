@@ -18,7 +18,7 @@ public sealed class CaptureRecovery : IDisposable
         if (_delays.Length == 0 || _delays.Any(delay => delay <= 0)) throw new ArgumentException("Positive retry delays are required.");
     }
     public static bool NeedsRestart(string oldSource, string newSource, bool wasEnabled, bool enabled, bool receivingAudio)
-        => oldSource != newSource || (!wasEnabled && enabled && !receivingAudio);
+        => enabled && (oldSource != newSource || (!wasEnabled && !receivingAudio));
     public static bool IsDefaultSource(string id) => id is "" or "output:default" or "input:default";
     public void Schedule()
     {
