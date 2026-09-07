@@ -21,7 +21,7 @@ function harness(){
   get selectedOptions(){const all=[];function walk(e){if(e.tagName==='option')all.push(e);for(const c of e.children||[])walk(c);}walk(this);return all.filter(o=>o.value===this.value);}
  }
  for(const match of html.matchAll(/<(\w+)\b([^>]*\bid="([^"]+)"[^>]*)>/g)){const e=new Element(match[1]);e.id=match[3];e.type=match[2].match(/\btype="([^"]+)"/)?.[1]||'';e.disabled=/\bdisabled\b/.test(match[2]);e.hidden=/\bhidden\b/.test(match[2]);}
- const document={documentElement:{},querySelectorAll(){return [];},getElementById:id=>elements.get(id)||null,createElement:tag=>new Element(tag),createTextNode:text=>({textContent:text})};
+ const document={events:{},addEventListener(name,handler){this.events[name]=handler;},documentElement:{},querySelectorAll(){return [];},getElementById:id=>elements.get(id)||null,createElement:tag=>new Element(tag),createTextNode:text=>({textContent:text})};
  const defaults={Enabled:false,EnableDebugServer:false,Sensitivity:50,CaptureDeviceId:'',BassGainDb:0,HighGainDb:0,BassEnabled:true,HighEnabled:true,LowCenterHz:100,HighCenterHz:2000,LowThresholdDb:-38,HighThresholdDb:-42,OnsetMarginDb:6,RearmMarginDb:2,AttackMilliseconds:5,ReleaseMilliseconds:60,BackgroundMilliseconds:300,MinimumSpacingMilliseconds:80,MaximumEventAgeMilliseconds:50,OnsetRiseDb:3,TransientSeparationMilliseconds:80,StrongBassAboveThresholdDb:12,BassWaveform:'damp_collision',StrongBassWaveform:'sharp_collision',HighWaveform:'subtle_collision',SustainEnabled:false,SustainWaveform:'subtle_collision',SustainThresholdDb:-30,SustainSlowIntervalMilliseconds:260,SustainFastIntervalMilliseconds:140};
  const profiles={music:{...defaults,Enabled:true},gentle:{...defaults,Enabled:true,Sensitivity:30,MinimumSpacingMilliseconds:180}};
  const info=Object.keys(profiles).map(Id=>({Id,Label:Id==='music'?'Music':'Gentle',Description:'Description of '+Id,IsCustom:false}));
@@ -34,7 +34,7 @@ function harness(){
  fetch:async(path,options={})=>{
   if(state.hangPath===path)return aborted(options.signal);
   let body,ok=true;
-  if(path==='/metrics'){body=state.metrics||{};}
+  if(path==='/metrics'){state.metricReads=(state.metricReads||0)+1;body=state.metrics||{};}
   else if(path==='/locales/zh-CN.json'){ok=!state.failLocale;body=chinese;}
   else if(path==='/logs'||path==='/logs/download'){assert.equal(options.headers['X-Haptic-Token'],'test');state.logReads=(state.logReads||0)+1;ok=!state.failLogs;body=ok?{Directory:'/test/logs',RecentText:'<script>not executable</script> 日志',Warnings:[]}:{Error:'Logs unavailable'};}
   else if(path==='/devices'){body=state.enumerationError?{Error:'Device service unavailable'}:{Devices:devices};ok=!state.enumerationError;}
@@ -85,6 +85,22 @@ function harness(){
  assert.equal(timeout.run('currentLocale'),'en');
  assert.equal([...timeout.timers.values()].filter(timer=>timer.delay===15000||timer.delay===3000).length,0);
  console.log('PASS header/body timeouts, monitor recovery, log button recovery, uncertain saves without retries, locale fallback and timer cleanup'); }
+ { const background=harness();await background.run('init()');
+ background.run('document.hidden=true');await background.run('poll()');
+ assert.equal(background.state.metricReads,undefined);
+ background.run("document.hidden=false;document.events.visibilitychange()");
+ await new Promise(setImmediate);assert.equal(background.state.metricReads,1);
+ assert.ok([...background.timers.values()].some(timer=>timer.delay===100));
+ background.run("document.hidden=true;document.events.visibilitychange()");
+ assert.equal([...background.timers.values()].some(timer=>timer.delay===100),false);
+ background.run("byId('chart').getContext=()=>{throw new Error('Hidden canvas rendered');};chart()");
+ background.run('document.hidden=false');background.state.hangPath='/metrics';
+ const inFlight=background.run('poll()');await new Promise(setImmediate);
+ background.run("document.hidden=true;document.events.visibilitychange()");
+ background.expire();await inFlight;
+ assert.equal([...background.timers.values()].some(timer=>timer.delay===100||timer.delay===1000),false);
+ console.log('PASS hidden page stops monitor polling and drawing, and visibility resumes one polling loop');
+ }
  const h=harness();await h.run('init()');const {el,run,state,devices}=h;
  await el('preview').children[0].events.click();assert.match(el('previewStatus').textContent,/requested/);
  state.previewBusy=true;await el('preview').children[0].events.click();assert.match(el('previewStatus').textContent,/playback slot/);
@@ -176,7 +192,7 @@ function harness(){
  const frame=(sequence,time,low=-60,band=null)=>({Sequence:String(sequence),Timestamp:new Date(time).toISOString(),LowEnvDb:low,HighEnvDb:-55,LowThresholdDb:-35,HighThresholdDb:-45,SentBand:band,BreakBefore:false});
  // Multiple detector windows arrive together; the peak at 5 ms must survive the 100 ms poll.
  const frames=[frame('9007199254740993',now-200),frame('9007199254740994',now-195,-42,'bass'),frame('9007199254740995',now-190),frame('9007199254740996',now-185,-60,'high')];
- tabs.run(`acceptMetrics({RecentAudio:${JSON.stringify(frames)}},${now})`);tabs.run(`acceptMetrics({RecentAudio:${JSON.stringify(frames)}},${now})`);
+ tabs.run(`acceptMetrics({RecentAudio:${JSON.stringify(frames)}},${now})`);tabs.run('globalThis.firstHistoryPoint=history[0]');tabs.run(`acceptMetrics({RecentAudio:${JSON.stringify(frames)}},${now})`);assert.equal(tabs.run('history[0]===firstHistoryPoint'),true);
  assert.equal(tabs.run('history.length'),4);assert.equal(tabs.run('onsetMarkers.size'),2);
  assert.equal(tabs.run('[...onsetMarkers.values()][0].level'),-42);
  // Out-of-order retries cannot reorder the trace; independent old markers cannot add fake peaks.
@@ -206,7 +222,7 @@ function harness(){
  const burst=Array.from({length:256},(_,i)=>frame(i+10,now-150+i*.5,-30));tabs.run(`acceptMetrics({RecentAudio:${JSON.stringify(burst)}},${now})`);assert.ok(tabs.run('history.length')<=261);
  for(let batch=0;batch<12;batch++){const points=Array.from({length:256},(_,i)=>frame(batch*256+i+1000,now-11000+batch*256+i,-30,'bass'));tabs.run(`acceptMetrics({RecentAudio:${JSON.stringify(points)}},${now})`);}
  assert.equal(tabs.run('history.length'),2560);assert.ok(tabs.run('onsetMarkers.size')<=256);
- tabs.run(`acceptMetrics({},${now+13000})`);assert.equal(tabs.run('history.length'),0);assert.equal(tabs.run('onsetMarkers.size'),0);
+ tabs.run(`acceptMetrics({},${now+13000})`);assert.equal(tabs.run('history.length'),0);assert.equal(tabs.run('historyById.size'),0);assert.equal(tabs.run('onsetMarkers.size'),0);
  const monitor=harness();
  const time=new Date().toISOString();
  monitor.state.metrics={Enabled:true,AudioReceived:false,CapturePackets:'0',CaptureSamples:'0'};

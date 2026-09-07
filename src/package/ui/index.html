@@ -329,35 +329,54 @@ function formatCounter(value){
 function showCounter(id,value){const formatted=formatCounter(value);byId(id).textContent=formatted.label;byId(id).title=formatted.title;}
 const chartWindowMs=12000, chartKeys=['LowEnvDb','HighEnvDb','LowThresholdDb','HighThresholdDb'];
 let chartFocus=null;
+const historyById=new Map();
 let onsetMarkers=new Map(), chartBounds={min:-80,max:0};
 function acceptMetrics(sample,now=Date.now()){
- const points=new Map(history.map(point=>[point.id,point]));
+ let needsSort=false,lastTime=history.length?history[history.length-1].time:-Infinity;
  for(const frame of (Array.isArray(sample.RecentAudio)?sample.RecentAudio:[]).slice(-256)){
   const time=Date.parse(frame.Timestamp),sequence=counterValue(frame.Sequence);
   if(sequence===null||!Number.isFinite(time)||time<now-chartWindowMs||time>now+1000||chartKeys.some(key=>!Number.isFinite(frame[key])))continue;
   const id=sequence.toString()+'@'+frame.Timestamp;
-  points.set(id,{id,time,breakBefore:frame.BreakBefore===true,band:['bass','high'].includes(frame.SentBand)?frame.SentBand:null,reason:['threshold','rise'].includes(frame.TriggerReason)?frame.TriggerReason:null,...Object.fromEntries(chartKeys.map(key=>[key,frame[key]]))});
+  let point=historyById.get(id);
+  if(!point){point={id,time};historyById.set(id,point);history.push(point);if(time<lastTime)needsSort=true;lastTime=time;}
+  point.breakBefore=frame.BreakBefore===true;
+  point.band=['bass','high'].includes(frame.SentBand)?frame.SentBand:null;
+  point.reason=['threshold','rise'].includes(frame.TriggerReason)?frame.TriggerReason:null;
+  for(const key of chartKeys)point[key]=frame[key];
  }
- history=[...points.values()].filter(point=>point.time>=now-chartWindowMs).sort((a,b)=>a.time-b.time).slice(-2560);
- // A dot is a flag on a recorded detector frame, never a separately positioned event.
- onsetMarkers=new Map(history.filter(point=>point.band).map(point=>[point.id,{time:point.time,band:point.band,reason:point.reason,level:point[point.band==='bass'?'LowEnvDb':'HighEnvDb']}]).slice(-256));
+ if(needsSort)history.sort((a,b)=>a.time-b.time);
+ let expired=0;while(expired<history.length&&history[expired].time<now-chartWindowMs)expired++;
+ const remove=Math.max(expired,history.length-2560);
+ for(let i=0;i<remove;i++)historyById.delete(history[i].id);
+ if(remove)history.splice(0,remove);
+ // Reuse recorded frames; late SDK completions can update flags on existing entries.
+ onsetMarkers.clear();
+ let firstMarker=history.length,markerCount=0;
+ while(firstMarker>0&&markerCount<256){firstMarker--;if(history[firstMarker].band)markerCount++;}
+ for(let i=firstMarker;i<history.length;i++){
+  const point=history[i];
+  if(point.band)onsetMarkers.set(point.id,{time:point.time,band:point.band,reason:point.reason,level:point[point.band==='bass'?'LowEnvDb':'HighEnvDb']});
+ }
 }
+
 function chartSeries(points,key){
  return points.map(point=>({time:point.time,value:point[key],breakBefore:point.breakBefore}));
 }
 function autoChartBounds(points,markers){
- const levels=[];
+ let minimum=Infinity,maximum=-Infinity;
+ const include=value=>{if(Number.isFinite(value)&&value>=-120&&value<=0){minimum=Math.min(minimum,value);maximum=Math.max(maximum,value);}};
  for(const point of points)for(const key of chartKeys){
   if((key.startsWith('Low')&&settings?.BassEnabled===false)||(key.startsWith('High')&&settings?.HighEnabled===false))continue;
-  const value=point[key];if(Number.isFinite(value)&&value>= -120&&value<=0)levels.push(value);
+  include(point[key]);
  }
- for(const point of markers){if((point.band==='bass'&&settings?.BassEnabled===false)||(point.band==='high'&&settings?.HighEnabled===false))continue;for(const value of [point.level,point.threshold])if(Number.isFinite(value)&&value>= -120&&value<=0)levels.push(value);}
- if(!levels.length)return {min:-80,max:0};
- let min=Math.max(-120,Math.floor((Math.min(...levels)-5)/5)*5),max=Math.min(0,Math.ceil((Math.max(...levels)+5)/5)*5);
+ for(const point of markers){if((point.band==='bass'&&settings?.BassEnabled===false)||(point.band==='high'&&settings?.HighEnabled===false))continue;include(point.level);include(point.threshold);}
+ if(minimum===Infinity)return {min:-80,max:0};
+ let min=Math.max(-120,Math.floor((minimum-5)/5)*5),max=Math.min(0,Math.ceil((maximum+5)/5)*5);
  if(max-min<30){const center=(max+min)/2;min=Math.max(-120,Math.floor((center-15)/5)*5);max=Math.min(0,min+30);min=max-30;}
  return {min,max};
 }
 function chart(now=Date.now()){
+ if(document.hidden)return;
  const canvas=byId('chart'),dpr=window.devicePixelRatio||1,w=canvas.clientWidth,h=canvas.clientHeight||210;
  if(w<=0)return;
  if(canvas.width!==Math.round(w*dpr)||canvas.height!==Math.round(h*dpr)){canvas.width=Math.round(w*dpr);canvas.height=Math.round(h*dpr);}
@@ -377,7 +396,7 @@ function chart(now=Date.now()){
  for(const [key,color,dash] of [['LowEnvDb','#9ae5c0',false],['HighEnvDb','#adbef6',false],['LowThresholdDb','#9ae5c0',true],['HighThresholdDb','#adbef6',true]]){
   if((key.startsWith('Low')&&settings?.BassEnabled===false)||(key.startsWith('High')&&settings?.HighEnabled===false))continue;
   c.strokeStyle=color;c.globalAlpha=dash ? 0.8 : 1;const emphasized=(chartFocus==='bass'&&key.startsWith('Low'))||(chartFocus==='detail'&&key.startsWith('High'))||(chartFocus==='threshold'&&dash);c.lineWidth=emphasized?3:(dash?1.2:1.8);c.setLineDash(dash?[4,5]:[]);c.beginPath();let previous=null;
-  for(const point of chartSeries(points,key)){if(!Number.isFinite(point.value)){previous=null;continue;}const px=x(point.time),py=y(point.value);if(!previous||point.breakBefore||point.time-previous.time>50)c.moveTo(px,py);else c.lineTo(px,py);previous=point;}
+  for(const point of points){if(!Number.isFinite(point[key])){previous=null;continue;}const px=x(point.time),py=y(point[key]);if(!previous||point.breakBefore||point.time-previous.time>50)c.moveTo(px,py);else c.lineTo(px,py);previous=point;}
   c.stroke();
  }
  c.setLineDash([]);c.globalAlpha=1;
@@ -482,12 +501,13 @@ byId('permissionRetry').onclick=async()=>{
  try{await byId('restartCapture').onclick();}finally{button.disabled=false;}
 };
 
-let pollRunning=false,pollFailures=0;
+let pollRunning=false,pollFailures=0,pollTimer=null;
 async function poll(){
- if(pollRunning)return;
+ clearTimeout(pollTimer);pollTimer=null;
+ if(pollRunning||document.hidden)return;
  pollRunning=true;
  try{
-  const {response,body:m}=await fetchBody('/metrics',{headers:authHeaders},'json',3000);if(!response.ok)throw new Error(t('Monitor unavailable'));updatePermissionHelp(m);
+  const {response,body:m}=await fetchBody('/metrics',{headers:authHeaders},'json',3000);if(document.hidden)return;if(!response.ok)throw new Error(t('Monitor unavailable'));updatePermissionHelp(m);
   const age=m.LastPacketUtc?Date.now()-Date.parse(m.LastPacketUtc):Infinity;
   const signalAge=m.LastSignalUtc?Date.now()-Date.parse(m.LastSignalUtc):Infinity;
   byId('state').textContent=m.CapturePermission==='denied'?t('Audio permission denied'):m.CaptureError?t('Capture unavailable'):m.ProcessingError?t('Feedback error'):!m.Enabled?t('Paused'):m.CaptureMode==='starting'?t('Starting capture'):m.Settling?t('Settling'):!m.AudioReceived?t('Waiting for audio'):age>1000?t('No audio packets'):signalAge>1000?t('Silent audio'):t('Listening');
@@ -502,8 +522,9 @@ async function poll(){
   byId('logStatus').textContent=t(m.LoggingError)||(t('Log messages suppressed: ')+formatCounter(m.LogSuppressedCount??'0').label+t('. Diagnostic logs keep at most three 512 KiB files.'));
   acceptMetrics(m);updateBandReadouts(m);chart();pollFailures=0;
  }catch(error){pollFailures=Math.min(pollFailures+1,5);byId('state').textContent=t('Disconnected');byId('audioStatus').textContent=t('Plugin unavailable. Reopen the settings launcher or use Open haptic settings in Options+. The port changes after reload.');}
- finally{pollRunning=false;setTimeout(poll,pollFailures?Math.min(1000*2**(pollFailures-1),10000):document.hidden?500:100);}
+ finally{pollRunning=false;if(!document.hidden)pollTimer=setTimeout(poll,pollFailures?Math.min(1000*2**(pollFailures-1),10000):100);}
 }
+document.addEventListener('visibilitychange',()=>{clearTimeout(pollTimer);pollTimer=null;if(!document.hidden)poll();});
 byId('restartCapture').onclick=async()=>{
  const button=byId('restartCapture');button.disabled=true;
  try {const {response,body:result}=await fetchBody('/capture/restart',{method:'POST',headers:{...authHeaders,'Content-Type':'application/json'},body:'{}'});
