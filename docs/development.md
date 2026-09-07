@@ -47,9 +47,9 @@ SDK action tests require the installed SDK and use a simulated controller. Brows
 
 The capture bridge has an optional `--device-smoke <plugin-bin-directory>` mode for live Windows device enumeration and playback capture checks. Real hardware testing must separately verify audio permissions, profile usability, and physical haptic response.
 
-## Experimental macOS assets (unsupported)
+## Experimental macOS assets
 
-Windows x64 is the only officially supported platform and the current development priority. CI continues building and testing both Mac architectures; Mac payloads remain available for experimental testing.
+Windows x64 is supported. macOS support is experimental on Intel and Apple Silicon; CI builds and tests both Mac architectures.
 
 The experimental adapter launches `Feel the Rhythm Capture.app` through LaunchServices and transfers PCM over a private Unix socket. Permission attribution and live capture remain unverified; see [the investigation](macos-capture-diagnostics.md). Once connected, the socket name and private session directory are removed before waiting for permission. On parent disconnect, the native helper requests normal shutdown and exits after a 750 ms grace period if capture is still blocked. Managed shutdown cancels reads without joining callbacks; device enumeration uses the same bounded process supervisor as Windows. A host crash before socket acceptance can still leave a small temporary directory; this change does not sweep existing temporary files.
 
@@ -62,7 +62,7 @@ python3 tools/build_cpal.py --target aarch64-apple-darwin --output native/prebui
 python3 tools/build_cpal.py --target x86_64-apple-darwin --output native/prebuilt
 ```
 
-Ordinary builds generate native assets for the build host. `-p:BuildCpalNative=false` uses existing assets from `native/prebuilt`; `-p:RequireAllCpalAssets=true` requires Windows x64 and both Mac architectures. The generated manifest includes Mac compatibility when helper assets are present; this enables experimental installation, not an official support guarantee.
+Ordinary builds generate native assets for the build host. `-p:BuildCpalNative=false` uses existing assets from `native/prebuilt`; `-p:RequireAllCpalAssets=true` requires Windows x64 and both Mac architectures. The generated manifest includes Mac compatibility when helper assets are present; this enables experimental macOS installation.
 
 The helper uses an ad-hoc development signature. Public Mac distribution requires a Developer ID signing/notarization process and permission-persistence testing. Do not modify the installed Logitech application bundle.
 
@@ -172,7 +172,7 @@ git tag -a v0.5.0 -m "Feel the Rhythm 0.5.0"
 git push origin v0.5.0
 ```
 
-The release reuses the full CI pipeline at the tagged commit. Only after all checks pass does it upload `Feel-the-Rhythm-0.5.0.lplug4` and publish a GitHub Release with generated notes. Windows x64 is officially supported. Mac payloads are included for experimental testing only, without official support. Native archives and other CI artifacts are not attached to the release. GitHub still supplies its automatic source-code ZIP and tarball links.
+The release reuses the full CI pipeline at the tagged commit. Only after all checks pass does it upload `Feel-the-Rhythm-0.5.0.lplug4` and publish a GitHub Release with generated notes. Windows x64 is supported; macOS payloads are included as experimental. Native archives and other CI artifacts are not attached to the release. GitHub still supplies its automatic source-code ZIP and tarball links.
 
 No extra secret is needed: only the publishing job receives `contents: write` through `GITHUB_TOKEN`. Uploads happen while the release is a draft, and existing releases are never overwritten. If building fails, rerun the failed jobs. If publishing fails after creating a draft, delete that unpublished draft in GitHub (keep the tag), then rerun the failed publishing job. If the release is already published, leave it intact and use a new version for corrections. Do not move published version tags. Rerun the whole workflow if its package artifact has expired.
 

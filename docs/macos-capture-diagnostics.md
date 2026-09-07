@@ -20,7 +20,7 @@ Browser guidance reports denial only when CPAL explicitly returns PermissionDeni
 
 ## Required Mac validation
 
-Both the managed capture assembly and native helper must be rebuilt together. Copying only the browser page or DLL cannot fix launch ownership. Windows is the only officially supported platform and the current development priority. CI still builds and tests Intel and ARM Mac helpers and includes them in the combined package for experimental testing. These builds do not establish working Mac capture.
+Both the managed capture assembly and native helper must be rebuilt together. Copying only the browser page or DLL cannot fix launch ownership. Windows x64 is supported; macOS support is experimental. CI builds and tests Intel and ARM Mac helpers and includes them in the combined package. These builds do not establish working Mac capture.
 
 1. Install the rebuilt package and retry capture with an output-only device selected. Check that CaptureMode contains `via LaunchServices`.
 2. Observe the system-audio permission prompt/entry for the helper and explicitly allow it. If it does not appear, inspect macOS Console's `tccd` messages for the responsible process; do not assume success.

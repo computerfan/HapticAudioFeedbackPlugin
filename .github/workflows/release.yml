@@ -19,7 +19,7 @@ jobs:
     outputs:
       version: ${{ steps.version.outputs.version }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           persist-credentials: false
       - name: Require a version tag matching the package metadata
@@ -58,7 +58,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v7
         with:
           name: Feel-the-Rhythm-${{ github.sha }}
           path: release
@@ -82,5 +82,5 @@ jobs:
           # Existing releases are never overwritten; see the developer guide for retry instructions.
           gh release create "$RELEASE_TAG" "$package" --verify-tag --draft \
             --title "Feel the Rhythm ${RELEASE_VERSION}" --generate-notes \
-            --notes 'Install the attached .lplug4 in Logi Options+. Supports Windows x64.'
+            --notes 'Install the attached .lplug4 in Logi Options+. Windows x64 supported; macOS experimental (Intel and Apple Silicon).'
           gh release edit "$RELEASE_TAG" --draft=false

@@ -1,13 +1,13 @@
-# Marketplace submission draft — v0.5.1
+# Marketplace submission draft — v0.5.2
 
 | Field | Value |
 | --- | --- |
 | Name | Feel the Rhythm |
 | Author | computerfan |
-| Operating systems | Windows |
+| Operating systems | Windows; macOS (experimental) |
 | Support | https://github.com/computerfan/HapticAudioFeedbackPlugin/issues |
 | Homepage | https://github.com/computerfan/HapticAudioFeedbackPlugin |
-| Version | v0.5.1 |
+| Version | v0.5.2 |
 | Content licence | MIT |
 | Licence URL | https://opensource.org/licenses/MIT |
 | Copyright | Copyright © 2026 computerfan. All rights reserved. |
@@ -20,7 +20,7 @@ Copy only the text inside each block. Counts include Markdown and line breaks (L
 Feel music, movies and games through customizable haptics on compatible Logitech devices.
 ```
 
-## Detail page description (466/500)
+## Detail page description (481/500)
 
 ```text
 Turn audio into haptics on compatible Logitech devices with Logi Options+.
@@ -30,18 +30,20 @@ Turn audio into haptics on compatible Logitech devices with Logi Options+.
 
 Install the plugin, assign **Open haptic settings** to your Actions Ring, then choose an audio source and profile.
 
-Windows x64 only.
+Windows x64; macOS experimental.
 [Setup](https://github.com/computerfan/HapticAudioFeedbackPlugin) · [Support](https://github.com/computerfan/HapticAudioFeedbackPlugin/issues)
 ```
 
-## Release Notes (327/1000)
+## Release Notes (361/1000)
 
 ```text
-Version 0.5.1
-- Added the GitHub homepage and issue tracker to the plugin package, making setup guidance and support easier to find from the Marketplace.
-- Added clearer capture status and signal diagnostics.
+Version 0.5.2
+- Added advanced per-band onset detection, spectral flux, vibrato suppression and peak confirmation.
+- Simplified settings tabs and made controls more compact.
+- Improved capture recovery, live updates, logging and long-running reliability.
+- Updated CI actions for Node.js 24.
 
-Windows x64 is the only supported platform. macOS builds are for experimental testing only, without official support.
+Windows x64 supported; macOS experimental (Intel and Apple Silicon).
 ```
 
 The homepage and support URLs are set in the package metadata. Rebuild the package to include them in a Marketplace upload; existing release assets do not change automatically.
