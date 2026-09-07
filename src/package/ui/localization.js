@@ -21,12 +21,31 @@ function applyLocale(){
  for(const el of document.querySelectorAll('[data-preset]'))el.textContent=t('Test ')+t(names[el.dataset.preset]);
  document.getElementById('language').value=currentLocale;
 }
+// Keep the deadline active until the entire response body has been consumed.
+async function fetchBody(path,options={},format='json',timeoutMs=15000){
+ const controller=new AbortController();
+ let expired=false;
+ const timer=setTimeout(()=>{expired=true;controller.abort();},timeoutMs);
+ try{
+  const response=await fetch(path,{...options,signal:controller.signal});
+  const body=await (format==='blob'&&response.ok?response.blob():response.json());
+  return {response,body};
+ }catch(error){
+  if(expired){
+   const message=options.method==='POST'
+    ? 'Request timed out. The change may already have completed. Reload saved settings before retrying.'
+    : 'Request timed out. Try again.';
+   throw new Error(message);
+  }
+  throw error;
+ }finally{clearTimeout(timer);}
+}
 async function setLocale(locale){
  const request=++localeRequest;
  if(locale==='zh-CN'&&!chineseCatalog){
-  const response=await fetch('/locales/zh-CN.json');
+  const {response,body}=await fetchBody('/locales/zh-CN.json');
   if(!response.ok)throw new Error('Could not load Chinese translations. Try again.');
-  chineseCatalog=await response.json();
+  chineseCatalog=body;
  }
  if(request!==localeRequest)return;
  currentLocale=locale==='zh-CN'?'zh-CN':'en';applyLocale();

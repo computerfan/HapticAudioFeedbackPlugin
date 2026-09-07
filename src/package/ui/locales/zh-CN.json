@@ -290,5 +290,8 @@
   "Log download prepared. Review the file before sharing.": "日志下载已准备好，分享前请检查文件内容。",
   "Log folder: ": "日志文件夹：",
   "Recent logs loaded. Download logs includes all retained files.": "已加载最近的日志。下载日志将包含所有保留的文件。",
-  "No log entries are available yet.": "暂无日志记录。"
+  "No log entries are available yet.": "暂无日志记录。",
+  "Save not confirmed: ": "保存未确认：",
+  "Request timed out. Try again.": "请求超时，请重试。",
+  "Request timed out. The change may already have completed. Reload saved settings before retrying.": "请求超时，操作可能已经完成。重试前请重新加载已保存的设置。"
 }

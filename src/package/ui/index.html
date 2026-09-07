@@ -156,7 +156,7 @@ function renderDevices(){
 }
 async function refreshDevices(){
  const button=byId('refreshDevices');button.disabled=true;
- try{const response=await fetch('/devices',{headers:authHeaders});const data=await response.json();if(!response.ok)throw new Error(data.Error||t('Could not list devices'));audioDevices=data.Devices;renderDevices();
+ try{const {response,body:data}=await fetchBody('/devices',{headers:authHeaders});if(!response.ok)throw new Error(data.Error||t('Could not list devices'));audioDevices=data.Devices;renderDevices();
  byId('deviceStatus').textContent=t('Choose a source, then use it. Microphone capture starts only after you confirm the source.');
  }catch(error){if(settings)renderDevices();byId('deviceStatus').textContent=t(error.message)+t(' You can still choose a default source or refresh again.');}finally{button.disabled=!settings;}
 }
@@ -218,8 +218,8 @@ function sync(){
  refreshMatch();profileSelection();sourceState();
 }
 async function request(path,value){
- const response=await fetch(path,{method:'POST',headers:{...authHeaders,'Content-Type':'application/json','If-Match':'"'+revision+'"'},body:JSON.stringify(value)});
- const body=await response.json();if(!response.ok)throw new Error(body.Error||t('Request failed'));return body;
+ const {response,body}=await fetchBody(path,{method:'POST',headers:{...authHeaders,'Content-Type':'application/json','If-Match':'"'+revision+'"'},body:JSON.stringify(value)});
+ if(!response.ok)throw new Error(body.Error||t('Request failed'));return body;
 }
 function message(text,error=false){byId('saveStatus').textContent=text;byId('saveStatus').classList.toggle('error',error);}
 function queueSave(){
@@ -232,14 +232,14 @@ async function save(){
  saving=true;dirty=false;profileSelection();sourceState();const snapshot=structuredClone(settings);
  try{const result=await request('/settings',snapshot);revision=result.Revision;
   if(!dirty){settings=result.Settings;sync();message(t('Saved · live settings updated'));byId('deviceStatus').textContent=t('Active source: ')+(audioDevices.find(d=>d.Id===settings.CaptureDeviceId)?.Name||(settings.CaptureDeviceId===''?t('System default playback'):settings.CaptureDeviceId==='input:default'?t('System default input'):t('Selected device')))+'.';}
- }catch(error){saveFailed=true;dirty=true;byId('retrySave').hidden=false;message(t('Not saved: ')+t(error.message)+t(' Reload saved settings if they changed elsewhere.'),true);}
+ }catch(error){saveFailed=true;dirty=true;byId('retrySave').hidden=false;message(t('Save not confirmed: ')+t(error.message)+t(' Reload saved settings if they changed elsewhere.'),true);}
  finally{saving=false;profileSelection();sourceState();if(dirty&&!saveFailed)save();}
 }
 byId('retrySave').onclick=()=>{if(saving||loading)return;saveFailed=false;byId('retrySave').hidden=true;save();};
 async function loadSettings(){
  if(saving||profileBusy||loading){message(t('Wait for the current save to finish.'));return;}
  loading=true;byId('tuningControls').disabled=true;byId('Enabled').disabled=true;byId('reloadSettings').disabled=true;sourceState();clearTimeout(saveTimer);
- try{const response=await fetch('/settings',{headers:authHeaders});const data=await response.json();if(!response.ok)throw new Error(data.Error||t('Could not load settings'));
+ try{const {response,body:data}=await fetchBody('/settings',{headers:authHeaders});if(!response.ok)throw new Error(data.Error||t('Could not load settings'));
   settings=data.Settings;revision=data.Revision;dirty=false;saveFailed=false;undoSettings=null;byId('retrySave').hidden=true;setCatalog(data,'');sync();
   byId('captureDevice').dataset.saved=byId('captureDevice').value;renderDevices();message(t('Saved settings loaded'));
  }catch(error){message(t(error.message)+t(' — use Reload saved settings to retry.'),true);}
@@ -435,15 +435,15 @@ async function logRequest(download){
  const button=byId(download?'downloadLogs':'refreshLogs');button.disabled=true;
  byId('logActionStatus').textContent=t('Loading logs…');
  try{
-  const response=await fetch(download?'/logs/download':'/logs',{headers:authHeaders});
-  if(!response.ok){const error=await response.json();throw new Error(error.Error||t('Could not load logs'));}
+  const {response,body}=await fetchBody(download?'/logs/download':'/logs',{headers:authHeaders},download?'blob':'json');
+  if(!response.ok)throw new Error(body.Error||t('Could not load logs'));
   if(download){
-   const blob=await response.blob(),url=URL.createObjectURL(blob),link=document.createElement('a');
+   const blob=body,url=URL.createObjectURL(blob),link=document.createElement('a');
    link.href=url;link.download='feel-the-rhythm-diagnostics.txt';byId('logActions').append(link);
    try{link.click();}finally{link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
    byId('logActionStatus').textContent=t('Log download prepared. Review the file before sharing.');
   }else{
-   const data=await response.json();byId('logFolder').textContent=t('Log folder: ')+data.Directory;
+   const data=body;byId('logFolder').textContent=t('Log folder: ')+data.Directory;
    byId('logPreview').value=data.RecentText||'';
    byId('logActionStatus').textContent=(data.Warnings||[]).length?data.Warnings.join(' '):t(data.RecentText?'Recent logs loaded. Download logs includes all retained files.':'No log entries are available yet.');
   }
@@ -471,8 +471,8 @@ function updatePermissionHelp(m){
 byId('openPermissions').onclick=async()=>{
  const button=byId('openPermissions');button.disabled=true;
  try{
-  const response=await fetch('/capture/permissions',{method:'POST',headers:{...authHeaders,'Content-Type':'application/json'},body:'{}'});
-  const result=await response.json();if(!response.ok)throw new Error(result.Error||t('Could not open system permissions'));
+  const {response,body:result}=await fetchBody('/capture/permissions',{method:'POST',headers:{...authHeaders,'Content-Type':'application/json'},body:'{}'});
+  if(!response.ok)throw new Error(result.Error||t('Could not open system permissions'));
   byId('permissionActionStatus').textContent=t('Check the system settings window, then return here and retry capture.');
  }catch(error){byId('permissionActionStatus').textContent=t('Could not open system permissions')+': '+t(error.message);}
  finally{button.disabled=false;}
@@ -482,9 +482,12 @@ byId('permissionRetry').onclick=async()=>{
  try{await byId('restartCapture').onclick();}finally{button.disabled=false;}
 };
 
+let pollRunning=false,pollFailures=0;
 async function poll(){
+ if(pollRunning)return;
+ pollRunning=true;
  try{
-  const response=await fetch('/metrics',{headers:authHeaders});if(!response.ok)throw new Error(t('Monitor unavailable'));const m=await response.json();updatePermissionHelp(m);
+  const {response,body:m}=await fetchBody('/metrics',{headers:authHeaders},'json',3000);if(!response.ok)throw new Error(t('Monitor unavailable'));updatePermissionHelp(m);
   const age=m.LastPacketUtc?Date.now()-Date.parse(m.LastPacketUtc):Infinity;
   const signalAge=m.LastSignalUtc?Date.now()-Date.parse(m.LastSignalUtc):Infinity;
   byId('state').textContent=m.CapturePermission==='denied'?t('Audio permission denied'):m.CaptureError?t('Capture unavailable'):m.ProcessingError?t('Feedback error'):!m.Enabled?t('Paused'):m.CaptureMode==='starting'?t('Starting capture'):m.Settling?t('Settling'):!m.AudioReceived?t('Waiting for audio'):age>1000?t('No audio packets'):signalAge>1000?t('Silent audio'):t('Listening');
@@ -497,14 +500,14 @@ async function poll(){
   byId('backendTiming').textContent=ms(m.BackendCallMs)+' / '+ms(m.MaxBackendCallMs);
   byId('waitTiming').textContent=t('Callback lock wait: ')+ms(m.LockWaitMs)+' / '+ms(m.MaxLockWaitMs)+t(' max. Last event age within its delivered batch: ')+ms(m.LastEventAgeWithinCallbackMs)+t('. Newest sample age: ')+ms(m.NewestSampleAgeMs)+t(' ms. Capture frames discarded: ')+formatCounter(m.CaptureDroppedFrames??'0').label+'.';
   byId('logStatus').textContent=t(m.LoggingError)||(t('Log messages suppressed: ')+formatCounter(m.LogSuppressedCount??'0').label+t('. Diagnostic logs keep at most three 512 KiB files.'));
-  acceptMetrics(m);updateBandReadouts(m);chart();
- }catch(error){byId('state').textContent=t('Disconnected');byId('audioStatus').textContent=t('Plugin unavailable. Reopen the settings launcher or use Open haptic settings in Options+. The port changes after reload.');}
- setTimeout(poll,document.hidden?500:100);
+  acceptMetrics(m);updateBandReadouts(m);chart();pollFailures=0;
+ }catch(error){pollFailures=Math.min(pollFailures+1,5);byId('state').textContent=t('Disconnected');byId('audioStatus').textContent=t('Plugin unavailable. Reopen the settings launcher or use Open haptic settings in Options+. The port changes after reload.');}
+ finally{pollRunning=false;setTimeout(poll,pollFailures?Math.min(1000*2**(pollFailures-1),10000):document.hidden?500:100);}
 }
 byId('restartCapture').onclick=async()=>{
  const button=byId('restartCapture');button.disabled=true;
- try {const response=await fetch('/capture/restart',{method:'POST',headers:{...authHeaders,'Content-Type':'application/json'},body:'{}'});
- const result=await response.json();if(!response.ok)throw new Error(result.Error||t('Could not restart capture'));
+ try {const {response,body:result}=await fetchBody('/capture/restart',{method:'POST',headers:{...authHeaders,'Content-Type':'application/json'},body:'{}'});
+ if(!response.ok)throw new Error(result.Error||t('Could not restart capture'));
  byId('audioStatus').textContent=result.CaptureError||t('Capture restarted. Play audio through the selected source.');
  }catch(error){byId('audioStatus').textContent=t(error.message);}finally{button.disabled=false;}
 };

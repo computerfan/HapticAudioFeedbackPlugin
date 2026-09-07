@@ -28,8 +28,11 @@ function harness(){
  const state={current:{...defaults},revision:0,enumerationError:false,failSave:false,failLoad:false,failLocale:false,saves:0,release:null,hold:false,catalogWrites:0};
  const devices=[{Id:'output:WASAPI:speaker',Name:'Speakers',Kind:'output'},{Id:'input:CoreAudio:mic',Name:'麦克风 <b>USB</b>',Kind:'input'}];
  const catalog=()=>({Profiles:profiles,ProfileInfo:info,ProfilesRevision:state.catalogWrites,Presets:['subtle_collision','damp_collision','sharp_collision','damp_state_change','sharp_state_change','wave']});
- const context=vm.createContext({document,URL:{createObjectURL(){state.downloaded=true;return "blob:test";},revokeObjectURL(){}},URLSearchParams,navigator:{languages:['en-US']},location:{hash:'',pathname:'/',search:''},sessionStorage:{getItem(){return 'test';}},window:{addEventListener(){},history:{replaceState(){}}},structuredClone,setTimeout(){return 1;},clearTimeout(){},console,
+ const timers=new Map();let timerId=0;
+ const aborted=signal=>new Promise((resolve,reject)=>{if(signal.aborted)reject(new Error('aborted'));else signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true});});
+ const context=vm.createContext({document,URL:{createObjectURL(){state.downloaded=true;return "blob:test";},revokeObjectURL(){}},URLSearchParams,navigator:{languages:['en-US']},location:{hash:'',pathname:'/',search:''},sessionStorage:{getItem(){return 'test';}},window:{addEventListener(){},history:{replaceState(){}}},structuredClone,AbortController,setTimeout(callback,delay){const id=++timerId;timers.set(id,{callback,delay});return id;},clearTimeout(id){timers.delete(id);},console,
  fetch:async(path,options={})=>{
+  if(state.hangPath===path)return aborted(options.signal);
   let body,ok=true;
   if(path==='/metrics'){body=state.metrics||{};}
   else if(path==='/locales/zh-CN.json'){ok=!state.failLocale;body=chinese;}
@@ -47,7 +50,7 @@ function harness(){
     else{assert.equal(options.headers['If-Match'],'"'+state.revision+'"');state.current=JSON.parse(options.body);state.revision++;state.saves++;body={Settings:state.current,Revision:state.revision};}
    }else if(path==='/preview'){body={Accepted:!state.previewBusy};}else if(path==='/capture/permissions'){state.permissionOpens=(state.permissionOpens||0)+1;ok=!state.failPermissions;body=ok?{Opened:true}:{Error:'Settings unavailable'};}else if(path==='/capture/restart'){state.restarts=(state.restarts||0)+1;body={};}else throw new Error('Unexpected test route '+path);
   }else{ok=!state.failLoad;body=ok?{Settings:state.current,Revision:state.revision,...catalog()}:{Error:'Unavailable'};}
-  return{ok,json:async()=>structuredClone(body),blob:async()=>({text:"report"})};
+  return{ok,json:async()=>state.hangBody===path?aborted(options.signal):structuredClone(body),blob:async()=>state.hangBody===path?aborted(options.signal):({text:"report"})};
  }});
  vm.runInContext(script,context);
  const run=code=>vm.runInContext(code,context);
@@ -55,9 +58,33 @@ function harness(){
  const choose=id=>{el('sceneProfile').value=id;el('sceneProfile').events.change();};
  const change=(id,value)=>{el(id).value=value;el(id).events.change();};
  const settle=async()=>{for(let i=0;i<20&&run('saving');i++)await new Promise(setImmediate);assert.equal(run('saving'),false);};
- return{el,run,choose,change,settle,state,devices,profiles};
+ return{el,run,choose,change,settle,state,devices,profiles,timers,expire(){for(const [id,timer] of timers)if(timer.delay>=3000){timers.delete(id);timer.callback();}}};
 }
 (async()=>{
+ { const timeout=harness();await timeout.run('init()');
+ timeout.state.hangPath='/metrics';
+ const pending=timeout.run('poll()');await new Promise(setImmediate);timeout.expire();await pending;
+ assert.equal(timeout.el('state').textContent,'Disconnected');
+ assert.equal(timeout.run('pollRunning'),false);assert.equal(timeout.run('pollFailures'),1);
+ assert.ok([...timeout.timers.values()].some(timer=>timer.delay===1000));
+ delete timeout.state.hangPath;await timeout.run('poll()');assert.equal(timeout.run('pollFailures'),0);
+ timeout.state.hangBody='/logs/download';
+ const logs=timeout.run('logRequest(true)');await new Promise(setImmediate);timeout.expire();await logs;
+ assert.equal(timeout.el('downloadLogs').disabled,false);assert.match(timeout.el('logActionStatus').textContent,/timed out/);
+ assert.equal(timeout.state.downloaded,undefined);
+ timeout.state.hangBody='/settings';timeout.change('Sensitivity',60);
+ const save=timeout.run('save()');await new Promise(setImmediate);timeout.expire();await save;
+ assert.equal(timeout.run('saving'),false);assert.equal(timeout.run('saveFailed'),true);
+ assert.equal(timeout.state.saves,1);assert.match(timeout.el('saveStatus').textContent,/may already have completed/);
+ delete timeout.state.hangBody;await timeout.run('loadSettings()');
+ assert.equal(timeout.run('saveFailed'),false);assert.equal(timeout.state.saves,1);
+ assert.equal(timeout.el('Sensitivity').value,'60');
+ timeout.state.hangPath='/locales/zh-CN.json';
+ const locale=timeout.run("setLocale('zh-CN')");const failure=assert.rejects(locale,/timed out/);
+ await new Promise(setImmediate);timeout.expire();await failure;
+ assert.equal(timeout.run('currentLocale'),'en');
+ assert.equal([...timeout.timers.values()].filter(timer=>timer.delay===15000||timer.delay===3000).length,0);
+ console.log('PASS header/body timeouts, monitor recovery, log button recovery, uncertain saves without retries, locale fallback and timer cleanup'); }
  const h=harness();await h.run('init()');const {el,run,state,devices}=h;
  await el('preview').children[0].events.click();assert.match(el('previewStatus').textContent,/requested/);
  state.previewBusy=true;await el('preview').children[0].events.click();assert.match(el('previewStatus').textContent,/playback slot/);
@@ -75,7 +102,7 @@ function harness(){
  h.change('Sensitivity',64);assert.match(el('profileMatch').textContent,/Modified from Music/);await run('save()');
  h.choose('gentle');state.hold=true;const first=run('save()');h.choose('music');assert.equal(el('Sensitivity').value,'50');state.release();await first;await h.settle();assert.equal(state.current.Sensitivity,50);assert.equal(el('Sensitivity').value,'50');
  console.log('PASS immediate profile values, live save, Undo, source/pause preservation, modified label and rapid selection during a save');
- state.failSave=true;h.choose('gentle');await run('save()');assert.equal(state.current.Sensitivity,50);assert.equal(el('retrySave').hidden,false);assert.match(el('saveStatus').textContent,/Not saved/);assert.equal(el('sceneProfile').disabled,true);
+ state.failSave=true;h.choose('gentle');await run('save()');assert.equal(state.current.Sensitivity,50);assert.equal(el('retrySave').hidden,false);assert.match(el('saveStatus').textContent,/Save not confirmed/);assert.equal(el('sceneProfile').disabled,true);
  const writes=state.saves;h.change('Sensitivity',31);await run('save()');assert.equal(state.saves,writes);assert.match(el('saveStatus').textContent,/not saved/);
  state.failSave=false;el('retrySave').onclick();await h.settle();assert.equal(state.current.Sensitivity,31);assert.equal(el('retrySave').hidden,true);
  h.change('Sensitivity',25);await run('loadSettings()');assert.equal(el('Sensitivity').value,'31');assert.equal(run('dirty'),false);
