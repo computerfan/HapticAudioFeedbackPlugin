@@ -307,6 +307,15 @@ function harness(){
  permission.state.metrics.CaptureSourceKind='input';permission.render();
  assert.ok(permission.el('permissionMessage').textContent.includes('Microphone'));
  permission.state.metrics.LastSignalUtc=new Date().toISOString();permission.render();assert.equal(permission.el('permissionHelp').hidden,true);
+ permission.state.metrics.LastSignalUtc=new Date(Date.now()-60000).toISOString();
+ permission.state.metrics.LastPacketUtc=new Date().toISOString();permission.state.metrics.AudioReceived=true;
+ permission.render();assert.equal(permission.el('permissionHelp').hidden,true);
+ assert.equal(permission.el('state').textContent,'Silent audio');
+ assert.ok(permission.el('audioStatus').textContent.includes('Signal was received earlier'));
+ permission.state.metrics.LastSignalUtc=null;permission.render();
+ assert.equal(permission.el('permissionHelp').hidden,false);assert.equal(permission.el('state').textContent,'No signal');
+ permission.state.metrics.CapturePermission='denied';permission.render();
+ assert.equal(permission.el('permissionHelp').hidden,false);assert.equal(permission.el('state').textContent,'Audio permission denied');
  permission.state.metrics={CapturePlatform:'windows',CaptureSourceKind:'output',Enabled:true};permission.render();assert.equal(permission.el('permissionHelp').hidden,true);
  console.log('PASS permission guidance distinguishes denial, pending and unknown; recovery actions and platform/source routing work');
  const logs=harness();await logs.run('init()');assert.equal(logs.state.logReads,undefined);

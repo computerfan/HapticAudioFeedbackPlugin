@@ -37,3 +37,7 @@ Local Windows builds/protocol tests cannot validate LaunchServices, TCC prompts,
 - [CPAL 0.18.2 CoreAudio source](https://docs.rs/crate/cpal/0.18.2/source/src/host/coreaudio/macos/loopback.rs)
 - [CPAL discussion of silent capture and missing prompts](https://github.com/RustAudio/cpal/pull/894)
 - [Upstream permission-check proposal](https://github.com/RustAudio/cpal/pull/1257) (not adopted; no unreviewed fork/private TCC API added).
+
+## Silence after a working stream
+
+Once signal has been observed in the current capture session, subsequent silence no longer opens the permission banner. The browser reports silent audio without inferring a permission grant. A stream that has only delivered zero-valued audio reports **No signal** and retains troubleshooting guidance; an explicit backend permission denial still takes priority. Restarting capture clears signal history. CPAL permission checking remains an upstream open proposal, so this UI change does not provide authoritative TCC status.

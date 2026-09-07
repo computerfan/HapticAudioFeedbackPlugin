@@ -33,3 +33,7 @@ Built-in image generation edit, using `src/package/ui/logo.png` as the reference
 > Edit target: the provided Feel the Rhythm app icon. Prepare a transparent-background plugin icon preserving exactly the recognizable three ascending right-leaning mint pulse columns with a continuous wave cut. Keep the dark charcoal green background only as a rounded-square badge behind the mark; the badge should occupy the centered 74% of the square canvas, with completely transparent margins outside it. Preserve the mint mark inside the badge at the same proportions as the reference, without redesigning its shapes. Uniform flat dark green badge fill and flat pale mint mark. Output actual RGBA transparency, not a checkerboard drawing. No shadows, no glow, no text, no decorations. Square output. The complete badge including antialiasing must stay in the central 75% of the canvas.
 
 The generated source needed the export inset described above to satisfy the pixel-level safe-area check.
+
+## macOS capture helper icon
+
+The Mac icon build crops the 1254 × 1254 transparent master to its centered 1024 × 1024 region before generating the ICNS sizes. This removes excess padding for the small System Settings row icon; the Logitech plugin icon keeps its SDK safe area. macOS controls the row icon size. Verify the generated ICNS on a Mac after rebuilding.

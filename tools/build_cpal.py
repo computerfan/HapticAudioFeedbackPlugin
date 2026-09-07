@@ -17,6 +17,11 @@ def build_mac_icon(bundle):
     resources = bundle / "Contents" / "Resources"
     resources.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="ftr-icon-") as temporary:
+        # The 1254px master includes Logitech safe-area padding. Mac app icons
+        # use a tighter 1024px center crop so the badge remains legible at 16px.
+        mac_master = Path(temporary) / "mac-icon.png"
+        subprocess.run(["sips", "-c", "1024", "1024", str(master), "--out", str(mac_master)],
+                       check=True, stdout=subprocess.DEVNULL)
         iconset = Path(temporary) / "FeelTheRhythm.iconset"
         iconset.mkdir()
         for points in (16, 32, 128, 256, 512):
@@ -24,7 +29,7 @@ def build_mac_icon(bundle):
                 pixels = str(points * scale)
                 suffix = "@2x" if scale == 2 else ""
                 output = iconset / f"icon_{points}x{points}{suffix}.png"
-                subprocess.run(["sips", "-z", pixels, pixels, str(master), "--out", str(output)],
+                subprocess.run(["sips", "-z", pixels, pixels, str(mac_master), "--out", str(output)],
                                check=True, stdout=subprocess.DEVNULL)
         subprocess.run(["iconutil", "-c", "icns", str(iconset), "-o",
                         str(resources / "FeelTheRhythm.icns")], check=True)

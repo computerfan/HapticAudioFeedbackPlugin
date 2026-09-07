@@ -344,5 +344,7 @@
   "Shared background": "共用背景参数",
   "Shared attack contrast": "共用起音对比度",
   "How to read the chart": "如何阅读图表",
-  "Experimental profiles": "实验性配置"
+  "Experimental profiles": "实验性配置",
+  "No signal": "未检测到信号",
+  "Audio is currently silent. Signal was received earlier in this capture session.": "当前音频静音。本次采集此前已收到音频信号。"
 }
