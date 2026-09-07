@@ -332,5 +332,17 @@
   "Spectral mode only. 0 is off; larger values tolerate wider pitch movement but may miss nearby new notes.": "仅频谱模式。0 为关闭；值越大，可容忍越大的音高波动，但可能漏掉相邻音高的新音符。",
   "Bass extra confirmation delay": "低音额外确认延迟",
   "Detail extra confirmation delay": "细节额外确认延迟",
-  "0 sends immediately. Otherwise wait this long and keep the strongest eligible peak. Adds real latency; event-age limit adjusts with it.": "0 为立即发送。否则等待此时长并保留最强的合格峰值。会增加实际延迟，事件有效期上限会随之调整。"
+  "0 sends immediately. Otherwise wait this long and keep the strongest eligible peak. Adds real latency; event-age limit adjusts with it.": "0 为立即发送。否则等待此时长并保留最强的合格峰值。会增加实际延迟，事件有效期上限会随之调整。",
+  "Listen": "聆听",
+  "Detection": "检测",
+  "Bass timing & precision": "低音时序与精细调节",
+  "Detail timing & precision": "细节时序与精细调节",
+  "Playback safeguards": "播放限制",
+  "Limit how late a detected event may play. Detection controls are in the Detection tab.": "限制检测事件允许延迟播放的时长。检测参数位于“检测”选项卡。",
+  "Shared by envelope detectors using rapid rise. Each band has its own rise window above.": "供使用快速上升触发的包络检测器共用。各频段的上升窗口位于上方。",
+  "Shared envelope background and level-trigger settings. Spectral mode uses its own threshold.": "共用的包络背景与电平触发设置。频谱模式使用独立阈值。",
+  "Shared background": "共用背景参数",
+  "Shared attack contrast": "共用起音对比度",
+  "How to read the chart": "如何阅读图表",
+  "Experimental profiles": "实验性配置"
 }

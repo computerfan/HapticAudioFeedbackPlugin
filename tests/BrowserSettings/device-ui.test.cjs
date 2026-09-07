@@ -214,7 +214,7 @@ function harness(){
  console.log('PASS Chinese locale, language switching without writes, source/name preservation, save/Undo, fallback and exact counters');
  const tabs=harness();await tabs.run('init()');tabs.el('captureDevice').value=tabs.devices[1].Id;tabs.el('captureDevice').events.change();
  tabs.el('customProfileName').value='Unfinished name';const original=JSON.stringify(tabs.state.current);
- for(const tab of ['textures','advanced','tune']){tabs.el('tab-'+tab).events.click();assert.equal(tabs.el('panel-'+tab).hidden,false);for(const other of ['tune','textures','advanced'].filter(id=>id!==tab))assert.equal(tabs.el('panel-'+other).hidden,true);assert.equal(tabs.el('tab-'+tab).attributes['aria-selected'],'true');}
+ for(const tab of ['detection','textures','advanced','tune']){tabs.el('tab-'+tab).events.click();assert.equal(tabs.el('panel-'+tab).hidden,false);for(const other of ['tune','detection','textures','advanced'].filter(id=>id!==tab))assert.equal(tabs.el('panel-'+other).hidden,true);assert.equal(tabs.el('tab-'+tab).attributes['aria-selected'],'true');}
  assert.equal(tabs.state.saves,0);assert.equal(JSON.stringify(tabs.state.current),original);assert.equal(tabs.el('captureDevice').value,tabs.devices[1].Id);assert.equal(tabs.el('customProfileName').value,'Unfinished name');
  let prevented=false;tabs.el('tab-tune').events.keydown({key:'ArrowLeft',preventDefault(){prevented=true;}});assert.equal(prevented,true);assert.equal(tabs.el('panel-advanced').hidden,false);assert.equal(tabs.el('tab-advanced').focused,true);
  tabs.el('tab-advanced').events.keydown({key:'Home',preventDefault(){}});assert.equal(tabs.el('panel-tune').hidden,false);
@@ -225,14 +225,14 @@ function harness(){
  expert.change('HighAttackMilliseconds',12);assert.equal(expert.run('settings.BassAttackMilliseconds'),5);assert.equal(expert.run('settings.HighAttackMilliseconds'),12);
  expert.change('HighReleaseMilliseconds',800);assert.equal(expert.run('settings.BackgroundMilliseconds'),850);
  expert.change('BassTriggerMode','rise');assert.equal(expert.el('BassOnsetRiseWindowMilliseconds').disabled,false);
- expert.change('HighDetectionMethod','spectral');assert.equal(expert.el('HighSpectralThreshold').disabled,false);assert.equal(expert.el('HighVibratoSuppressionBins').disabled,false);assert.equal(expert.el('HighTriggerMode').disabled,true);assert.equal(expert.el('HighOnsetRiseWindowMilliseconds').disabled,true);
+ expert.change('HighDetectionMethod','spectral');assert.equal(expert.el('HighSpectralThreshold').disabled,false);assert.equal(expert.el('HighSpectralThreshold').parentElement.hidden,false);assert.equal(expert.el('HighTriggerMode').parentElement.hidden,true);assert.equal(expert.el('HighVibratoSuppressionBins').disabled,false);assert.equal(expert.el('HighTriggerMode').disabled,true);assert.equal(expert.el('HighOnsetRiseWindowMilliseconds').disabled,true);
  expert.change('HighDetectionMethod','envelope');assert.equal(expert.el('HighSpectralThreshold').disabled,true);
  expert.change('HighPeakConfirmationMilliseconds',100);assert.equal(expert.run('settings.MaximumEventAgeMilliseconds'),105);assert.equal(expert.el('MaximumEventAgeMilliseconds').min,105);
- const placement={Sensitivity:'basic',MinimumSpacingMilliseconds:'basic',BassGainDb:'bassControls',LowCenterHz:'bassControls',LowThresholdDb:'bassControls',HighGainDb:'detailControls',HighCenterHz:'detailControls',HighThresholdDb:'detailControls',OnsetMarginDb:'thresholdControls',OnsetRiseDb:'riseControls',BassOnsetRiseWindowMilliseconds:'riseControls',HighOnsetRiseWindowMilliseconds:'riseControls',BassAttackMilliseconds:'bassAdvanced',HighFilterQ:'detailAdvanced'};
+ const placement={Sensitivity:'basic',MinimumSpacingMilliseconds:'basic',BassGainDb:'basic',LowCenterHz:'bassControls',LowThresholdDb:'bassControls',HighGainDb:'basic',HighCenterHz:'detailControls',HighThresholdDb:'detailControls',OnsetMarginDb:'thresholdControls',OnsetRiseDb:'riseControls',BassOnsetRiseWindowMilliseconds:'bassControls',HighOnsetRiseWindowMilliseconds:'detailControls',BassAttackMilliseconds:'bassAdvanced',HighFilterQ:'detailControls'};
  for(const [key,parent]of Object.entries(placement))assert.equal(tabs.el(key).parentElement.parentElement.id,parent,key);
  for(const [button,group,kind]of [['linkBass','bassSettings','bass'],['linkDetail','detailSettings','detail'],['linkThreshold','thresholdSettings','threshold'],['linkRise','riseSettings','rise']]){
   tabs.run("activateTab('advanced')");tabs.el(button).events.click();
-  assert.equal(tabs.el('panel-tune').hidden,false);assert.equal(tabs.el(group).focused,true);assert.equal(tabs.el(group).scrolled.block,'start');assert.equal(tabs.run('chartFocus'),kind);
+  assert.equal(tabs.el('panel-detection').hidden,false);assert.equal(tabs.el(group).focused,true);assert.equal(tabs.el(group).scrolled.block,'start');assert.equal(tabs.run('chartFocus'),kind);
  }
  assert.equal(tabs.state.saves,0);assert.equal(tabs.el('captureDevice').value,tabs.devices[1].Id);assert.equal(tabs.el('customProfileName').value,'Unfinished name');
  tabs.el('bassSettings').events.focusin();assert.equal(tabs.run('chartFocus'),'bass');tabs.el('bassSettings').events.focusout({relatedTarget:null});assert.equal(tabs.run('chartFocus'),null);

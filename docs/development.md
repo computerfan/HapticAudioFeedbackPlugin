@@ -290,3 +290,9 @@ Spectral vibrato suppression uses the maximum previous magnitude within ±0–3 
 ### Optional peak confirmation
 
 Each band may add 0–100 ms confirmation (default 0 for every built-in profile). A fixed deadline starts at the first eligible candidate; only one strongest candidate is retained, with no deadline extension or backlog. Envelope candidates rank by envelope level and spectral candidates by flux. Re-arm spacing starts at confirmation. This is real added delay, not timestamp compensation. Original measured timestamps/levels are retained for chart alignment and stale-event checks; maximum event age must allow the longer confirmation plus a 5 ms frame. The browser raises that limit when needed. Reloading the detector clears pending candidates. This does not verify physical vibration or predict beats.
+
+### Settings UX organization
+
+The browser uses four task tabs: Listen (profiles, sensitivity, pulse spacing, source), Detection (per-band method, frequency range, applicable thresholds and expandable timing), Textures, and Diagnostics (playback safeguards, metrics and logs). Method-inapplicable controls are hidden without resetting stored values. Chart legend links select Detection and focus the relevant group. The live chart stays above all tabs but no longer occupies a sticky overlay; navigation stays sticky. Texture keys remain visible and detailed chart instructions are collapsed. Experimental profiles are listed separately from normal built-ins.
+
+The compact layout uses 18 px card padding, 14–16 px control gaps, paired band controls on wide screens and single-column controls below 560 px. Slider hit areas remain unchanged.
