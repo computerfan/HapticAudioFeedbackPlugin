@@ -10,10 +10,10 @@ public sealed class MacAudioCapture : ISystemAudioCapture
     private readonly Process _process;
     private readonly BinaryReader _reader;
     private readonly CancellationTokenSource _stop = new();
-    private Thread _thread;
+    private Task _pump;
     private Socket _connection;
     private string _sessionDirectory;
-    private bool _disposed;
+    private int _disposed;
     private readonly CpalHelperProtocol _protocol;
     public int SampleRate { get; }
     public int Channels { get; }
@@ -47,6 +47,10 @@ public sealed class MacAudioCapture : ISystemAudioCapture
             _process.WaitForExitAsync(deadline.Token).GetAwaiter().GetResult();
             if (_process.ExitCode != 0) throw new IOException("macOS could not launch the capture app. Open Feel the Rhythm Capture.app once in Finder and check any launch message.");
             _connection = listener.AcceptAsync(deadline.Token).AsTask().GetAwaiter().GetResult();
+            // Connected Unix sockets no longer need their filesystem names.
+            // Remove them before a potentially long permission wait or host crash.
+            listener.Dispose();
+            CleanupSessionDirectory();
             _reader = new BinaryReader(new NetworkStream(_connection, ownsSocket: false));
             // The socket connects before Core Audio asks for permission. Give the person time
             // to answer, independently of the launch timeout and the plugin's Load callback.
@@ -76,44 +80,25 @@ public sealed class MacAudioCapture : ISystemAudioCapture
     }
     public static AudioCaptureDevice[] ListDevices(string pluginBinaryDirectory)
     {
-        using var process = new Process { StartInfo = new ProcessStartInfo(HelperPath(pluginBinaryDirectory)) {
-            UseShellExecute = false, RedirectStandardOutput = true, RedirectStandardError = true, CreateNoWindow = true } };
-        process.StartInfo.ArgumentList.Add("--list-devices");
-        process.Start();
-        try {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(15));
-            var stderr = BoundedTextReader.DrainAsync(process.StandardError, 4096, timeout.Token);
-            using var bytes = new MemoryStream();
-            var buffer = new byte[8192];
-            int count;
-            while ((count = process.StandardOutput.BaseStream.ReadAsync(buffer, timeout.Token).AsTask().GetAwaiter().GetResult()) > 0) {
-                if (bytes.Length + count > AudioDeviceCatalog.MaximumBytes) throw new IOException("Audio device catalog too large.");
-                bytes.Write(buffer, 0, count);
-            }
-            process.WaitForExitAsync(timeout.Token).GetAwaiter().GetResult();
-            var error = stderr.GetAwaiter().GetResult();
-            if (process.ExitCode != 0) throw new IOException(error.Trim());
-            return AudioDeviceCatalog.Decode(bytes.ToArray());
-        } finally {
-            if (!process.HasExited) { process.Kill(); process.WaitForExit(); }
-        }
+        var start = new ProcessStartInfo(HelperPath(pluginBinaryDirectory));
+        start.ArgumentList.Add("--list-devices");
+        return CaptureHelperProcess.ReadDevices(start, TimeSpan.FromSeconds(10));
     }
     public void StartRecording()
     {
-        ObjectDisposedException.ThrowIf(_disposed, this);
-        if (_thread != null) throw new InvalidOperationException("Create a new capture instance to restart.");
-        _thread = new Thread(Pump) { IsBackground = true, Name = "HapticMacCpalConsumer" };
-        _thread.Start();
+        ObjectDisposedException.ThrowIf(_disposed != 0, this);
+        if (_pump != null) throw new InvalidOperationException("Create a new capture instance to restart.");
+        _pump = Task.Run(Pump);
     }
-    private void Pump()
+    private async Task Pump()
     {
 
         try
         {
             while (!_stop.IsCancellationRequested)
             {
-                var packet = _protocol.ReadPacket(_reader.BaseStream, () => (DateTime.UtcNow - DateTime.UnixEpoch).TotalMilliseconds);
-                if (packet != null) DataAvailable?.Invoke(this, packet);
+                var packet = await _protocol.ReadPacketAsync(_reader.BaseStream, () => (DateTime.UtcNow - DateTime.UnixEpoch).TotalMilliseconds, _stop.Token).ConfigureAwait(false);
+                if (packet != null && !_stop.IsCancellationRequested) DataAvailable?.Invoke(this, packet);
             }
         }
         catch (Exception ex)
@@ -124,28 +109,32 @@ public sealed class MacAudioCapture : ISystemAudioCapture
             }
         }
     }
-    public void StopRecording()
-    {
-        _stop.Cancel();
-        try { if (!_process.HasExited) _process.Kill(); } catch (InvalidOperationException) { }
+    public void StopRecording() => Dispose();
 
-        // EOF stops the helper; closing also unblocks a pending PCM read.
-        try { _connection?.Shutdown(SocketShutdown.Both); } catch (SocketException) { } catch (ObjectDisposedException) { }
-        _connection?.Dispose();
-        if (_thread?.IsAlive == true && Thread.CurrentThread != _thread) _thread.Join();
-        _reader?.Dispose();
-        if (_sessionDirectory != null)
+    private void CleanupSessionDirectory()
+    {
+        if (_sessionDirectory == null) return;
+        try
         {
-            try { File.Delete(Path.Combine(_sessionDirectory, "audio.sock")); Directory.Delete(_sessionDirectory); }
-            catch (IOException) { } catch (UnauthorizedAccessException) { }
+            File.Delete(Path.Combine(_sessionDirectory, "audio.sock"));
+            Directory.Delete(_sessionDirectory);
+            _sessionDirectory = null;
         }
+        catch (IOException) { } catch (UnauthorizedAccessException) { }
     }
     public void Dispose()
     {
-        if (_disposed) return;
-        StopRecording();
+        if (Interlocked.Exchange(ref _disposed, 1) != 0) return;
+        _stop.Cancel();
+        // This process is only /usr/bin/open. The actual app observes socket EOF
+        // and its native watchdog exits even if Core Audio is still awaiting permission.
+        try { if (!_process.HasExited) _process.Kill(); } catch (InvalidOperationException) { }
+        try { _connection?.Shutdown(SocketShutdown.Both); } catch (SocketException) { } catch (ObjectDisposedException) { }
+        _connection?.Dispose();
+        _reader?.Dispose();
         _process.Dispose();
-        _stop.Dispose();
-        _disposed = true;
+        CleanupSessionDirectory();
+        // Socket cancellation interrupts reads; never join a callback that could be blocked.
+        _ = (_pump ?? Task.CompletedTask).ContinueWith(task => { _ = task.Exception; _stop.Dispose(); }, TaskScheduler.Default);
     }
 }

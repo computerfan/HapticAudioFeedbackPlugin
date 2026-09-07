@@ -51,7 +51,7 @@ The capture bridge has an optional `--device-smoke <plugin-bin-directory>` mode 
 
 Windows x64 is the only officially supported platform and the current development priority. CI continues building and testing both Mac architectures; Mac payloads remain available for experimental testing.
 
-The experimental adapter launches `Feel the Rhythm Capture.app` through LaunchServices and transfers PCM over a private Unix socket. Permission attribution and live capture remain unverified; see [the investigation](macos-capture-diagnostics.md).
+The experimental adapter launches `Feel the Rhythm Capture.app` through LaunchServices and transfers PCM over a private Unix socket. Permission attribution and live capture remain unverified; see [the investigation](macos-capture-diagnostics.md). Once connected, the socket name and private session directory are removed before waiting for permission. On parent disconnect, the native helper requests normal shutdown and exits after a 750 ms grace period if capture is still blocked. Managed shutdown cancels reads without joining callbacks; device enumeration uses the same bounded process supervisor as Windows. A host crash before socket acceptance can still leave a small temporary directory; this change does not sweep existing temporary files.
 
 On a Mac:
 

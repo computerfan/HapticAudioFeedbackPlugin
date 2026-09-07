@@ -6,15 +6,23 @@ use std::io::{self, Read, Write};
 use std::sync::{Arc, atomic::{AtomicBool, Ordering}};
 use std::time::{SystemTime, UNIX_EPOCH};
 
-fn run_capture(key: &str, mut output: impl Write, mut input: impl Read + Send + 'static) -> Result<(), String> {
-    devices::selection(key)?;
-    let stopped = Arc::new(AtomicBool::new(false));
-    let stop = stopped.clone();
+// The parent may disconnect while Core Audio is blocked in a permission request.
+// Give normal shutdown a short grace period, then terminate this helper process;
+// waiting for the blocked native call would leave a LaunchServices app orphaned.
+fn watch_parent(mut input: impl Read + Send + 'static, stop: Arc<AtomicBool>) {
+
     std::thread::spawn(move || {
         let mut byte = [0u8];
         let _ = input.read(&mut byte);
         stop.store(true, Ordering::Relaxed);
+        std::thread::sleep(std::time::Duration::from_millis(750));
+        std::process::exit(0);
     });
+}
+fn run_capture(key: &str, mut output: impl Write, input: impl Read + Send + 'static) -> Result<(), String> {
+    let stopped = Arc::new(AtomicBool::new(false));
+    watch_parent(input, stopped.clone());
+    devices::selection(key)?;
     let mut format = Format::default();
     let mut error = [0u8; 2048];
     let handle = unsafe { haptic_cpal_open_device(key.as_ptr(), key.len() as u32, &mut format, error.as_mut_ptr(), error.len() as u32) };
@@ -76,4 +84,51 @@ fn run() -> Result<(), String> {
 }
 fn main() {
     if let Err(error) = run() { eprintln!("{error}"); std::process::exit(2); }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::process::{Command, Stdio};
+    use std::time::{Duration, Instant};
+
+    #[test]
+    fn watchdog_child() {
+        let Ok(mode) = std::env::var("FTR_WATCHDOG_TEST") else { return };
+        let stopped = Arc::new(AtomicBool::new(false));
+        watch_parent(io::stdin(), stopped.clone());
+        loop {
+            // "blocked" simulates a permission/native call which never returns.
+            if mode == "graceful" && stopped.load(Ordering::Relaxed) { std::process::exit(86); }
+            std::thread::sleep(Duration::from_millis(5));
+        }
+    }
+    fn check_disconnect(mode: &str, expected: i32) {
+        let mut child = Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", "tests::watchdog_child", "--nocapture"])
+            .env("FTR_WATCHDOG_TEST", mode)
+            .stdin(Stdio::piped()).stdout(Stdio::null()).stderr(Stdio::null())
+            .spawn().unwrap();
+        std::thread::sleep(Duration::from_millis(100));
+        assert!(child.try_wait().unwrap().is_none(), "Helper exited while parent was connected");
+        drop(child.stdin.take());
+        let deadline = Instant::now() + Duration::from_secs(5);
+        loop {
+            if let Some(status) = child.try_wait().unwrap() {
+                assert_eq!(status.code(), Some(expected));
+                return;
+            }
+            if Instant::now() >= deadline {
+                let _ = child.kill(); let _ = child.wait();
+                panic!("Disconnected helper survived the deadline");
+            }
+            std::thread::sleep(Duration::from_millis(10));
+        }
+    }
+    #[test]
+    fn disconnected_blocked_capture_exits_on_every_retry() {
+        for _ in 0..3 { check_disconnect("blocked", 0); }
+    }
+    #[test]
+    fn disconnect_allows_graceful_native_cleanup_first() { check_disconnect("graceful", 86); }
 }
