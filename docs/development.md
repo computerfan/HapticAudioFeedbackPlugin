@@ -280,3 +280,7 @@ Legacy shared timing keys remain readable. Each new band timing property falls b
 | Ambient / sustained | level / level | 1.0 / 1.6 | 60 / 40 | 15 / 10 | 180 / 120 | 250 / 200 |
 
 All paired values are bass/detail. Disabled detail bands remain disabled; level-only modes retain inactive rise-window values. These are design starting points, validated for settings constraints and synthetic signals, not a measured listening-quality improvement.
+
+### Experimental spectral flux
+
+Each band can select envelope or spectral-flux detection. The latter uses an existing MIT NAudio FFT with a trailing Hann window (power of two covering at least 21 ms, capped at 8192 samples), a roughly 10 ms hop, log-compressed channel-power magnitudes, positive spectral differences and a relative 0–1 score. Q selects the analyzed frequency range; the envelope floor and re-arm interval still gate events. No future frames are used, but windowing introduces temporal smearing and startup needs a full window. Fixed per-channel buffers preserve opposite-phase stereo; FFT work runs only when a spectral method is selected. Squares identify spectral events on the amplitude chart; dashed thresholds remain envelope thresholds. The new Spectral / experimental profile opts in on detail only. Existing saved settings default to envelope. No external algorithm implementation was copied.

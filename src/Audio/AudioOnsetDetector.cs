@@ -13,6 +13,7 @@ internal sealed class AudioOnsetDetector
 {
     private readonly BiQuadFilter[] _lowFilters, _highFilters;
     private readonly BandEnvelope _low, _high;
+    private readonly SpectralFluxDetector? _spectral;
     private readonly AudioSettings _settings;
     private readonly int _sampleRate, _windowFrames;
     private readonly double _lowFilterGain, _highFilterGain;
@@ -37,6 +38,8 @@ internal sealed class AudioOnsetDetector
         _lowFilterGain = 1.2 / settings.BassFilterQ;
         _highFilterGain = 1.6 / settings.HighFilterQ;
         _settings = settings;
+        if (settings.BassDetectionMethod == "spectral" || settings.HighDetectionMethod == "spectral")
+            _spectral = new SpectralFluxDetector(sampleRate, channels, settings);
         _windowFrames = Math.Max(1, (int)Math.Round(sampleRate * 0.005));
         _lowFilters = new BiQuadFilter[channels];
         _highFilters = new BiQuadFilter[channels];
@@ -59,15 +62,17 @@ internal sealed class AudioOnsetDetector
             for (var c = 0; c < Channels; c++)
             {
                 var input = float.IsFinite(interleaved[i + c]) ? Math.Clamp(interleaved[i + c], -1f, 1f) : 0f;
+                _spectral?.Add(c, input);
                 var low = _lowFilters[c].Transform(input) * _lowFilterGain;
                 var high = _highFilters[c].Transform(input) * _highFilterGain;
                 _lowEnergy += (double)low * low;
                 _highEnergy += (double)high * high;
             }
+            _spectral?.Advance();
             _frames++;
             if (++_framesInWindow != _windowFrames) continue;
-            Low = _low.Update(Math.Sqrt(_lowEnergy / (_windowFrames * Channels)));
-            High = _high.Update(Math.Sqrt(_highEnergy / (_windowFrames * Channels)));
+            Low = _low.Update(Math.Sqrt(_lowEnergy / (_windowFrames * Channels)), _spectral is { Ready: true } ? _spectral.Bass : null);
+            High = _high.Update(Math.Sqrt(_highEnergy / (_windowFrames * Channels)), _spectral is { Ready: true } ? _spectral.High : null);
             _framesInWindow = 0;
             _lowEnergy = _highEnergy = 0;
 
@@ -115,12 +120,16 @@ internal sealed class AudioOnsetDetector
         private readonly double[] _history;
         private int _historyIndex;
         private readonly string _triggerMode;
+        private readonly bool _useSpectral;
+        private readonly double _spectralThreshold;
         private readonly double _separationMs;
         private bool _armed = true;
         public BandEnvelope(double windowMs, double floorDb, AudioSettings settings, bool bass)
         {
             _settings = settings;
             _windowMs = windowMs;
+            _useSpectral = (bass ? settings.BassDetectionMethod : settings.HighDetectionMethod) == "spectral";
+            _spectralThreshold = bass ? settings.BassSpectralThreshold : settings.HighSpectralThreshold;
             _triggerMode = bass ? settings.BassTriggerMode : settings.HighTriggerMode;
             _separationMs = bass ? settings.BassTransientSeparationMilliseconds : settings.HighTransientSeparationMilliseconds;
             _history = Enumerable.Repeat(-180.0, Math.Max(1, (int)Math.Round((bass ? settings.BassOnsetRiseWindowMilliseconds : settings.HighOnsetRiseWindowMilliseconds) / windowMs))).ToArray();
@@ -129,7 +138,7 @@ internal sealed class AudioOnsetDetector
             _release = 1 - Math.Exp(-windowMs / (bass ? settings.BassReleaseMilliseconds : settings.HighReleaseMilliseconds));
             _backgroundFollow = 1 - Math.Exp(-windowMs / settings.BackgroundMilliseconds);
         }
-        public BandReading Update(double rms)
+        public BandReading Update(double rms, double? flux)
         {
             _fast += (rms > _fast ? _attack : _release) * (rms - _fast);
             _background += _backgroundFollow * (rms - _background);
@@ -145,12 +154,13 @@ internal sealed class AudioOnsetDetector
             var newAttack = _triggerMode != "level" && riseDb >= _settings.OnsetRiseDb &&
                 envDb >= Math.Max(_floorDb, backgroundDb + _settings.RearmMarginDb);
             var levelTrigger = _triggerMode != "rise" && _armed && envDb >= thresholdDb;
-            var onset = (levelTrigger || newAttack) &&
+            var spectralTrigger = flux >= _spectralThreshold && envDb >= _floorDb;
+            var onset = (_useSpectral ? spectralTrigger : (levelTrigger || newAttack)) &&
                 _elapsedMs - _lastOnsetMs >= _separationMs;
             if (onset) { _armed = false; _lastOnsetMs = _elapsedMs; }
             // If both rules qualify, report the level rule; rapid rise means it was needed.
             return new BandReading(envDb, backgroundDb, thresholdDb, onset,
-                onset ? (levelTrigger ? "threshold" : "rise") : null);
+                onset ? (_useSpectral ? "spectral" : levelTrigger ? "threshold" : "rise") : null);
         }
     }
 }

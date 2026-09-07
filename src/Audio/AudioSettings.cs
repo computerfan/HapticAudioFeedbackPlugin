@@ -56,6 +56,10 @@ internal sealed class AudioSettings
     public string HighTriggerMode { get; set; } = "both";
     public double BassFilterQ { get; set; } = 1.2;
     public double HighFilterQ { get; set; } = 1.6;
+    public string BassDetectionMethod { get; set; } = "envelope";
+    public string HighDetectionMethod { get; set; } = "envelope";
+    public double BassSpectralThreshold { get; set; } = 0.12;
+    public double HighSpectralThreshold { get; set; } = 0.12;
     public AudioSettings Copy() => (AudioSettings)MemberwiseClone();
 
     [System.Text.Json.Serialization.JsonIgnore]
@@ -112,6 +116,10 @@ internal sealed class AudioSettings
         Range(HighTransientSeparationMilliseconds, 40, 500, nameof(HighTransientSeparationMilliseconds));
         Range(HighFilterQ, 0.5, 4, nameof(HighFilterQ));
         if (HighTriggerMode is not ("both" or "level" or "rise")) throw new ArgumentException("Unsupported trigger mode.");
+        foreach (var method in new[] { BassDetectionMethod, HighDetectionMethod })
+            if (method is not ("envelope" or "spectral")) throw new ArgumentException("Unsupported detection method.");
+        Range(BassSpectralThreshold, .01, 1, nameof(BassSpectralThreshold));
+        Range(HighSpectralThreshold, .01, 1, nameof(HighSpectralThreshold));
         Range(Sensitivity, 0, 100, nameof(Sensitivity));
         Range(BassGainDb, -12, 12, nameof(BassGainDb));
         Range(HighGainDb, -12, 12, nameof(HighGainDb));

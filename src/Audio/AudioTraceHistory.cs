@@ -47,7 +47,7 @@ internal sealed class AudioTraceHistory
             var index = (_next - offset + Capacity) % Capacity;
             if (_audioTimes[index] == audioMilliseconds)
             {
-                _points[index] = _points[index]! with { SentBand = band, SentTexture = eventName == null ? null : HapticPatterns.WaveformForEvent(eventName), TriggerReason = triggerReason is "threshold" or "rise" ? triggerReason : null };
+                _points[index] = _points[index]! with { SentBand = band, SentTexture = eventName == null ? null : HapticPatterns.WaveformForEvent(eventName), TriggerReason = triggerReason is "threshold" or "rise" or "spectral" ? triggerReason : null };
                 return true;
             }
             if (_audioTimes[index] < audioMilliseconds) break;

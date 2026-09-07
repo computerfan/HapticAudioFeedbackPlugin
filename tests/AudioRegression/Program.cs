@@ -114,6 +114,19 @@ Test("new band settings reject invalid modes, non-finite values and incompatible
         Check(rejected, "Invalid band setting accepted.");
     }
 });
+Test("spectral mode detects pitch changes without opposite-phase cancellation", () =>
+{
+    foreach (var rate in new[] { 44100, 48000, 96000 })
+    {
+        var settings = new AudioSettings { BassEnabled = false, HighDetectionMethod = "spectral", HighSpectralThreshold = .1 };
+        double Signal(double t, int c) => Tone(t, t < 1 ? 1700 : 2300, .2) * (c == 0 ? 1 : -1);
+        var result = Analyze(rate, 2, Signal, options: settings);
+        Check(result.Events.Any(e => e.AudioMilliseconds >= 1000 && e.AudioMilliseconds < 1100 && e.TriggerReason == "spectral"), "Pitch change missed.");
+        Check(!result.Events.Any(e => e.AudioMilliseconds > 200 && e.AudioMilliseconds < 950), "Steady tone retriggered.");
+        var other = Analyze(rate, 2, Signal, chunkFrames: 71, options: settings);
+        Check(result.Events.SequenceEqual(other.Events), "Spectral detection depends on capture chunking.");
+    }
+});
 Test("silence produces no feedback", () =>
     Check(Analyze(48000, 2, (_, _) => 0).Events.Count == 0, "Silence triggered."));
 Test("steady bass stops producing candidates after its initial attack", () =>

@@ -316,5 +316,15 @@
   "Detail trigger mode": "细节触发模式",
   "Level + rapid rise": "电平 + 快速上升",
   "Level only": "仅电平",
-  "Rapid rise only": "仅快速上升"
+  "Rapid rise only": "仅快速上升",
+  "Bass spectral threshold": "低音频谱阈值",
+  "Detail spectral threshold": "细节频谱阈值",
+  "Minimum relative positive spectral change. Lower detects smaller changes; applies only to spectral mode.": "最小相对频谱正向变化。越低可检测越小的变化；仅适用于频谱模式。",
+  "Bass detection method": "低音检测方法",
+  "Detail detection method": "细节检测方法",
+  "Envelope": "包络",
+  "Spectral flux (experimental)": "频谱通量（实验性）",
+  "Square: spectral trigger. Dashed lines show envelope thresholds, not spectral thresholds.": "方形：频谱触发。虚线表示包络阈值，而非频谱阈值。",
+  "Spectral / experimental": "频谱 / 实验性",
+  "Experimental frequency-change detection for detail, with envelope bass and no confirmation delay.": "对细节使用实验性频率变化检测，低音使用包络检测，不增加确认延迟。"
 }
