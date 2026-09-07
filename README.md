@@ -2,6 +2,8 @@
 
 # Feel the Rhythm
 
+[English](README.md) · [简体中文](README_CN.md)
+
 Turn music and other audio into haptic feedback on compatible Logitech devices. Follow bass hits and instrument attacks with adjustable taps, impacts, and sustained textures.
 
 ## Features
