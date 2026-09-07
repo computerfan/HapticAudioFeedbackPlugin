@@ -237,3 +237,16 @@ The monitor is sticky only above 900 CSS pixels wide and at least 600 pixels tal
 Browser requests keep an abort deadline active through response-body consumption: 3 seconds for live metrics and 15 seconds for settings, device lists, logs, translations and actions. Metrics polling retries with backoff from 1 to 10 seconds after failures and resumes normal polling after recovery. Writes are never automatically retried after a timeout; their result may be uncertain, so reload saved settings before retrying.
 
 The live browser monitor pauses polling and canvas drawing while the document is hidden, then requests fresh metrics on return. Audio capture and haptics continue independently. A long absence appears as a gap rather than interpolated history. Overlapping metric batches reuse chart entries; sorting is only needed for newly arriving out-of-order points. The history and its lookup map stay capped at 2,560 points and markers at 256.
+
+
+### Long-running validation
+
+Run the optional accelerated browser history test with:
+
+```sh
+node --expose-gc tests/BrowserSettings/device-ui.test.cjs --soak
+```
+
+This feeds one simulated hour of overlapping detector frames through the real browser history code (36,000 polls), checking both history/index bounds and complete expiry. It does not run the browser renderer or audio hardware for an hour. On 2026-09-07, the local run peaked at 2,401 points and 25 markers, removed all expired entries, and reported 69,904 bytes of retained Node heap growth after warm-up. Heap measurements are diagnostic, not a portable performance threshold.
+
+The 22 robustness checks also passed, including three-file log rotation, error-flood limits, storage failure recovery and saturating counters. Remaining validation is a real overnight Windows capture/haptics run and macOS permission-dialog cancellation. The SDK cannot cancel an already-running haptic call; a blocked call retains its worker until it returns. A Mac host crash before socket acceptance can leave a small temporary directory. Development build/cache directories are separate from runtime storage and are not covered by log rotation.

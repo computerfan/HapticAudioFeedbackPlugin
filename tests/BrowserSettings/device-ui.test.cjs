@@ -58,9 +58,36 @@ function harness(){
  const choose=id=>{el('sceneProfile').value=id;el('sceneProfile').events.change();};
  const change=(id,value)=>{el(id).value=value;el(id).events.change();};
  const settle=async()=>{for(let i=0;i<20&&run('saving');i++)await new Promise(setImmediate);assert.equal(run('saving'),false);};
- return{el,run,choose,change,settle,state,devices,profiles,timers,expire(){for(const [id,timer] of timers)if(timer.delay>=3000){timers.delete(id);timer.callback();}}};
+ const feedScript=new vm.Script('acceptMetrics(soakSample,soakNow)');
+ return{el,run,choose,change,settle,state,devices,profiles,timers,feed(sample,now){context.soakSample=sample;context.soakNow=now;feedScript.runInContext(context);},expire(){for(const [id,timer] of timers)if(timer.delay>=3000){timers.delete(id);timer.callback();}}};
 }
 (async()=>{
+ if(process.argv.includes('--soak')){
+  const h=harness(),start=Date.now(),watch=performance.now();
+  let peakPoints=0,peakMarkers=0,warmHeap=0;
+  for(let poll=0;poll<36000;poll++){
+   const sequence=poll*20,now=start+poll*100,frames=[];
+   for(let i=Math.max(0,sequence-255);i<=sequence;i++)frames.push({
+    Sequence:String(i),Timestamp:new Date(start+i*5).toISOString(),
+    LowEnvDb:-40+Math.sin(i/10)*10,HighEnvDb:-50,LowThresholdDb:-35,HighThresholdDb:-45,
+    SentBand:i%100===0?'bass':null,TriggerReason:i%100===0?'threshold':null,BreakBefore:i===0
+   });
+   h.feed({RecentAudio:frames},now);
+   if(poll%100===0){
+    const points=h.run('history.length'),markers=h.run('onsetMarkers.size');
+    peakPoints=Math.max(peakPoints,points);peakMarkers=Math.max(peakMarkers,markers);
+    assert.ok(points<=2560&&markers<=256);assert.equal(h.run('historyById.size'),points);
+   }
+   if(poll===1000&&global.gc){global.gc();warmHeap=process.memoryUsage().heapUsed;}
+  }
+  if(global.gc)global.gc();
+  const retainedGrowth=warmHeap?process.memoryUsage().heapUsed-warmHeap:null;
+  h.feed({},start+3600000+13000);
+  assert.equal(h.run('history.length'),0);assert.equal(h.run('historyById.size'),0);assert.equal(h.run('onsetMarkers.size'),0);
+  console.log(JSON.stringify({simulatedHours:1,polls:36000,peakPoints,peakMarkers,retainedHeapGrowthBytes:retainedGrowth,elapsedSeconds:Math.round((performance.now()-watch)/1000),expiredEntriesRemaining:0}));
+  return;
+ }
+
  { const timeout=harness();await timeout.run('init()');
  timeout.state.hangPath='/metrics';
  const pending=timeout.run('poll()');await new Promise(setImmediate);timeout.expire();await pending;
