@@ -6,7 +6,7 @@ using NAudio.Dsp;
 
 internal readonly record struct HapticOnset(string EventName, double StrengthDb, double AudioMilliseconds, bool IsSustain = false, string Band = "unknown", double? LevelDb = null, string? TriggerReason = null);
 internal readonly record struct DetectorReading(double AudioMilliseconds, BandReading Low, BandReading High);
-internal readonly record struct BandReading(double EnvelopeDb, double BackgroundDb, double ThresholdDb, bool Onset, string? TriggerReason = null);
+internal readonly record struct BandReading(double EnvelopeDb, double BackgroundDb, double ThresholdDb, bool Onset, string? TriggerReason = null, DetectionPeak? Peak = null);
 
 /// <summary>Per-channel filtering and fixed-duration energy windows. No device I/O.</summary>
 internal sealed class AudioOnsetDetector
@@ -71,8 +71,8 @@ internal sealed class AudioOnsetDetector
             _spectral?.Advance();
             _frames++;
             if (++_framesInWindow != _windowFrames) continue;
-            Low = _low.Update(Math.Sqrt(_lowEnergy / (_windowFrames * Channels)), _spectral is { Ready: true } ? _spectral.Bass : null);
-            High = _high.Update(Math.Sqrt(_highEnergy / (_windowFrames * Channels)), _spectral is { Ready: true } ? _spectral.High : null);
+            Low = _low.Update(Math.Sqrt(_lowEnergy / (_windowFrames * Channels)), _spectral is { Ready: true } ? _spectral.Bass : null, AudioMilliseconds);
+            High = _high.Update(Math.Sqrt(_highEnergy / (_windowFrames * Channels)), _spectral is { Ready: true } ? _spectral.High : null, AudioMilliseconds);
             _framesInWindow = 0;
             _lowEnergy = _highEnergy = 0;
 
@@ -80,14 +80,15 @@ internal sealed class AudioOnsetDetector
             HapticOnset? candidate = null;
             if (_settings.Enabled && _settings.BassEnabled && Low.Onset)
             {
-                var pattern = Low.EnvelopeDb - _settings.EffectiveLowThresholdDb >= _settings.StrongBassAboveThresholdDb
+                var lowPeak = Low.Peak!.Value;
+                var pattern = lowPeak.LevelDb - _settings.EffectiveLowThresholdDb >= _settings.StrongBassAboveThresholdDb
                     ? HapticPatterns.EventFor(_settings.StrongBassWaveform, "strong")
                     : HapticPatterns.EventFor(_settings.BassWaveform, "bass");
                 _lastBassPulseMs = AudioMilliseconds;
-                candidate = new HapticOnset(pattern, Low.EnvelopeDb - Low.ThresholdDb, AudioMilliseconds, Band: "bass", LevelDb: Low.EnvelopeDb, TriggerReason: Low.TriggerReason);
+                candidate = new HapticOnset(pattern, lowPeak.LevelDb - lowPeak.ThresholdDb, lowPeak.AudioMilliseconds, Band: "bass", LevelDb: lowPeak.LevelDb, TriggerReason: lowPeak.Reason);
             }
-            if (_settings.Enabled && _settings.HighEnabled && High.Onset && (!candidate.HasValue || High.EnvelopeDb - High.ThresholdDb > candidate.Value.StrengthDb))
-                candidate = new HapticOnset(HapticPatterns.EventFor(_settings.HighWaveform, "high"), High.EnvelopeDb - High.ThresholdDb, AudioMilliseconds, Band: "high", LevelDb: High.EnvelopeDb, TriggerReason: High.TriggerReason);
+            if (_settings.Enabled && _settings.HighEnabled && High.Onset && (!candidate.HasValue || High.Peak!.Value.LevelDb - High.Peak.Value.ThresholdDb > candidate.Value.StrengthDb))
+                candidate = new HapticOnset(HapticPatterns.EventFor(_settings.HighWaveform, "high"), High.Peak!.Value.LevelDb - High.Peak.Value.ThresholdDb, High.Peak.Value.AudioMilliseconds, Band: "high", LevelDb: High.Peak.Value.LevelDb, TriggerReason: High.Peak.Value.Reason);
             // Optional pulse-density texture. It never predicts beats or queues a repeating timer.
             var sustainFloor = _settings.SustainThresholdDb - _settings.SensitivityGainDb - _settings.BassGainDb;
             if (!_settings.Enabled || !_settings.BassEnabled || !_settings.SustainEnabled || Low.EnvelopeDb < sustainFloor)
@@ -115,30 +116,29 @@ internal sealed class AudioOnsetDetector
     {
         private readonly AudioSettings _settings;
         private readonly double _floorDb, _attack, _release, _backgroundFollow;
-        private double _fast, _background, _elapsedMs, _lastOnsetMs = double.NegativeInfinity;
-        private readonly double _windowMs;
+        private double _fast, _background, _elapsedMs;
         private readonly double[] _history;
         private int _historyIndex;
         private readonly string _triggerMode;
         private readonly bool _useSpectral;
         private readonly double _spectralThreshold;
-        private readonly double _separationMs;
+        private readonly OnsetPeakPicker _peaks;
         private bool _armed = true;
         public BandEnvelope(double windowMs, double floorDb, AudioSettings settings, bool bass)
         {
             _settings = settings;
-            _windowMs = windowMs;
             _useSpectral = (bass ? settings.BassDetectionMethod : settings.HighDetectionMethod) == "spectral";
             _spectralThreshold = bass ? settings.BassSpectralThreshold : settings.HighSpectralThreshold;
             _triggerMode = bass ? settings.BassTriggerMode : settings.HighTriggerMode;
-            _separationMs = bass ? settings.BassTransientSeparationMilliseconds : settings.HighTransientSeparationMilliseconds;
+            _peaks = new OnsetPeakPicker(bass ? settings.BassPeakConfirmationMilliseconds : settings.HighPeakConfirmationMilliseconds,
+                bass ? settings.BassTransientSeparationMilliseconds : settings.HighTransientSeparationMilliseconds);
             _history = Enumerable.Repeat(-180.0, Math.Max(1, (int)Math.Round((bass ? settings.BassOnsetRiseWindowMilliseconds : settings.HighOnsetRiseWindowMilliseconds) / windowMs))).ToArray();
             _floorDb = floorDb;
             _attack = 1 - Math.Exp(-windowMs / (bass ? settings.BassAttackMilliseconds : settings.HighAttackMilliseconds));
             _release = 1 - Math.Exp(-windowMs / (bass ? settings.BassReleaseMilliseconds : settings.HighReleaseMilliseconds));
             _backgroundFollow = 1 - Math.Exp(-windowMs / settings.BackgroundMilliseconds);
         }
-        public BandReading Update(double rms, double? flux)
+        public BandReading Update(double rms, double? flux, double audioMilliseconds)
         {
             _fast += (rms > _fast ? _attack : _release) * (rms - _fast);
             _background += _backgroundFollow * (rms - _background);
@@ -149,18 +149,19 @@ internal sealed class AudioOnsetDetector
             var riseDb = envDb - _history[_historyIndex];
             _history[_historyIndex] = envDb;
             _historyIndex = (_historyIndex + 1) % _history.Length;
-            _elapsedMs += _windowMs;
+            _elapsedMs = audioMilliseconds;
             // A new attack can emerge above sustained music before the slow threshold is crossed.
             var newAttack = _triggerMode != "level" && riseDb >= _settings.OnsetRiseDb &&
                 envDb >= Math.Max(_floorDb, backgroundDb + _settings.RearmMarginDb);
             var levelTrigger = _triggerMode != "rise" && _armed && envDb >= thresholdDb;
             var spectralTrigger = flux >= _spectralThreshold && envDb >= _floorDb;
-            var onset = (_useSpectral ? spectralTrigger : (levelTrigger || newAttack)) &&
-                _elapsedMs - _lastOnsetMs >= _separationMs;
-            if (onset) { _armed = false; _lastOnsetMs = _elapsedMs; }
-            // If both rules qualify, report the level rule; rapid rise means it was needed.
-            return new BandReading(envDb, backgroundDb, thresholdDb, onset,
-                onset ? (_useSpectral ? "spectral" : levelTrigger ? "threshold" : "rise") : null);
+            var qualifies = _useSpectral ? spectralTrigger : (levelTrigger || newAttack);
+            var reason = _useSpectral ? "spectral" : levelTrigger ? "threshold" : "rise";
+            // Envelope peaks rank by level; spectral peaks rank by novelty. Preserve the measured frame.
+            DetectionPeak? candidate = qualifies ? new(_elapsedMs, envDb, thresholdDb, reason, _useSpectral ? flux!.Value : envDb) : null;
+            var peak = _peaks.Update(_elapsedMs, candidate);
+            if (peak.HasValue) _armed = false;
+            return new BandReading(envDb, backgroundDb, thresholdDb, peak.HasValue, peak?.Reason, peak);
         }
     }
 }

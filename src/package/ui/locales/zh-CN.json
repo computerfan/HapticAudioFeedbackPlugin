@@ -329,5 +329,8 @@
   "Experimental frequency-change detection for detail, with envelope bass and no confirmation delay.": "对细节使用实验性频率变化检测，低音使用包络检测，不增加确认延迟。",
   "Bass vibrato suppression": "低音颤音抑制",
   "Detail vibrato suppression": "细节颤音抑制",
-  "Spectral mode only. 0 is off; larger values tolerate wider pitch movement but may miss nearby new notes.": "仅频谱模式。0 为关闭；值越大，可容忍越大的音高波动，但可能漏掉相邻音高的新音符。"
+  "Spectral mode only. 0 is off; larger values tolerate wider pitch movement but may miss nearby new notes.": "仅频谱模式。0 为关闭；值越大，可容忍越大的音高波动，但可能漏掉相邻音高的新音符。",
+  "Bass extra confirmation delay": "低音额外确认延迟",
+  "Detail extra confirmation delay": "细节额外确认延迟",
+  "0 sends immediately. Otherwise wait this long and keep the strongest eligible peak. Adds real latency; event-age limit adjusts with it.": "0 为立即发送。否则等待此时长并保留最强的合格峰值。会增加实际延迟，事件有效期上限会随之调整。"
 }

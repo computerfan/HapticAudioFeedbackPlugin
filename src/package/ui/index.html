@@ -106,6 +106,8 @@ const basic=[
  ['HighGainDb','Detail sensitivity',-12,12,1,' dB','Reduce if vocals and bright instruments create too many taps.']
 ];
 const advanced=[
+ ['BassPeakConfirmationMilliseconds','Bass extra confirmation delay',0,100,5,' ms','0 sends immediately. Otherwise wait this long and keep the strongest eligible peak. Adds real latency; event-age limit adjusts with it.'],
+ ['HighPeakConfirmationMilliseconds','Detail extra confirmation delay',0,100,5,' ms','0 sends immediately. Otherwise wait this long and keep the strongest eligible peak. Adds real latency; event-age limit adjusts with it.'],
  ['BassVibratoSuppressionBins','Bass vibrato suppression',0,3,1,'','Spectral mode only. 0 is off; larger values tolerate wider pitch movement but may miss nearby new notes.'],
  ['HighVibratoSuppressionBins','Detail vibrato suppression',0,3,1,'','Spectral mode only. 0 is off; larger values tolerate wider pitch movement but may miss nearby new notes.'],
  ['BassSpectralThreshold','Bass spectral threshold',.01,1,.01,'','Minimum relative positive spectral change. Lower detects smaller changes; applies only to spectral mode.'],
@@ -181,6 +183,7 @@ byId('useDevice').onclick=()=>{
  byId('deviceStatus').textContent=t('Switching audio source…');queueSave();
 };
 function constrainTuning(){
+ settings.MaximumEventAgeMilliseconds=Math.max(settings.MaximumEventAgeMilliseconds,Math.max(settings.BassPeakConfirmationMilliseconds,settings.HighPeakConfirmationMilliseconds)+5);
  settings.RearmMarginDb=Math.min(settings.RearmMarginDb,settings.OnsetMarginDb-.5);
  settings.BackgroundMilliseconds=Math.max(settings.BackgroundMilliseconds,Math.floor(Math.max(settings.AttackMilliseconds,settings.ReleaseMilliseconds,settings.BassAttackMilliseconds,settings.BassReleaseMilliseconds,settings.HighAttackMilliseconds,settings.HighReleaseMilliseconds)/50)*50+50);
  settings.SustainSlowIntervalMilliseconds=Math.max(settings.SustainSlowIntervalMilliseconds,settings.SustainFastIntervalMilliseconds);
@@ -218,6 +221,7 @@ function sync(){
   const el=byId(key);if(!el)continue;if(el.type==='checkbox')el.checked=value;else el.value=value;
   const out=byId(key+'Value');if(out){out.textContent=value+(el.dataset.unit||'');el.setAttribute('aria-valuetext',out.textContent);}
  }
+ byId('MaximumEventAgeMilliseconds').min=Math.max(settings.BassPeakConfirmationMilliseconds,settings.HighPeakConfirmationMilliseconds)+5;
  byId('RearmMarginDb').max=settings.OnsetMarginDb-.5;
  byId('BackgroundMilliseconds').min=Math.floor(Math.max(settings.AttackMilliseconds,settings.ReleaseMilliseconds,settings.BassAttackMilliseconds,settings.BassReleaseMilliseconds,settings.HighAttackMilliseconds,settings.HighReleaseMilliseconds)/50)*50+50;
  byId('SustainSlowIntervalMilliseconds').min=settings.SustainFastIntervalMilliseconds;
@@ -229,7 +233,7 @@ function sync(){
  }
  for(const band of ['Bass','High']){
   const enabled=settings[band==='Bass'?'BassEnabled':'HighEnabled'];
-  for(const suffix of ['TriggerMode','FilterQ','AttackMilliseconds','ReleaseMilliseconds','TransientSeparationMilliseconds'])byId(band+suffix).disabled=!enabled;
+  for(const suffix of ['TriggerMode','FilterQ','AttackMilliseconds','ReleaseMilliseconds','TransientSeparationMilliseconds','PeakConfirmationMilliseconds'])byId(band+suffix).disabled=!enabled;
   const spectral=settings[band+'DetectionMethod']==='spectral';
   byId(band+'DetectionMethod').disabled=!enabled;byId(band+'SpectralThreshold').disabled=!enabled||!spectral;byId(band+'VibratoSuppressionBins').disabled=!enabled||!spectral;
   byId(band+'TriggerMode').disabled=!enabled||spectral;
@@ -316,7 +320,7 @@ async function init(){
  if(!controlsBuilt){
   const destinations={BassGainDb:'bassControls',LowCenterHz:'bassControls',LowThresholdDb:'bassControls',HighGainDb:'detailControls',HighCenterHz:'detailControls',HighThresholdDb:'detailControls',OnsetMarginDb:'thresholdControls',OnsetRiseDb:'riseControls',OnsetRiseWindowMilliseconds:'riseControls',StrongBassAboveThresholdDb:'textures'};
   for(const [band,group] of [['Bass','bass'],['High','detail']]){
-   for(const suffix of ['FilterQ','AttackMilliseconds','ReleaseMilliseconds','TransientSeparationMilliseconds','SpectralThreshold','VibratoSuppressionBins'])destinations[band+suffix]=group+'Advanced';
+   for(const suffix of ['FilterQ','AttackMilliseconds','ReleaseMilliseconds','TransientSeparationMilliseconds','SpectralThreshold','VibratoSuppressionBins','PeakConfirmationMilliseconds'])destinations[band+suffix]=group+'Advanced';
    destinations[band+'OnsetRiseWindowMilliseconds']='riseControls';
    select(byId(group+'Advanced'),band+'DetectionMethod',(band==='Bass'?'Bass':'Detail')+' detection method',['envelope','spectral'],{envelope:'Envelope',spectral:'Spectral flux (experimental)'});
    select(byId(group+'Advanced'),band+'TriggerMode',(band==='Bass'?'Bass':'Detail')+' trigger mode',['both','level','rise'],{both:'Level + rapid rise',level:'Level only',rise:'Rapid rise only'});

@@ -62,6 +62,8 @@ internal sealed class AudioSettings
     public double HighSpectralThreshold { get; set; } = 0.12;
     public int BassVibratoSuppressionBins { get; set; } = 0;
     public int HighVibratoSuppressionBins { get; set; } = 0;
+    public double BassPeakConfirmationMilliseconds { get; set; } = 0;
+    public double HighPeakConfirmationMilliseconds { get; set; } = 0;
     public AudioSettings Copy() => (AudioSettings)MemberwiseClone();
 
     [System.Text.Json.Serialization.JsonIgnore]
@@ -124,6 +126,10 @@ internal sealed class AudioSettings
         Range(HighSpectralThreshold, .01, 1, nameof(HighSpectralThreshold));
         Range(BassVibratoSuppressionBins, 0, 3, nameof(BassVibratoSuppressionBins));
         Range(HighVibratoSuppressionBins, 0, 3, nameof(HighVibratoSuppressionBins));
+        Range(BassPeakConfirmationMilliseconds, 0, 100, nameof(BassPeakConfirmationMilliseconds));
+        Range(HighPeakConfirmationMilliseconds, 0, 100, nameof(HighPeakConfirmationMilliseconds));
+        if (MaximumEventAgeMilliseconds < Math.Max(BassPeakConfirmationMilliseconds, HighPeakConfirmationMilliseconds) + 5)
+            throw new ArgumentException("Maximum event age must allow confirmation delay plus one detector frame.");
         Range(Sensitivity, 0, 100, nameof(Sensitivity));
         Range(BassGainDb, -12, 12, nameof(BassGainDb));
         Range(HighGainDb, -12, 12, nameof(HighGainDb));

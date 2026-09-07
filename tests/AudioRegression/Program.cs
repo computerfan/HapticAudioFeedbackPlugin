@@ -136,6 +136,56 @@ Test("spectral neighborhood suppression reduces vibrato and retains a new attack
     Check(plain.Count(e => e.AudioMilliseconds > 200 && e.AudioMilliseconds < 1900) > suppressed.Count(e => e.AudioMilliseconds > 200 && e.AudioMilliseconds < 1900), "Vibrato suppression did not reduce repeated events.");
     Check(suppressed.Any(e => e.AudioMilliseconds >= 2000 && e.AudioMilliseconds < 2100), "New attack lost with suppression.");
 });
+Test("confirmation keeps strongest peak without extending its deadline or queueing", () =>
+{
+    var picker = new OnsetPeakPicker(20, 80);
+    DetectionPeak Peak(double time, double score) => new(time, -30, -40, "rise", score);
+    Check(picker.Update(100, Peak(100, 1)) == null, "Confirmation fired early.");
+    Check(picker.Update(110, Peak(110, 3)) == null, "Stronger peak fired early.");
+    var peak = picker.Update(120, Peak(120, 2));
+    Check(peak?.AudioMilliseconds == 110, "Strongest peak or fixed deadline lost.");
+    Check(picker.Update(125, Peak(125, 10)) == null && picker.Update(190, null) == null, "Cooldown queued another pulse.");
+});
+Test("confirmed events preserve the exact measured frame across sample rates", () =>
+{
+    foreach (var rate in new[] { 44100, 48000, 96000 })
+    {
+        var settings = new AudioSettings { HighEnabled = false, BassPeakConfirmationMilliseconds = 20 };
+        var detector = new AudioOnsetDetector(rate, 1, settings);
+        var trace = new AudioTraceHistory(); var origin = DateTime.UtcNow; var events = 0;
+        var audio = Enumerable.Range(0, rate).Select(i => (float)(i < rate / 5 ? 0 : Tone((double)i / rate, 100))).ToArray();
+        detector.Process(audio, onset =>
+        {
+            events++;
+            Check(detector.AudioMilliseconds >= 220 && detector.AudioMilliseconds >= onset.AudioMilliseconds, "Confirmation fired before its interval or used a future timestamp.");
+            Check(trace.MarkSent(onset.AudioMilliseconds, onset.Band, onset.TriggerReason), "Confirmed event lost exact trace alignment.");
+        }, reading => trace.Add(origin.AddMilliseconds(reading.AudioMilliseconds), reading.AudioMilliseconds, reading.Low.EnvelopeDb, reading.High.EnvelopeDb, reading.Low.ThresholdDb, reading.High.ThresholdDb));
+        Check(events > 0, "No confirmed attack.");
+    }
+});
+Test("follow-up settings round-trip and reject invalid combinations", () =>
+{
+    var value = new AudioSettings { HighDetectionMethod = "spectral", HighSpectralThreshold = .23, HighVibratoSuppressionBins = 2, HighPeakConfirmationMilliseconds = 30 };
+    var saved = System.Text.Json.JsonSerializer.Deserialize<AudioSettings>(System.Text.Json.JsonSerializer.Serialize(value))!;
+    Check(saved.HighDetectionMethod == "spectral" && saved.HighSpectralThreshold == .23 && saved.HighVibratoSuppressionBins == 2 && saved.HighPeakConfirmationMilliseconds == 30, "Follow-up settings lost.");
+    foreach (var invalid in new[] { new AudioSettings { BassDetectionMethod = "unknown" }, new AudioSettings { HighSpectralThreshold = double.NaN }, new AudioSettings { HighVibratoSuppressionBins = 4 }, new AudioSettings { HighPeakConfirmationMilliseconds = 100 }, new AudioSettings { BassPeakConfirmationMilliseconds = -1 } })
+    {
+        bool rejected = false;
+        try { invalid.Validate(); } catch (ArgumentException) { rejected = true; }
+        Check(rejected, "Invalid follow-up settings accepted.");
+    }
+});
+Test("spectral processing uses bounded reusable working buffers", () =>
+{
+    var detector = new SpectralFluxDetector(48000, 2, new AudioSettings { HighVibratoSuppressionBins = 3 });
+    for (int i = 0; i < 4800; i++) { detector.Add(0, .1f); detector.Add(1, -.1f); detector.Advance(); }
+    long before = GC.GetAllocatedBytesForCurrentThread();
+    var started = System.Diagnostics.Stopwatch.GetTimestamp();
+    for (int i = 0; i < 480000; i++) { detector.Add(0, .1f); detector.Add(1, -.1f); detector.Advance(); }
+    var allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+    Check(allocated < 1024, "Spectral hot path allocates per frame.");
+    Console.WriteLine($"Spectral stereo: 10 s simulated in {System.Diagnostics.Stopwatch.GetElapsedTime(started).TotalMilliseconds:F0} ms; {allocated} allocated bytes.");
+});
 Test("silence produces no feedback", () =>
     Check(Analyze(48000, 2, (_, _) => 0).Events.Count == 0, "Silence triggered."));
 Test("steady bass stops producing candidates after its initial attack", () =>
